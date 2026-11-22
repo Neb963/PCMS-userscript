@@ -11,4 +11,4 @@
 7. Validate the full distributable userscript near release: metadata, `@match`, isolated execution context, one output file, no `eval`, no embedded secrets, deterministic build, Firefox/Violentmonkey install/interaction.
 8. Update CI only when the corresponding phase introduces code that can be verified. Keep the checks and job names unambiguous. Record non-CI live deferrals in `todo.md`.
 
-The current workflow runs bootstrap checks only. Later phases should add small, purpose-specific jobs, not a permanent monolithic test suite.
+Current CI runs build/syntax/reference checks and synthetic contracts. A separate path-filtered UI job runs Chromium/Firefox. No workflow has live credentials or performs provider mutations.

@@ -1,3 +1,5 @@
-# Implementation source (to be added by phases)
+# Production source
 
-No production userscript exists yet. Do **not** copy the simulated reference into `src/`. P01 creates the userscript entry and repeatable single-file build. The module layout is described in `ARCHITECTURE.md`; add only folders needed by the phase in progress.
+`entry.user.js` is the production entry and metadata. `npm run build` bundles its local named modules into one deterministic `dist/PCMS.user.js`. No runtime package dependency or simulated reference is included. Native and GitHub write gates remain disabled pending actual Firefox/Violentmonkey qualification.
+
+Runtime/worker dispatch, persistent state, native/GitHub adapters, workflows, Refresher and UI have separate modules. See `ARCHITECTURE.md`, `docs/integration-matrix.md` and `docs/operator-qualification.md`.

@@ -1,6 +1,6 @@
 # Verification strategy
 
-The repository starts as a planning scaffold. A successful documentation check does **not** establish production userscript behavior.
+The repository has an implemented candidate with synthetic tests. A successful documentation check does **not** establish production userscript behavior.
 
 ## Evidence classes
 
@@ -25,8 +25,11 @@ Use synthetic/CI checks first. If live access is unavailable and the current pha
 ## CI commands (grow with production code)
 
 - `npm run check:bootstrap` — repo structure, phase plan and immutable reference hashes.
-- `npm test` — Node unit/integration tests; bootstrap tests exist now.
-- Future phases add `npm run build`, `npm run check:syntax`, `npm run test:ui`, and narrowly scoped adapters as needed. Do not add an inert command that reports success without checking anything.
+- `npm test` — Node unit/integration tests; domain, adapter and integrated lifecycle fixtures.
+- `npm run build` / `npm run check:syntax` — deterministic production bundle and syntax.
+- `npm run test:ui` — Chromium; `PCMS_UI_BROWSER=firefox npm run test:ui` — Firefox. Both route to synthetic fixtures.
+- `npm run check:candidate` — exact artifact/source match, metadata, version, no fixture/private-key/token payload, disabled qualification gates and SHA-256.
+- Real native effects require the separate live qualification described in `docs/operator-qualification.md`.
 
 ## Recording a deferral
 

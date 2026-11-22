@@ -4,7 +4,7 @@
 
 PCMS manages one Perchance account per Firefox profile through a Violentmonkey userscript. It imports generators, manages GitHub source, runs approved AI Helper workflows and pure-FIFO refreshing. The accepted product contract is [references/PCMS-authoritative-specification-v1.4.md](references/PCMS-authoritative-specification-v1.4.md).
 
-**Current status: incremental implementation.** Production entry and deterministic build exist; native operations are not enabled. See `todo.md` and `docs/verification.md` for actual evidence and deferred checks. The v2.0.0 UI file under `references/ui/` is an **isolated simulation**, not production code or a ready-to-install release.
+**Current status: implemented candidate; live qualification pending.** P00–P30 synthetic contracts and browser checks pass. P01 real installation and P31 fresh-profile/native acceptance remain deferred. Native operations and application GitHub writes are disabled. See `todo.md` and `docs/verification.md` for actual evidence and deferred checks. The v2.0.0 UI file under `references/ui/` is an **isolated simulation**, not production code or a ready-to-install release.
 
 ## Start here
 
@@ -19,9 +19,12 @@ Initial local check (Node.js 24):
 ```sh
 npm run check:bootstrap
 npm test
+npm run build
+npm run check:syntax
+npm run check:candidate
 ```
 
-The bootstrap CI validates planning files and immutable references only. Add code/build and domain tests in the phases that implement those capabilities; do not report these scaffold checks as production tests.
+Checks run build, syntax, immutable-reference and synthetic contract tests. Chromium/Firefox CI uses synthetic Perchance routing. It does not prove native provider behavior. See [operator qualification](docs/operator-qualification.md), [candidate release notes](docs/release-candidate.md), and the [integration matrix](docs/integration-matrix.md).
 
 ## Reference precedence
 

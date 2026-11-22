@@ -224,10 +224,10 @@
 
 ### P30 — Integration and failure regression
 
-- [ ] Exercise the full synthetic workflow path and interruption matrix.
-- [ ] Add targeted browser automation for navigation and state updates.
-- [ ] Run operator-controlled live Firefox/Violentmonkey checks when available, recording exact deferrals otherwise.
-- [ ] **Accept:** All simulated contracts pass; any unverified native effect is labeled as such and cannot be silently enabled.
+- [x] Exercise the full synthetic workflow path and interruption matrix.
+- [x] Add targeted browser automation for navigation and state updates.
+- [x] Run operator-controlled live Firefox/Violentmonkey checks when available, recording exact deferrals otherwise.
+- [x] **Accept:** All simulated contracts pass; any unverified native effect is labeled as such and cannot be silently enabled.
 
 ### P31 — Release and fresh-profile verification
 

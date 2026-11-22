@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import vm from 'node:vm';
+import {bundle} from './build.mjs';
+import {LIVE_CAPABILITIES} from '../src/adapters/perchance/session.js';
+import {INTEGRATION_PROOF} from '../src/runtime/context.js';
+const artifact=await readFile('dist/PCMS.user.js','utf8'),expected=await bundle(resolve('src/entry.user.js')),pkg=JSON.parse(await readFile('package.json','utf8'));
+assert.equal(artifact,expected,'build differs from source');assert.equal(expected,await bundle(resolve('src/entry.user.js')),'nondeterministic build');new vm.Script(artifact);
+const metadata=artifact.match(/^\/\/ ==UserScript==[\s\S]*?^\/\/ ==\/UserScript==/m)?.[0];assert.ok(metadata);assert.equal(metadata.match(/@version\s+(\S+)/)?.[1],pkg.version);assert.deepEqual([...metadata.matchAll(/@match\s+(\S+)/g)].map(m=>m[1]),['https://perchance.org/*']);assert.deepEqual([...metadata.matchAll(/@connect\s+(\S+)/g)].map(m=>m[1]).sort(),['api.github.com','perchance.org','user.uploads.dev']);assert.match(metadata,/@inject-into\s+content/);
+assert.doesNotMatch(artifact,/SIMULATION ONLY|synthetic-private-source|synthetic-secret|\beval\s*\(|new Function|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/);
+assert.ok(Object.values(LIVE_CAPABILITIES).every(v=>v===false),'candidate must retain all unqualified native gates');assert.equal(INTEGRATION_PROOF.githubWrite,false,'candidate GitHub mutation gate must remain false');
+console.log(JSON.stringify({kind:'disabled-candidate',version:pkg.version,bytes:Buffer.byteLength(artifact),sha256:createHash('sha256').update(artifact).digest('hex'),nativeMutationGates:'disabled',githubMutationGate:'disabled'}));

@@ -1,4 +1,4 @@
-# Proposed implementation structure
+# Implementation structure
 
 This is a **code organization plan**, not an additional product specification. Implement modules when a phase needs them; merge folders if that removes unnecessary indirection. Do not create empty factories or a generic workflow engine.
 
@@ -11,13 +11,13 @@ PCMS-userscript/
   ci-guidelines.md / TESTING.md
   references/                  immutable product, discovery, UI reference
   src/
-    entry.user.js              future userscript source + metadata
+    entry.user.js              production userscript source + metadata
     runtime/                   coordinator, worker dispatch, tab roles
     state/                     one durable userscript store, journal, holds
     adapters/
       perchance/               verified native editor/read-only operations
       github/                  main snapshot, status.md, complete-source commits
-    workflows/                 import, reservation, publish, development, sync
+    workflows/                 import, reservation, publish, sync, edit, maintenance, recovery
     refresher/                 pure FIFO schedule and native Save worker
     ui/                        accepted views and shared interaction primitives
     shared/                    small shared types, validation, errors
@@ -28,7 +28,7 @@ PCMS-userscript/
     fixtures/                  synthetic data only
   scripts/                      build, checks, release helpers
   dist/                         generated artifact; not committed
-  .github/workflows/ci.yml      lightweight initial CI
+  .github/workflows/ci.yml      build, syntax and synthetic checks
 ```
 
 ## Data and control boundaries
