@@ -70,10 +70,10 @@
 
 ### P08 — Perchance inventory and saved-source reader
 
-- [ ] Read inventory and generator ID/slug/listing independently of UI cache.
-- [ ] Read complete PJS, HTML, exact `src/` path-and-byte set.
-- [ ] Test empty `src/`, rename, disappearing slug, missing file and corrupted readback.
-- [ ] **Accept:** Saved-source comparison is exact and does not treat absent reads as deletion.
+- [x] Read inventory and generator ID/slug/listing independently of UI cache.
+- [x] Read complete PJS, HTML, exact `src/` path-and-byte set.
+- [x] Test empty `src/`, rename, disappearing slug, missing file and corrupted readback.
+- [x] **Accept:** Saved-source comparison is exact and does not treat absent reads as deletion.
 
 ### P09 — GitHub reader and status parser
 

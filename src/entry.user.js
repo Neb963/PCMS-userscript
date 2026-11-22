@@ -8,6 +8,9 @@
 // @noframes
 // @inject-into  content
 // @grant        GM_registerMenuCommand
+// @connect      perchance.org
+// @connect      user.uploads.dev
+// @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -18,6 +21,8 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { privilegedRequest } from './adapters/http.js';
+import { PerchanceReader } from './adapters/perchance/reader.js';
 import { NativePage, SessionGate } from './adapters/perchance/session.js';
 import { WorkerPool, WorkerRuntime, watchProtectedStore } from './runtime/workers.js';
 import { Coordinator } from './runtime/coordinator.js';
@@ -57,9 +62,15 @@ async function startAssignedWorker() {
   if (!id) return;
   const store = new ProtectedStore({ get: GM_getValue, set: GM_setValue, locks: navigator.locks });
   const runtime = new WorkerRuntime({ store, id, documentId: crypto.randomUUID(), doc: document, execute: async command => {
-    if (command.kind !== 'inspect-target') return { outcome: 'rejected', reason: 'capability-unavailable' };
     const native = new NativePage(unsafeWindow);
-    await new SessionGate(store, native).requireOwner(command.target);
+    const gate = new SessionGate(store, native);
+    const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
+    if (command.kind === 'read-saved') {
+      await gate.requireOwner(command.target);
+      return { outcome: 'verified', data: await reader.saved(command.target.slug, command.target.id) };
+    }
+    if (command.kind !== 'inspect-target') return { outcome: 'rejected', reason: 'capability-unavailable' };
+    await gate.requireOwner(command.target);
     await native.ready(command.target);
     return { outcome: 'verified' };
   } });

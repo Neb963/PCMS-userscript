@@ -76,6 +76,7 @@ export class WorkerPool {
         coordinator.assertOwner(current);
         const own = current.workers[worker.id];
         requireThat(own?.documentId === reply.documentId, 'stale-worker-reply');
+        if (own.outbox?.data !== undefined) current.jobs[command.id].data = structuredClone(own.outbox.data);
         delete own.outbox;
         own.phase = reply.outcome === 'unknown' ? (own.role === 'development' ? 'busy' : 'retained') : 'idle';
       });
@@ -147,7 +148,7 @@ export class WorkerRuntime {
       await this.store.transact(current => {
         const own = current.workers[this.id];
         requireThat(own?.documentId === this.documentId, 'worker-document-changed');
-        own.outbox = { jobId: command.id, term: command.term, documentId: this.documentId, outcome: result.outcome, reason: result.reason || null };
+        own.outbox = { jobId: command.id, term: command.term, documentId: this.documentId, outcome: result.outcome, reason: result.reason || null, ...(result.data !== undefined ? { data: structuredClone(result.data) } : {}) };
         delete own.inbox;
         // Coordinator accepts the result before this worker can run another job.
       });

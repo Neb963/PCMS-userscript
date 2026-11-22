@@ -56,3 +56,10 @@
 - Manual binding and explicit confirmation, opaque session-change detection, independent owner read and exact editor ID/slug/draft readiness.
 - Tests reject signed-out/changed sessions, wrong ownership and target, pending draft choice and locked account changes. Account ID is never derived from native user data.
 - Native write capability flags remain false; no UI setting can bypass them. Live owner/session verification remains DEFERRED with the Firefox/Violentmonkey disposable-profile checks.
+
+## P08
+
+- Build/syntax and 31 Node tests PASS.
+- Independent native inventory/owner/metadata reads and complete saved PJS/HTML/manifest-byte retrieval, with metadata coherence checked before/after all files.
+- Tests cover empty src, missing panels/manifest/file, corrupted byte length, wrong ID, concurrent Save, rename and absent inventory. No absence is treated as deletion.
+- Privileged HTTP restricts HTTPS hosts and credential target; bytes and challenge/redirect responses validated. Native reads require live disposable-profile confirmation before operational claims.

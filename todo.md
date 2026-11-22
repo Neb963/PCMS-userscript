@@ -1,20 +1,20 @@
 # Active work — handoff
 
-**Current phase:** P08 — Perchance inventory and saved-source reader. **Status:** Planned.
+**Current phase:** P09 — GitHub reader and status parser. **Status:** Planned.
 
 ## Next action
 
-- Read inventory with native session, then independently resolve ID/slug/Listing and exact saved source/files.
-- Validate manifest, binary lengths, independent revision consistency and absent reads as Unknown.
-- Test empty src, rename, missing/corrupt files and incomplete readback.
+- Validate exact GitHub repository URLs and read main/tree/blobs coherently at one commit.
+- Parse status, select manual account requests and preserve identity of changed/stale requests.
+- Test malformed/missing/offline snapshots and changed repository.
 
 ## Evidence
 
-- P07: 25 tests/build/syntax pass; manual account/session and native owner/identity gates. See `docs/verification.md`.
+- P08: 31 tests/build/syntax pass; independent native metadata and exact source/file checks. See `docs/verification.md`.
 
 ## Blockers / deferred checks
 
-- DEFERRED — P01/P06/P07 — actual Firefox/Violentmonkey install, session and native tab activation — disposable profile unavailable.
-- Native write capabilities remain false pending live verification.
+- DEFERRED — P01/P06/P07/P08 — actual Firefox/Violentmonkey install, session, inventory/source and retained-tab activation — disposable profile unavailable.
+- Native write capability flags remain false.
 
-**Last pushed commit:** 84da78e7a9fa8b1c64690b8bb57282b0a3367f4e.
+**Last pushed commit:** d356fe289e3953b62dbb5a36ee96daaf585f2151.
