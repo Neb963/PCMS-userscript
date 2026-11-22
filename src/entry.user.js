@@ -20,6 +20,8 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { InventoryController } from './state/inventory.js';
+import { inventoryRenderer } from './ui/inventory.js';
 import { overviewRenderer } from './ui/overview.js';
 import { SettingsController } from './state/settings.js';
 import { settingsRenderer } from './ui/settings.js';
@@ -128,12 +130,13 @@ if (isAppPage(location)) {
   const request = (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options);
   const native = new NativePage(unsafeWindow);
   const gate = new SessionGate(store, native);
+  const inventory = new InventoryController({ store, native, gate, reader: new PerchanceReader({ native, gate, request }) });
   const controller = new SettingsController({ store, request });
   const poller = new GitHubPoller({ store, request });
   let runtime;
   const ui = mountShell(document, host, {
     onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
-    renderers: { overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
+    renderers: { generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
       requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
       signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
     }) },

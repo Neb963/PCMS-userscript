@@ -1,7 +1,8 @@
 import { el, button } from './dom.js';
+import { inventoryRows, generatorStates } from '../state/inventory.js';
 import { actionCases, operationRows } from './overview-model.js';
 import { exportJournal } from '../state/journal.js';
-import { CSS, SETTINGS_CSS, OVERVIEW_CSS } from './styles.js';
+import { CSS, SETTINGS_CSS, OVERVIEW_CSS, INVENTORY_CSS } from './styles.js';
 
 export const MAIN_ROUTES = Object.freeze(['overview', 'generators', 'reviews', 'refresher']);
 export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generators', reviews: 'Reviews', refresher: 'Refresher', settings: 'Settings', utility: 'Utility', sync: 'GitHub sync', import: 'Bulk Import' });
@@ -12,7 +13,7 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
     theme: state.settings.theme,
     restored: true,
     storageAvailable: true,
-    generators: Object.values(state.generators).map(g => ({ id: g.id, slug: g.slug, listing: g.listing, status: g.status, holds: g.holds, excluded: g.excluded })),
+    generators: inventoryRows(state).map(g => ({ id:g.id, slug:g.slug, listing:g.listing, status:g.status, holds:g.holds, excluded:g.excluded, managed:g.managed, ownerVerified:g.ownerVerified===true, savedVerified:g.savedVerified===true, localDone:g.localDone===true, localApproved:g.localApproved===true, states:generatorStates(g,state) })),
     journalCount: state.journal.length,
     coordinator,
     casesKnown: coordinator === 'Verified',
@@ -24,7 +25,7 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
 
 export function mountShell(doc, host, { snapshot = { restored: false }, onTheme = async () => {}, renderers = {} } = {}) {
   const root = host.attachShadow({ mode: 'closed' });
-  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS);
+  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS + INVENTORY_CSS);
   let route = 'overview';
   let model = snapshot;
   let view = null;
