@@ -1,0 +1,28 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.har
+*.mhtml
+*.cookies
+*.pem
+*.key
+*.p12
+*.pfx
+*.zip
+# Planner-only file from the external handoff package must never enter the repository.
+operator-only/
+_operator-only/
+# Local tooling and profile data
+.tmp/
+.cache/
+.firefox-profile/
+playwright/.auth/

@@ -1,0 +1,12 @@
+{
+  "name": "pcms-userscript",
+  "private": true,
+  "version": "0.0.0",
+  "description": "PCMS userscript planning scaffold (no production runtime yet)",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "check:bootstrap": "node scripts/check-bootstrap.mjs",
+    "test": "node --test tests/bootstrap.test.mjs"
+  }
+}
