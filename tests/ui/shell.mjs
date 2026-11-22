@@ -22,6 +22,8 @@ for(let i=0;i<48;i++){
 }
 initialState.requestQueue={};initialState.utility={};
 for(let i=0;i<35;i++){const id='utility-'+i,request={valid:true,slug:'synthetic-utility-'+String(i).padStart(2,'0'),repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),requestCommit:'a'.repeat(40),instructions:[],status:{account:'synthetic-account',action:'publish_from_github',state:'ready'}};initialState.requestQueue[id]={id,request,phase:i===1?'reserved':'waiting',closed:false,reason:'live-verification-required'};if(i===1)initialState.utility[id]={id,request,phase:'reserved',steps:['request checked','slug checked','identity checked']};}
+initialState.generators['101'].localDone=true;initialState.generators['101'].localApproved=true;initialState.generators['101'].holds=[{id:'sync-conflict-source',kind:'source-conflict'}];
+for(let i=0;i<32;i++){const id=i===0?'conflict-source':'synced-'+i;initialState.pending[id]={id,generatorId:'101',slug:'synthetic-generator-01',repository:{owner:'synthetic',name:'original-repository'},baseCommit:'a'.repeat(40),kind:i===0?'source':'status',status:{account:'synthetic-account',action:'develop',state:'done'},phase:i===0?'source-conflict':'synced',nativeVerified:true,...(i===0?{source:{pjs:'synthetic-private-sync-source',html:'<p>protected</p>',files:{}},previousSource:{pjs:'previous',html:'previous',files:{}},listingIntent:'listed',approval:{id:'synthetic-approval',kind:'review',draftId:'draft',workerId:'retained',documentId:'doc',confirmedAt:1},draftId:'draft',retainedTab:'retained'}:{})};}
 try {
   for (const scenario of [...[1440,1024,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
     const {width}=scenario;
@@ -146,6 +148,20 @@ try {
     assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false);
     await app.getByRole('button', { name: 'Back', exact: true }).click();
     assert.equal(await app.getByRole('heading', { name: 'Overview', exact: true }).count(), 1);
+    await app.getByRole('button',{name:'Open GitHub sync',exact:true}).click();
+    await app.getByRole('list',{name:'Synchronization jobs',exact:true}).waitFor();
+    const syncList=app.getByRole('list',{name:'Synchronization jobs',exact:true});assert.equal(await syncList.getByRole('listitem').count(),32);
+    await syncList.getByRole('listitem').first().click();
+    const keepLocal=app.getByRole('button',{name:'Keep approved local',exact:true});assert.equal(await keepLocal.isDisabled(),true);assert.equal(await app.getByRole('button',{name:'Publish GitHub version',exact:true}).isDisabled(),true);
+    assert.equal((await app.textContent()).includes('synthetic-private-sync-source'),false);
+    const sourceFooter=await app.locator('.sync-footer').boundingBox();assert.ok(sourceFooter.y+sourceFooter.height<=768);
+    if(width>=1024)assert.equal(await app.locator('.sync-details').evaluate(n=>n.scrollHeight>n.clientHeight+1),false);
+    await app.getByRole('button',{name:'Stop managing',exact:true}).click();
+    await app.getByRole('dialog',{name:'Stop managing',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
+    await app.getByRole('dialog',{name:'Stop managing',exact:true}).waitFor({state:'detached'});
+    assert.equal(await app.getByRole('button',{name:'Stop managing',exact:true}).evaluate(n=>n.getRootNode().activeElement===n),true);
+    assert.equal(await page.evaluate(async()=>JSON.parse(await window.GM.getValue('PCMS_STORE_V1')).pending['conflict-source'].phase),'source-conflict');
+    await app.getByRole('button',{name:'Back',exact:true}).click();
     await app.getByRole('button', { name: 'Show all', exact: true }).click();
     await app.getByRole('searchbox', { name: 'Search activity', exact: true }).fill('coordinator');
     const journalRow = app.getByRole('button', { name: 'Coordinator · verified', exact: true }).first();

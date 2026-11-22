@@ -1,3 +1,4 @@
+import {syncRecords} from '../workflows/sync.js';
 import { el, button, dialog, picker } from './dom.js';
 
 export function downloadJSON(doc, name, value) {
@@ -80,4 +81,4 @@ export function settingsRenderer({ store, controller, gate, poller, requestCrede
   };
 }
 
-export function systemCounts(state){return {Generators:Object.keys(state.generators).length,'Pending sync':Object.values(state.pending).filter(p=>p.phase!=='synced').length,Holds:Object.values(state.generators).reduce((n,g)=>n+(g.holds?.length||0),0),Workers:Object.values(state.workers).filter(w=>!['lost','released'].includes(w.phase)).length,'Unknown writes':Object.values(state.jobs).filter(j=>j.phase==='unknown').length,'Journal events':state.journal.length};}
+export function systemCounts(state){return {Generators:Object.keys(state.generators).length,'Pending sync':syncRecords(state).filter(p=>!['synced','stopped','reassigned','superseded'].includes(p.phase)).length,Holds:Object.values(state.generators).reduce((n,g)=>n+(g.holds?.length||0),0),Workers:Object.values(state.workers).filter(w=>!['lost','released'].includes(w.phase)).length,'Unknown writes':Object.values(state.jobs).filter(j=>j.phase==='unknown'&&!j.locallyStopped).length,'Journal events':state.journal.length};}

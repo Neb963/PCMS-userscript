@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {sourceEqual,parseStatus} from '../../src/shared/domain.js';
 import {testStore} from '../fixtures/store.mjs';
+import {enqueueSyncAction} from '../../src/workflows/sync.js';
 import {Publication} from '../../src/workflows/publication.js';
 import {Reservation} from '../../src/workflows/reservation.js';
 import {EditorSource} from '../../src/adapters/perchance/editor.js';
@@ -75,4 +76,9 @@ test('choosing GitHub source retains the previous approved snapshot until new na
   });const save=f.native.deploy;f.native.deploy=async(...args)=>{await save(...args);throw Error('reply lost');};
   assert.equal((await f.publication.run(f.request,'publish')).phase,'unknown');assert.equal((await f.store.read()).pending['old-approved'].phase,'publication-queued');
   assert.equal((await f.publication.run(f.request,'publish')).phase,'done');const s=await f.store.read();assert.equal(s.pending['old-approved'].phase,'superseded');assert.deepEqual(s.pending['old-approved'].source,f.previous);assert.equal(s.generators['123'].localApproved,false);assert.equal(s.generators['123'].holds.length,0);
+});
+test('a confirmed Stop intent prevents the Listing follow-up after an in-flight Save',async()=>{
+  const f=await fixture({created:true});let finish,started;const startedPromise=new Promise(resolve=>{started=resolve;}),wait=new Promise(resolve=>{finish=resolve;}),save=f.native.deploy;
+  f.native.deploy=async(...args)=>{await save(...args);started();await wait;};const running=f.publication.run(f.request,'publish');await startedPromise;
+  await enqueueSyncAction(f.store,'stop','publish-source',{confirmed:true});finish();await assert.rejects(running,/request-stopped/);assert.deepEqual(f.calls,['save']);assert.equal(f.live.listing,'unlisted');assert.equal((await f.store.read()).pending['publish-source'].stopRequested,true);
 });

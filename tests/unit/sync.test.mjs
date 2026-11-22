@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {testStore} from '../fixtures/store.mjs';
-import {Synchronizer,syncRecords} from '../../src/workflows/sync.js';
+import {Synchronizer,syncRecords,enqueueSyncAction} from '../../src/workflows/sync.js';
 import {refresherReason} from '../../src/state/inventory.js';
 import {parseStatus} from '../../src/shared/domain.js';
 
@@ -90,4 +90,21 @@ test('Stop managing preserves source and uncertain evidence without deleting the
 });
 test('active or lost Development slots must be resolved before Stop managing',async()=>{
   const f=await fixture();await f.store.transact(s=>{s.workers.dev={id:'dev',generatorId:'123',role:'development',phase:'lost'};});await assert.rejects(f.sync.stop('pending',true),/resolve-development-before-stop/);assert.ok((await f.store.read()).generators['123']);
+});
+test('a follower UI sends a confirmed comparison through protected intents for the active Coordinator',async()=>{
+  const f=await fixture();f.conflict();await f.sync.syncOne('pending');const follower=new Synchronizer({store:f.store,services:f.sync.services,guard:async()=>{throw Error('follower cannot write');}});
+  const compared=await follower.compare('pending');const intent=await follower.enqueueDecision(compared.token,'local',true);assert.equal(intent.queued,true);assert.equal(f.calls.length,0);
+  await f.sync.tickCommands();assert.equal((await f.store.read()).commands[intent.id].phase,'done');assert.equal((await f.store.read()).pending.pending.phase,'synced');assert.equal(f.calls.length,1);
+});
+test('changed comparison and changed reassign target are rejected when the active Coordinator receives an intent',async()=>{
+  const f=await fixture();f.conflict();await f.sync.syncOne('pending');const compared=await f.sync.compare('pending'),intent=await f.sync.enqueueDecision(compared.token,'local',true);f.remote.snapshot.commit='d'.repeat(40);await f.sync.tickCommands();assert.equal((await f.store.read()).commands[intent.id].reason,'comparison-changed');assert.equal(f.calls.length,0);
+  await f.store.transact(s=>{s.settings.github.repository={owner:'synthetic',name:'new-repo'};});const change=await enqueueSyncAction(f.store,'reassign','pending',{confirmed:true});await f.store.transact(s=>{s.settings.github.repository={owner:'synthetic',name:'different-repo'};});await f.sync.tickCommands();assert.equal((await f.store.read()).commands[change.id].reason,'sync-intent-changed');
+});
+test('duplicate clicks and simultaneous sync checks cannot create duplicate effects',async()=>{
+  const f=await fixture();const first=await enqueueSyncAction(f.store,'recheck','pending'),second=await enqueueSyncAction(f.store,'recheck','pending');assert.equal(first.id,second.id);assert.equal(Object.keys((await f.store.read()).commands).length,1);
+  const a=f.sync.syncOne('pending'),b=f.sync.syncOne('pending');assert.equal(a,b);await Promise.all([a,b]);await f.sync.tickCommands();assert.equal(f.calls.length,1);
+});
+test('a confirmed Stop intent inhibits further effects before the Coordinator processes its disposition',async()=>{
+  const f=await fixture();const intent=await enqueueSyncAction(f.store,'stop','pending',{confirmed:true});const pending=await f.store.read();assert.equal(pending.pending.pending.stopRequested,true);assert.equal(pending.generators['123'].stopRequested,true);await f.sync.syncOne('pending');assert.equal(f.calls.length,0);
+  await f.sync.tickCommands();assert.equal((await f.store.read()).pending.pending.phase,'stopped');assert.equal((await f.store.read()).commands[intent.id].phase,'done');
 });

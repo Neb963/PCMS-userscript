@@ -1,8 +1,9 @@
+import { syncRecords, approvedLocal } from '../workflows/sync.js';
 import { el, button } from './dom.js';
 import { inventoryRows, generatorStates } from '../state/inventory.js';
 import { actionCases, operationRows } from './overview-model.js';
 import { exportJournal } from '../state/journal.js';
-import { CSS, SETTINGS_CSS, OVERVIEW_CSS, INVENTORY_CSS, IMPORT_CSS } from './styles.js';
+import { CSS, SETTINGS_CSS, OVERVIEW_CSS, INVENTORY_CSS, IMPORT_CSS, SYNC_CSS } from './styles.js';
 
 export const MAIN_ROUTES = Object.freeze(['overview', 'generators', 'reviews', 'refresher']);
 export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generators', reviews: 'Reviews', refresher: 'Refresher', settings: 'Settings', utility: 'Utility', sync: 'GitHub sync', import: 'Bulk Import' });
@@ -10,6 +11,8 @@ export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generat
 export function publicSnapshot(state, { session = null, coordinator = 'Unverified' } = {}) {
   return {
     accountId: state.settings.account.accountId,
+    repositoryLabel: state.settings.github?.repository?state.settings.github.repository.owner+'/'+state.settings.github.repository.name:'Setup required',
+    syncJobs:syncRecords(state).map(p=>{const g=state.generators[p.generatorId],terminal=['synced','stopped','reassigned','superseded'].includes(p.phase),writeUnknown=Object.values(state.jobs).some(j=>j.kind==='github'&&JSON.stringify(j.repository)===JSON.stringify(p.repository)&&j.slug===p.slug&&(['dispatched','unknown'].includes(j.phase)||j.remoteOutcome==='unknown'));const lastAction=Object.values(state.commands||{}).filter(c=>c.kind==='sync-action'&&c.pendingId===p.id).at(-1);return {actionBusy:['queued','running'].includes(lastAction?.phase),actionStatus:lastAction?.phase||null,actionReason:lastAction?.reason||null,id:p.id,generatorId:p.generatorId||null,slug:p.slug,repositoryLabel:p.repository.owner+'/'+p.repository.name,oldRepository:!!state.settings.github?.repository&&JSON.stringify(p.repository)!==JSON.stringify(state.settings.github.repository),phase:p.phase,terminal,writeUnknown,local:g?.localDone&&g?.savedVerified?'Verified':p.phase==='stopped'?'Stopped':'Unverified',refresher:g?generatorStates({...g,managed:true},state).refresher:'Not managed',hasSource:p.kind==='source',nativeVerified:p.nativeVerified===true,baseCommit:p.baseCommit,canCompare:p.phase==='source-conflict'&&approvedLocal(p,g)&&!writeUnknown,approvalLabel:p.approval?.id||'Unverified',requestConflict:['request-conflict','account-conflict'].includes(p.phase),destination:p.status.action==='develop'&&g?.holds?.some(h=>['review','development'].includes(h.kind))?'reviews':'utility'};}),
     theme: state.settings.theme,
     restored: true,
     storageAvailable: true,
@@ -27,7 +30,7 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
 
 export function mountShell(doc, host, { snapshot = { restored: false }, onTheme = async () => {}, renderers = {} } = {}) {
   const root = host.attachShadow({ mode: 'closed' });
-  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS + INVENTORY_CSS + IMPORT_CSS);
+  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS + INVENTORY_CSS + IMPORT_CSS + SYNC_CSS);
   let route = 'overview';
   let model = snapshot;
   let view = null;

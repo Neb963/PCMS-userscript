@@ -1,3 +1,4 @@
+import {syncRecords} from '../workflows/sync.js';
 const CAUSES = Object.freeze({
   'listing-mismatch':[1,'Listing needs confirmation','generators','Resolve Listing'],
   'native-unknown':[2,'Save outcome unknown','generators','Recheck result'],
@@ -43,7 +44,7 @@ export function actionCases(state, { session = null, storageAvailable = true } =
 
 export function operationRows(state, coordinator, session) {
   const known=coordinator==='Verified';
-  const workers=Object.values(state.workers),utilityCommands=Object.values(state.commands||{}).filter(c=>c.kind==='bulk-import'),pending=Object.values(state.pending).filter(p=>p.phase!=='synced');
+  const workers=Object.values(state.workers),utilityCommands=Object.values(state.commands||{}).filter(c=>c.kind==='bulk-import'),pending=syncRecords(state).filter(p=>!['synced','stopped','reassigned','superseded'].includes(p.phase));
   return [
     {title:'Refresher',route:'refresher',status:!known?'Unknown':!session?.confirmed||state.settings.refreshPaused?'Paused':workers.some(w=>w.role==='refresher'&&w.phase==='busy')?'Running':'Unavailable',detail:`${state.fifo.length} in queue · ${state.settings.refreshCap} attempts/h`},
     {title:'AI Helper',route:'reviews',status:!known?'Unknown':`${workers.filter(w=>w.role==='development'&&w.phase==='busy').length} / 2 active`,detail:'Two running Development slots'},

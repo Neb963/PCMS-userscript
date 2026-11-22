@@ -17,7 +17,7 @@ export class CommandRunner {
   async tick(){
     if(this.busy||!this.coordinator.active)return;this.busy=true;
     try{
-      const state=await this.store.read(),command=Object.values(state.commands||{}).find(c=>c.phase==='queued');if(!command)return;
+      const state=await this.store.read(),command=Object.values(state.commands||{}).find(c=>c.kind==='bulk-import'&&c.phase==='queued');if(!command)return;
       await this.store.transact(s=>{this.coordinator.assertOwner(s);requireThat(s.commands[command.id].phase==='queued','command-already-claimed');s.commands[command.id].phase='running';s.commands[command.id].term=this.coordinator.term;});
       try{
         requireThat(command.kind==='bulk-import','unsupported-command');

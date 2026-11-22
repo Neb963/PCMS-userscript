@@ -21,6 +21,8 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { Synchronizer, enqueueSyncAction } from './workflows/sync.js';
+import { syncRenderer } from './ui/sync.js';
 import { RequestRunner } from './runtime/requests.js';
 import { Publication } from './workflows/publication.js';
 import { utilityRenderer } from './ui/utility.js';
@@ -97,7 +99,7 @@ function coordinate(store, ui = null) {
       if (Date.now() - lastPulse >= 5000) { await store.transact(state => { coordinator.assertOwner(state); state.coordinator.observedAt = Date.now(); }); lastPulse = Date.now(); }
       await pool.consume(coordinator);
       if(!requests.busy&&!commands.busy)commands.tick().then(()=>requests.tick()).catch(()=>{});
-      await poller.check(true);
+      synchronizer.tickCommands().catch(()=>{});synchronizer.tick().catch(()=>{});await poller.check(true);
     } catch { /* Durable state retains the unresolved command. */ }
     finally { consuming = false; }
   };
@@ -116,7 +118,8 @@ function coordinate(store, ui = null) {
     return new Reservation({store,reader:services.reader,gate,github:services.github,writer:services.writer,slugs:new SlugReader({request:(url,options)=>privilegedRequest(GM_xmlhttpRequest,url,options),reader:services.reader}),native:new NativeClient({store,pool,coordinator}),guard:services.guard,assertCurrent:current=>coordinator.assertOwner(current)});
   };
   const requests=new RequestRunner({store,coordinator,factory:async request=>{const reservation=await reservationWorkflow(request);if(request.status.action==='develop')return reservation;return new Publication({reservation,store,github:reservation.github,native:reservation.native,reader:reservation.reader,gate,locks:navigator.locks,guard:reservation.guard,assertCurrent:current=>coordinator.assertOwner(current)});}});
-  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests };
+  const synchronizer=new Synchronizer({store,services:async repo=>{const service=await importWorkflow({repository:repo});return {github:service.github,writer:service.writer,reader:service.reader};},guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current),importWorkflow});
+  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests, synchronizer };
 }
 
 async function startAssignedWorker() {
@@ -131,7 +134,7 @@ async function startAssignedWorker() {
     const gate = new SessionGate(store, native);
     const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
     if(command.kind==='navigate'){await cleanNavigation();return {outcome:'verified'};}
-    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,workerId:id,documentId:command.documentId,actionId:command.id,guard:async()=>{const state=await store.read();if(state.jobs[command.id]?.locallyStopped||state.jobs[command.payload?.actionId]?.locallyStopped||state.utility?.[state.jobs[command.payload?.actionId]?.requestId]?.stopped||state.coordinator.term!==command.term||state.coordinator.owner!==command.owner||state.workers[id]?.documentId!==command.documentId)throw Error('stale-native-command');},exporter:typeof exportFunction==='function'?exportFunction:null});
+    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,workerId:id,documentId:command.documentId,actionId:command.id,guard:async()=>{const state=await store.read();if(state.generators[command.target?.id]?.stopRequested||state.pending[command.payload?.pendingId]?.stopRequested||state.utility?.[state.jobs[command.payload?.actionId]?.requestId]?.stopRequested||state.jobs[command.id]?.locallyStopped||state.jobs[command.payload?.actionId]?.locallyStopped||state.utility?.[state.jobs[command.payload?.actionId]?.requestId]?.stopped||state.coordinator.term!==command.term||state.coordinator.owner!==command.owner||state.workers[id]?.documentId!==command.documentId)throw Error('stale-native-command');},exporter:typeof exportFunction==='function'?exportFunction:null});
     if(command.kind==='native-deploy')return {outcome:'verified',data:await actions.deploy(command.target,command.payload.pendingId)};
     if(command.kind==='native-create')return {outcome:'verified',data:await actions.create(command.payload.actionId)};
     if(command.kind==='native-listing')return {outcome:'verified',data:await actions.listing(command.target,command.payload.intent)};
@@ -182,7 +185,7 @@ if (isAppPage(location)) {
   let runtime;
   const ui = mountShell(document, host, {
     onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
-    renderers: { utility: utilityRenderer(), import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
+    renderers: { sync: syncRenderer({store,service:()=>({compare:id=>runtime.synchronizer.compare(id),syncOne:id=>enqueueSyncAction(store,'recheck',id),decide:(token,choice,confirmed)=>runtime.synchronizer.enqueueDecision(token,choice,confirmed),reassign:(id,confirmed)=>enqueueSyncAction(store,'reassign',id,{confirmed}),stop:(id,confirmed)=>enqueueSyncAction(store,'stop',id,{confirmed})}),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), utility: utilityRenderer(), import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
       requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
       signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
     }) },

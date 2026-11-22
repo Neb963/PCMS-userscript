@@ -1,18 +1,16 @@
 # Active work — handoff
 
-**Current phase:** P18 — Offline synchronization and conflicts. **Status:** In progress.
+**Current phase:** P18 — Offline synchronization and conflicts. **Status:** Implemented; browser/final interruption review pending.
 
 ## Next action
 
-- Implement original-repository sync for verified local source/status, Import recovery and Utility pending statuses; reconcile existing write IDs before any attempt. Freshly recheck previously verified receipts for superseding changes.
-- Classify source, request/instruction and account conflicts separately. Only verified approved local source enables confirmed source choices; preserve local Refresher eligibility for sync-only source conflict.
-- Add private comparison tokens and revalidate exact compared main/source before Keep approved local or Publish GitHub version. Preserve snapshots/history, no blind Unknown retry or arbitrary account override.
-- Implement explicit old-repository reassignment/stop-management dispositions without discarding source. Preserve current same-repository PAT behavior.
-- Build compact Jobs / Source & decision UI with fixed footer and Jobs/Details tabs <=850px; safe read-only projections and optional evidence.
-- Test offline/restart, same-source success, unrelated main changes, source/request/account conflict, unknown commits, old credentials and comparison races with synthetic adapters. Keep unverified live writes disabled.
+- Verify both-browser sync Jobs/Details, fixed footer, private-source visibility and cancel/focus regressions.
+- Review late native receipts when a Stop intent arrives, prepared Import GitHub jobs, unresolved raw write visibility and source-choice interruption boundaries. Fix any discovered gap before accepting P18.
+- Accept P18 only after remaining focused checks/CI; then plan P19 FIFO scheduler. Keep all live capability flags false.
 
 ## Evidence
 
+- P18 runtime/UI batch: 138 Node tests PASS. Compact sync UI, original-repository labels, comparison-only source text, fixed footer and <=850px Jobs/Details tabs are wired. Follower UI actions use protected confirmed intents consumed by the active Coordinator. Exact comparison hashes/target settings are rechecked; duplicate clicks and simultaneous checks produce one effect. Stop intent inhibits post-Save Listing immediately, before its final local disposition. Browser regressions pending.
 - P18 dispositions batch: 133 Node tests PASS. Explicit Reassign preserves original snapshots and creates one successor; unknown old writes and incompatible targets block it. Stop managing retains source/unknown evidence, stops follow-up dispatch, preserves native tabs and refuses unresolved active/lost Development slots. Runtime/compact sync UI and final interruption review remain unfinished.
 - P18 source-choice batch: 129 Node tests PASS. Confirmed Publish GitHub version writes a send-once ready request and hands it to the ordinary Utility workflow; the previous approved snapshot/hold survives until native source and Listing are verified. Prepared-but-never-dispatched GitHub actions can resume only with identical intended content. Old-repository dispositions and compact UI/runtime wiring remain unfinished.
 - P18 engine batch: 125 Node tests PASS. Original-repository source/status sync, offline eligibility, same-source success, typed conflicts, compare/confirmation races, unknown recheck and unverified-native snapshot rejection are tested. Engine is not yet wired into runtime; source-publication choice, old-repository dispositions and compact UI remain unfinished.
@@ -24,4 +22,4 @@ P00–P17 synthetic implementation evidence is in docs/verification.md. Build/sy
 
 DEFERRED — P01–P18 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft Save and real GitHub synchronization — no disposable profile/targets/PAT supplied. Static capability flags remain false.
 
-**Last pushed commit:** 82f9ade3a986a54472008b569e22401a319a66f6.
+**Last pushed commit:** ae390e05ad6da341aa584b67def349c6f1be6632.

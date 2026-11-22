@@ -17,8 +17,25 @@ export function syncRecords(state){
   return rows;
 }
 
+export async function sourceFingerprint(source){const bytes=new TextEncoder().encode(JSON.stringify(completeSource(source))),hash=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');}
+export async function enqueueSyncAction(store,action,id,{confirmed=false,comparison=null}={},uuid=()=>crypto.randomUUID()){
+  requireThat(['recheck','local','github','reassign','stop'].includes(action),'unsupported-sync-action');
+  if(action!=='recheck')requireThat(confirmed===true,'sync-confirmation-required');const commandId=uuid();
+  const saved=await store.transact(s=>{
+    const p=syncRecords(s).find(p=>p.id===id);requireThat(p,'sync-record-unavailable');requireThat(s.settings.account.accountId===p.status.account,'account-assignment-mismatch');
+    s.commands||={};const duplicate=Object.values(s.commands).find(c=>c.kind==='sync-action'&&c.pendingId===id&&c.action===action&&['queued','running'].includes(c.phase)&&JSON.stringify(c.comparison)===JSON.stringify(comparison));if(duplicate)return duplicate.id;
+    if(action==='stop'){
+      requireThat(!Object.values(s.workers).some(w=>p.generatorId&&w.generatorId===p.generatorId&&w.role==='development'&&['opening','busy','lost'].includes(w.phase)),'resolve-development-before-stop');
+      for(const row of syncRecords(s))if(row.id===id||p.generatorId&&row.generatorId===p.generatorId){if(row.scope==='pending')s.pending[row.id].stopRequested=true;else s.utility[row.requestId].pendingStatus.stopRequested=true;}
+      if(p.generatorId&&s.generators[p.generatorId])s.generators[p.generatorId].stopRequested=true;
+      for(const r of Object.values(s.utility||{}))if(r.id===p.requestId||p.generatorId&&r.generatorId===p.generatorId)r.stopRequested=true;
+    }
+    s.commands[commandId]={id:commandId,kind:'sync-action',action,pendingId:id,account:p.status.account,repository:p.repository,targetRepository:action==='reassign'?s.settings.github?.repository||null:null,comparison,phase:'queued'};return commandId;
+  });return {queued:true,id:saved.result};
+}
+
 export class Synchronizer {
-  constructor({store,services,guard=async()=>{},assertCurrent=()=>{},uuid=()=>crypto.randomUUID(),now=()=>Date.now(),publishGitHub=null,importWorkflow=null}){Object.assign(this,{store,services,guard,assertCurrent,uuid,now,publishGitHub,importWorkflow});this.busy=false;this.nextAt=0;this.comparisons=new Map();}
+  constructor({store,services,guard=async()=>{},assertCurrent=()=>{},uuid=()=>crypto.randomUUID(),now=()=>Date.now(),publishGitHub=null,importWorkflow=null}){Object.assign(this,{store,services,guard,assertCurrent,uuid,now,publishGitHub,importWorkflow});this.busy=false;this.nextAt=0;this.comparisons=new Map();this.inFlight=new Map();this.commandsBusy=false;}
   async record(id){const row=syncRecords(await this.store.read()).find(p=>p.id===id);requireThat(row,'sync-record-unavailable');return row;}
   async update(id,change){await this.guard();return this.store.transact(s=>{this.assertCurrent(s);const row=syncRecords(s).find(p=>p.id===id);requireThat(row,'sync-record-unavailable');const result=change(row,s);if(row.scope==='pending')s.pending[id]=row;else if(s.utility[row.requestId].pendingStatus){const {scope:_,...value}=row;s.utility[row.requestId].pendingStatus=value;}return result;});}
   async describe(p,client){
@@ -53,7 +70,7 @@ export class Synchronizer {
   }
   async complete(id,commit){
     await this.update(id,(p,s)=>{
-      requireThat(!['stopped','reassigned'].includes(p.phase),'sync-record-stopped');p.phase='synced';p.reason=null;p.commit=commit;
+      requireThat(!['stopped','reassigned'].includes(p.phase)&&!p.stopRequested,'sync-record-stopped');p.phase='synced';p.reason=null;p.commit=commit;
       const g=s.generators[p.generatorId];
       if(g){s.generators[p.generatorId]=releaseHold({...g,status:p.status,githubCommit:commit},'sync-'+id);if(!s.generators[p.generatorId].holds.length&&p.kind==='source'){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}
       const r=p.requestId&&s.utility?.[p.requestId];if(r&&r.pendingStatus&&sameStatus(r.pendingStatus.status,p.status)){if(p.scope==='pending')r.pendingStatus=null;r.statusCommit=commit;if(r.localDone)r.phase='done';}
@@ -61,8 +78,11 @@ export class Synchronizer {
       appendEvent(s,{component:'github',outcome:'verified',nativeId:p.generatorId||null});
     });
   }
-  async syncOne(id){
-    await this.guard();let p=await this.record(id);if(TERMINAL.includes(p.phase))return p;
+  syncOne(id){
+    if(this.inFlight.has(id))return this.inFlight.get(id);const running=this.synchronize(id);this.inFlight.set(id,running);running.finally(()=>{if(this.inFlight.get(id)===running)this.inFlight.delete(id);}).catch(()=>{});return running;
+  }
+  async synchronize(id){
+    await this.guard();let p=await this.record(id);if(TERMINAL.includes(p.phase)||p.stopRequested)return p;
     if(p.decision?.choice==='github')return this.queuePublication({pending:p});
     const state=await this.store.read(),g=state.generators[p.generatorId];
     if(state.settings.account.accountId!==p.status.account){await this.annotate(id,'account-conflict');return this.record(id);}
@@ -99,8 +119,8 @@ export class Synchronizer {
       // Known ref rejection may be retried only after this fresh request/source check.
       if(p.writeId&&(await this.store.read()).jobs[p.writeId]?.phase==='prepared')await this.store.transact(s=>{this.assertCurrent(s);s.jobs[p.writeId].phase='cancelled';s.jobs[p.writeId].resolution='known-not-dispatched';});
       const writeId='sync-'+this.uuid();await this.update(id,(row)=>{requireThat(!TERMINAL.includes(row.phase),'sync-record-stopped');row.writeId=writeId;row.phase='pending';row.reason=null;});
-      p=await this.record(id);requireThat(!['stopped','reassigned'].includes(p.phase),'sync-record-stopped');
-      if(client.writer.guard){const originalGuard=client.writer.guard;client.writer.guard=async()=>{await originalGuard();requireThat(!TERMINAL.includes((await this.record(id)).phase),'sync-record-stopped');};}
+      p=await this.record(id);requireThat(!['stopped','reassigned'].includes(p.phase)&&!p.stopRequested,'sync-record-stopped');
+      if(client.writer.guard){const originalGuard=client.writer.guard;client.writer.guard=async()=>{await originalGuard();const pending=await this.record(id);requireThat(!TERMINAL.includes(pending.phase)&&!pending.stopRequested,'sync-record-stopped');};}
       const changes=result.mode==='status'?statusChanges(p.slug,p.status):sourceChanges(result.current,p.slug,p.source,p.status);
       const receipt=await client.writer.write({id:writeId,targetSlug:p.slug,baseline:result.current,changes,operation:result.mode==='status'?'status':'source'});
       if(!receipt.verified){await this.annotate(id,'unknown');return this.record(id);}
@@ -132,7 +152,7 @@ export class Synchronizer {
     if(!decision){
       requireThat(snapshot&&source,'comparison-required');
       decision={choice:'github',writeId:'choose-'+this.uuid(),comparedCommit:snapshot.commit,source:completeSource(source),phase:'prepared'};
-      await this.update(p.id,row=>{requireThat(row.phase==='source-conflict','source-conflict-required');row.decision=decision;row.phase='publication-pending';});
+      await this.update(p.id,row=>{requireThat(row.phase==='source-conflict'&&!row.stopRequested,'source-conflict-required');row.decision=decision;row.phase='publication-pending';});
     }
     try{
       const baseline=await client.github.snapshot(decision.comparedCommit),current=await client.github.snapshot();
@@ -154,14 +174,38 @@ export class Synchronizer {
       const id='publication-'+this.uuid(),instructions=Object.values(latest.entries).filter(e=>e.path===p.slug+'/prompt.md'||e.path.startsWith(p.slug+'/scratch/')).map(e=>[e.path,e.sha]);
       const request={valid:true,slug:p.slug,repository:p.repository,commit:latest.commit,requestCommit:receipt.commit,readyTransition:false,status:ready,instructions,replacesPendingId:p.id};
       await this.update(p.id,(row,s)=>{
-        requireThat(row.decision.writeId===decision.writeId&&!TERMINAL.includes(row.phase),'source-decision-changed');
+        if(row.phase==='publication-queued')return;
+        requireThat(row.decision.writeId===decision.writeId&&!TERMINAL.includes(row.phase)&&!row.stopRequested,'source-decision-changed');
         row.phase='publication-queued';row.decision.phase='queued';row.decision.commit=receipt.commit;row.decision.successorRequest=id;
         s.requestQueue||={};s.requestQueue[id]={id,request,phase:'queued',closed:false};
       });return this.record(p.id);
     }catch(error){
       const job=(await this.store.read()).jobs[decision.writeId];
-      await this.update(p.id,row=>{if(!TERMINAL.includes(row.phase)){row.phase=job?.phase==='unknown'?'publication-unknown':error.message==='github-write-not-live-verified'?'live-verification-required':'request-conflict';row.reason=error.message==='account-assignment-mismatch'?'account-conflict':row.phase;row.decision.phase=job?.phase==='unknown'?'unknown':'held';}});return this.record(p.id);
+      await this.update(p.id,row=>{if(!TERMINAL.includes(row.phase)&&!row.stopRequested){row.phase=job?.phase==='unknown'?'publication-unknown':error.message==='github-write-not-live-verified'?'live-verification-required':'request-conflict';row.reason=error.message==='account-assignment-mismatch'?'account-conflict':row.phase;row.decision.phase=job?.phase==='unknown'?'unknown':'held';}});return this.record(p.id);
     }
+  }
+  async enqueueDecision(token,choice,confirmed){
+    requireThat(confirmed===true&&['local','github'].includes(choice),'source-confirmation-required');const compared=this.comparisons.get(token);requireThat(compared,'comparison-required');
+    const comparison={commit:compared.commit,local:await sourceFingerprint(compared.source),remote:await sourceFingerprint(compared.remote)};
+    return enqueueSyncAction(this.store,choice,compared.id,{confirmed:true,comparison});
+  }
+  async tickCommands(){
+    if(this.commandsBusy)return;this.commandsBusy=true;
+    try{
+      await this.guard();const command=Object.values((await this.store.read()).commands||{}).find(c=>c.kind==='sync-action'&&c.phase==='queued');if(!command)return;
+      await this.store.transact(s=>{this.assertCurrent(s);requireThat(s.commands[command.id].phase==='queued','sync-command-claimed');s.commands[command.id].phase='running';});
+      try{
+        const p=await this.record(command.pendingId),state=await this.store.read();
+        requireThat(state.settings.account.accountId===command.account&&p.status.account===command.account&&JSON.stringify(p.repository)===JSON.stringify(command.repository),'sync-intent-changed');
+        if(command.action==='recheck')await this.syncOne(p.id);
+        else if(command.action==='stop')await this.stop(p.id,true);
+        else if(command.action==='reassign'){requireThat(JSON.stringify(state.settings.github?.repository)===JSON.stringify(command.targetRepository),'sync-intent-changed');await this.reassign(p.id,true);}
+        else{
+          const compared=await this.compare(p.id);requireThat(compared.commit===command.comparison?.commit&&await sourceFingerprint(compared.local)===command.comparison.local&&await sourceFingerprint(compared.remote)===command.comparison.remote,'comparison-changed');await this.decide(compared.token,command.action,true);
+        }
+        await this.store.transact(s=>{this.assertCurrent(s);s.commands[command.id].phase='done';});
+      }catch(error){await this.store.transact(s=>{this.assertCurrent(s);s.commands[command.id].phase='blocked';s.commands[command.id].reason=['comparison-changed','sync-intent-changed','resolve-development-before-stop','recheck-original-write-first','reassignment-target-request-conflict','reassignment-target-source-conflict'].includes(error.message)?error.message:'sync-action-unconfirmed';});}
+    }finally{this.commandsBusy=false;}
   }
   cleanupCredentials(state){
     const needed=new Set(pendingWork(state).filter(w=>w.repository).map(w=>repositoryKey(w.repository)));
@@ -232,7 +276,7 @@ export class Synchronizer {
     }
     // The explicit decision rebases only synchronization. The approved live copy
     // and original snapshot stay protected; the normal atomic writer preserves history.
-    await this.update(p.id,(row,s)=>{row.baseCommit=result.current.commit;row.phase='local-done';row.reason=null;row.writeId=null;row.comparedCommit=result.current.commit;const g=s.generators[row.generatorId];if(g)s.generators[row.generatorId]=releaseHold(g,'sync-'+row.id);});
+    await this.update(p.id,(row,s)=>{requireThat(row.phase==='source-conflict'&&!row.stopRequested&&sourceEqual(row.source,compared.source)&&approvedLocal(row,s.generators[row.generatorId]),'source-decision-changed');row.baseCommit=result.current.commit;row.phase='local-done';row.reason=null;row.writeId=null;row.comparedCommit=result.current.commit;const g=s.generators[row.generatorId];if(g)s.generators[row.generatorId]=releaseHold(g,'sync-'+row.id);});
     this.comparisons.delete(token);return this.syncOne(p.id);
   }
 }
