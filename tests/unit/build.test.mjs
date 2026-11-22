@@ -30,3 +30,10 @@ test('launcher reuses without reload and never hijacks another page', () => {
   assert.equal(isAppPage(new URL(APP_URL)), true);
   assert.equal(isAppPage(new URL('https://perchance.org/a#pcms')), false);
 });
+
+test('production uses documented Violentmonkey APIs and asynchronous protected storage', async () => {
+  const code=await bundle(resolve('src/entry.user.js'));
+  assert.match(code,/@grant\s+GM\.setValue/);
+  assert.match(code,/@grant\s+GM\.getValue/);
+  assert.doesNotMatch(code,/GM_getTab|GM_saveTab|setParent/);
+});

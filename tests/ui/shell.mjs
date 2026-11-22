@@ -30,6 +30,7 @@ try {
       window.GM_removeValueChangeListener = () => {};
       window.GM_getValue = async (key, fallback) => data.get(key) ?? fallback;
       window.GM_setValue = async (key, value) => data.set(key, value);
+      window.GM = { getValue: window.GM_getValue, setValue: window.GM_setValue };
     });
     await page.goto('https://perchance.org/welcome#pcms');
     await page.addScriptTag({ content: script });

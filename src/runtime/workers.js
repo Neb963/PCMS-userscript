@@ -29,7 +29,7 @@ export class WorkerPool {
       return structuredClone(state.workers[id]);
     });
     try {
-      const handle = await this.openTab(workerURL(result.result, targetSlug), { active: false, insert: true, setParent: true });
+      const handle = await this.openTab(workerURL(result.result, targetSlug), { active: false, insert: true });
       requireThat(handle, 'tab-open-unconfirmed');
       this.handles.set(id, handle);
       handle.onclose = () => this.lost(id).catch(() => {});

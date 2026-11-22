@@ -12,10 +12,8 @@
 // @connect      user.uploads.dev
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_getTab
-// @grant        GM_saveTab
+// @grant        GM.getValue
+// @grant        GM.setValue
 // @grant        GM_openInTab
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
@@ -56,11 +54,11 @@ function coordinate(store, ui = null) {
 }
 
 async function startAssignedWorker() {
-  const tab = await new Promise(resolve => GM_getTab(resolve));
   const requested = new URL(location.href).searchParams.get('pcms_worker');
-  const id = tab.pcmsWorker || requested;
+  const retained = window.name.startsWith('PCMS_WORKER_') ? window.name.slice('PCMS_WORKER_'.length) : null;
+  const id = requested || retained;
   if (!id) return;
-  const store = new ProtectedStore({ get: GM_getValue, set: GM_setValue, locks: navigator.locks });
+  const store = new ProtectedStore({ get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), locks: navigator.locks });
   const runtime = new WorkerRuntime({ store, id, documentId: crypto.randomUUID(), doc: document, execute: async command => {
     const native = new NativePage(unsafeWindow);
     const gate = new SessionGate(store, native);
@@ -74,11 +72,9 @@ async function startAssignedWorker() {
     await native.ready(command.target);
     return { outcome: 'verified' };
   } });
-  await runtime.register();
-  GM_saveTab({ ...tab, pcmsWorker: id });
-  const cleanURL = new URL(location.href);
-  cleanURL.searchParams.delete('pcms_worker');
-  history.replaceState(history.state, '', cleanURL);
+  try { await runtime.register(); }
+  catch { await new WorkerPool({ store, openTab: GM_openInTab }).lost(id); return; }
+  window.name = 'PCMS_WORKER_' + id;
   coordinate(store);
   const unwatch = watchProtectedStore(GM_addValueChangeListener, GM_removeValueChangeListener, () => { runtime.pump().catch(() => {}); });
   const observe = () => { runtime.observe().catch(() => {}); };
@@ -96,7 +92,7 @@ if (isAppPage(location)) {
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:hidden;display:block;isolation:isolate';
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
-  const store = new ProtectedStore({ get: GM_getValue, set: GM_setValue, locks: navigator.locks });
+  const store = new ProtectedStore({ get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), locks: navigator.locks });
   const ui = mountShell(document, host, { onTheme: theme => store.transact(state => { state.settings.theme = theme; }) });
   store.read().then(state => { ui.update(publicSnapshot(state)); coordinate(store, ui); }).catch(() => ui.update({ restored: true, storageAvailable: false }));
   document.body.append(host);

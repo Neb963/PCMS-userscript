@@ -63,3 +63,9 @@
 - Independent native inventory/owner/metadata reads and complete saved PJS/HTML/manifest-byte retrieval, with metadata coherence checked before/after all files.
 - Tests cover empty src, missing panels/manifest/file, corrupted byte length, wrong ID, concurrent Save, rename and absent inventory. No absence is treated as deletion.
 - Privileged HTTP restricts HTTPS hosts and credential target; bytes and challenge/redirect responses validated. Native reads require live disposable-profile confirmation before operational claims.
+
+### P03/P06 compatibility correction
+
+- Checked [Violentmonkey privileged API](https://violentmonkey.github.io/api/gm/): removed unsupported GM_getTab/GM_saveTab and setParent option; use documented GM.getValue/GM.setValue promises.
+- Worker URL/name contains only a non-secret worker reference. Protected root assignment/document/term remains the authority; a reload cannot blindly re-execute a command.
+- Build/syntax and 32 tests PASS; production API allowlist regression added. Prior P08 UI run 44967606581 pending at this checkpoint.
