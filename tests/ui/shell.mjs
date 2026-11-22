@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { emptyState } from '../../src/state/store.js';
+import { checkApprovalComponent } from './approval.mjs';
 import { checkReviews } from './reviews.mjs';
 import { checkRefresher } from './refresher.mjs';
 
@@ -191,6 +192,7 @@ try {
     await page.screenshot({ path: `/tmp/pcms-shell-${width}.png` });
     await page.close();
   }
+  await checkApprovalComponent(browser);
   assert.deepEqual(errors, []);
   console.log(`UI shell PASS: ${browserType}, six widths, navigation, keyboard, Refresher queue/rates/history, theme, header stability and native page preservation`);
 } finally { await browser.close(); }
