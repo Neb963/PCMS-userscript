@@ -35,7 +35,7 @@ export function refresherRenderer({controller,project}){
         row.querySelector('strong').textContent=g.slug;row.querySelector('button')?.setAttribute('aria-label','Manage '+g.slug);row.querySelector('[data-field=position]').textContent=view.membership==='eligible'?String(g.position).padStart(2,'0'):'—';row.querySelector('[data-field=recent]').textContent=view.membership==='eligible'?`${g.used}/${g.perGeneratorCap} · ${clockText(g.lastAt)}`:'—';row.querySelector('[data-field=status]').textContent=view.membership==='ineligible'?g.reason:g.next?'Next':g.atCap?'At cap':'Waiting';
         if(rows.children[index]!==row)rows.insertBefore(row,rows.children[index]||null);
       }
-      foot.textContent=view.membership==='ineligible'?'Not eligible entries do not spend Save slots.':'One Save attempt per slot · failed attempts count · FIFO order preserved.';rows.scrollTop=reset?0:top;
+      foot.textContent=view.membership==='ineligible'?'Not eligible entries do not spend Save slots.':'One attempt per slot · failures count · FIFO';rows.scrollTop=reset?0:top;
     }
     function drawAttempts(){
       const top=attempts.scrollTop;attempts.replaceChildren();const list=model.attempts||[];attemptCount.textContent=String(list.length)+' retained';
@@ -45,7 +45,7 @@ export function refresherRenderer({controller,project}){
     }
     function draw(){
       pause.textContent=model.paused?'Resume':'Pause';eligible.textContent=(model.snapshotOnly?'Snapshot':'Eligible')+' ('+(model.queue?.length||0)+')';ineligible.textContent='Not eligible ('+(model.notEligible?.length||0)+')';
-      status.replaceChildren(el(doc,'span',{className:'tag'},model.workerState||'Unknown'),el(doc,'span',{},model.snapshotOnly?`${model.queue?.length||0} in queue · snapshot only`:`${model.rates?.eligibleCount??'—'} eligible`),el(doc,'span',{},`${model.workerKnown?model.rates?.used??'—':'—'} / ${model.cap??'—'} attempts · rolling 60 min`),el(doc,'span',{className:'refresh-next'},'Next · '+(model.nextSlug||'—')+' · '+waitText(model.nextAt)),el(doc,'span',{},'Last result · '+(model.lastResult||'—')));
+      status.replaceChildren(el(doc,'span',{className:'tag'},model.workerState||'Unknown'),el(doc,'span',{'data-status':'eligible'},model.snapshotOnly?`${model.queue?.length||0} in queue · snapshot only`:`${model.rates?.eligibleCount??'—'} eligible`),el(doc,'span',{'data-status':'attempts'},`${model.workerKnown?model.rates?.used??'—':'—'} / ${model.cap??'—'} attempts · rolling 60 min`),el(doc,'span',{className:'refresh-next',title:'Next · '+(model.nextSlug||'—')+' · '+waitText(model.nextAt)},'Next · '+(model.nextSlug||'—')+' · '+waitText(model.nextAt)),el(doc,'span',{},'Last · '+(model.lastResult||'—')));
       if(!view.dirty)cap.value=String(model.cap??30);
       const rates=model.rates;derived.replaceChildren(...[['Per-generator cap',rates?.perGeneratorCap===null||!rates?'—':rates.perGeneratorCap+' / h'],['Estimated rate',rates?.estimatedRate===null||!rates?'—':rates.estimatedRate.toFixed(2)+' / h'],['Estimated interval',rates?.estimatedIntervalHours===null||!rates?'—':(rates.estimatedIntervalHours*60<1?Math.ceil(rates.estimatedIntervalHours*3600)+' sec':Math.round(rates.estimatedIntervalHours*60)+' min')]].map(([label,value])=>el(doc,'div',{},el(doc,'span',{},label),el(doc,'strong',{},value))));
       drawQueue();drawAttempts();

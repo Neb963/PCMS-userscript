@@ -20,7 +20,7 @@ export function importRenderer({store,workflow}){
     },{className:'primary'});
     const refresh=button(doc,'Recheck',()=>load());actions.append(refresh);
     const selectionLabel=el(doc,'label',{},select,'Select visible');
-    const panel=el(doc,'section',{className:'panel import-panel','aria-label':'Bulk Import'},el(doc,'header',{},heading),el(doc,'div',{className:'import-tools'},search,filters,selectionLabel),list,el(doc,'footer',{className:'footer'},count,submit));
+    const panel=el(doc,'section',{className:'panel import-panel','aria-label':'Bulk Import'},el(doc,'div',{className:'import-content'},el(doc,'header',{},heading),el(doc,'div',{className:'import-tools'},search,filters,selectionLabel),list),el(doc,'footer',{className:'footer'},count,submit));
     body.append(panel,notice);
     function visible(){return (view.candidates||[]).filter(r=>(view.filter==='all'||r.eligible)&&(r.slug+' '+(r.id||'')).toLowerCase().includes(view.query.toLowerCase()));}
     function selection(){const eligible=visible().filter(r=>r.eligible),selected=eligible.filter(r=>view.selected.has(r.id)).length;select.checked=eligible.length>0&&selected===eligible.length;select.indeterminate=selected>0&&selected<eligible.length;select.disabled=loading||eligible.length===0;submit.disabled=loading||view.selected.size===0||!INTEGRATION_PROOF.githubWrite||!!view.runId;count.textContent=`${view.selected.size} selected`;for(const input of list.querySelectorAll('input[data-id]'))input.checked=view.selected.has(input.dataset.id);}
@@ -34,7 +34,7 @@ export function importRenderer({store,workflow}){
       if(!rows.length)list.append(el(doc,'p',{className:'empty'},'No matching candidates'));
       selection();list.scrollTop=reset?0:top;
     }
-    async function load(){if(loading)return;loading=true;refresh.disabled=true;view.runId=null;notice.textContent='';draw();try{const operation=await workflow();const candidates=await operation.preview({cancelled:()=>disposed});if(disposed)return;view.candidates=candidates;view.repository=structuredClone(operation.github.repository);view.selected=new Set(candidates.filter(r=>r.eligible).map(r=>r.id));}catch{if(!disposed){view.candidates=null;notice.textContent='Confirm the Perchance session and test GitHub settings before importing.';}}finally{loading=false;if(!disposed){refresh.disabled=false;draw();if(!INTEGRATION_PROOF.githubWrite)notice.textContent+=' GitHub import writes await live integration verification.';}}}
+    async function load(){if(loading)return;loading=true;refresh.disabled=true;view.runId=null;notice.textContent='';draw();try{const operation=await workflow();const candidates=await operation.preview({cancelled:()=>disposed});if(disposed)return;view.candidates=candidates;view.repository=structuredClone(operation.github.repository);view.selected=new Set(candidates.filter(r=>r.eligible).map(r=>r.id));}catch{if(!disposed){view.candidates=null;notice.textContent='Confirm the Perchance session and test GitHub settings before importing.';}}finally{loading=false;if(!disposed){refresh.disabled=false;draw();if(!INTEGRATION_PROOF.githubWrite)notice.textContent+=' Import awaits verification.';}}}
     async function update(){
       if(!view.runId)return;const state=await store.read(),run=state.commands?.[view.runId];if(!run||disposed)return;
       heading.textContent=run.phase==='running'?'Import in progress':run.phase==='queued'?'Import queued':'Import results';

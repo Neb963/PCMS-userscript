@@ -4,6 +4,7 @@
 
 ## Next action
 
+- Baseline captured in CI 45054383271 at 312328f1bd78dff41229e70130ca3847bcb45044: 128 captures/browser. Nested short-screen scroll and collapsed Refresher content confirmed; screenshot/measurements retrieved locally.
 - Reproduce and screenshot actual production UI via synthetic-only fixtures in Firefox/Chromium; inspect every vertical/horizontal scroll owner and clipped control, starting with Settings.
 - Audit all main routes, Utility, sync, import, Manage and nested dialogs across setup/empty/loading/error/offline/conflict/unknown/long-content scenarios, both themes, 320px/mobile/tablet/desktop, short height and enlarged text.
 - Fix scroll ownership, spacing, wrapping, focus, picker/dialog and state affordance defects; retain accepted routes and native mutation gates. Add assertions for nested scroll chains, not only document overflow.
