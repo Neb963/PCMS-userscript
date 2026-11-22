@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { emptyState } from '../../src/state/store.js';
+import { checkInteractionComponent } from './interaction.mjs';
 import { checkApprovalComponent } from './approval.mjs';
 import { checkReviews } from './reviews.mjs';
 import { checkRefresher } from './refresher.mjs';
@@ -101,6 +102,8 @@ try {
       const box = await app.locator('.pagehead').boundingBox();
       assert.ok(Math.abs(box.x - baseline.x) <= 2 && Math.abs(box.y - baseline.y) <= 2 && Math.abs(box.height - baseline.height) <= 2);
     }
+    await app.getByRole('navigation').getByRole('button',{name:'Generators',exact:true}).click();
+    await app.getByRole('button',{name:'Bulk Import',exact:true}).focus();await page.keyboard.press('/');assert.equal(await app.getByRole('searchbox',{name:'Search generators'}).evaluate(n=>n.getRootNode().activeElement===n),true);await page.keyboard.type('/');assert.equal(await app.getByRole('searchbox',{name:'Search generators'}).inputValue(),'/');await app.getByRole('searchbox',{name:'Search generators'}).fill('');
     await checkRefresher({page,app,width});
     await checkReviews({page,app});
     await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();
@@ -159,9 +162,11 @@ try {
     await app.locator('.checks-card').getByRole('button', { name: 'Apply', exact: true }).click();
     await app.getByRole('status').filter({ hasText: 'Use an integer from 1 to 1440.' }).waitFor();
     assert.equal(await page.evaluate(async () => JSON.parse(await window.GM.getValue('PCMS_STORE_V1')).settings.pollMinutes), 10);
+    if(width>=1024){assert.equal(await app.locator('.settings-layout').evaluate(n=>n.scrollHeight>n.clientHeight+1),false);const account=await app.locator('.account-card').boundingBox(),checks=await app.locator('.checks-card').boundingBox(),github=await app.locator('.github-card').boundingBox(),system=await app.locator('.system-card').boundingBox();assert.ok(Math.abs(account.y-checks.y)<=2&&Math.abs(github.y+github.height-system.y-system.height)<=2);}
     await app.getByRole('button', { name: 'Toggle theme' }).click();
     await page.waitForFunction(() => document.querySelector('#pcms-root').dataset.theme === 'dark');
     assert.equal(await app.locator('h1').evaluate(n => getComputedStyle(n).color), 'rgb(238, 242, 250)');
+    const themePicker=app.getByRole('button',{name:'Theme',exact:true});await themePicker.waitFor();await page.waitForFunction(()=>document.querySelector('#pcms-root').shadowRoot.querySelector('[aria-label=Theme]').textContent==='Dark');
     await app.getByRole('navigation').getByRole('button', { name: 'Overview', exact: true }).click();
     await app.getByRole('button', { name: 'Open Publication' }).focus();
     await page.keyboard.press('Enter');
@@ -203,6 +208,7 @@ try {
     await page.close();
   }
   await checkApprovalComponent(browser);
+  await checkInteractionComponent(browser);
   assert.deepEqual(errors, []);
   console.log(`UI shell PASS: ${browserType}, six widths, navigation, keyboard, Refresher queue/rates/history, theme, header stability and native page preservation`);
 } finally { await browser.close(); }

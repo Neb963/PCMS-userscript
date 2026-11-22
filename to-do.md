@@ -210,10 +210,10 @@
 
 ### P28 — Contextual recovery and source drift
 
-- [ ] Implement typed causes for slugs, session, Listing, lost tabs, unknown write and external drift.
-- [ ] Map each case to existing Manage, Reviews, Utility or GitHub sync destinations.
-- [ ] Test multiple holds, crash restart and safe conditional GitHub restoration.
-- [ ] **Accept:** Every recognized hold has a safe action or explicit terminal disposition; unrelated work continues.
+- [x] Implement typed causes for slugs, session, Listing, lost tabs, unknown write and external drift.
+- [x] Map each case to existing Manage, Reviews, Utility or GitHub sync destinations.
+- [x] Test multiple holds, crash restart and safe conditional GitHub restoration.
+- [x] **Accept:** Every recognized hold has a safe action or explicit terminal disposition; unrelated work continues.
 
 ### P29 — UI fidelity, keyboard and responsive pass
 

@@ -63,10 +63,11 @@ export function inventoryRenderer({controller,project,actions={}}) {
     function openManage(id){
       let g=model.generators.find(g=>g.id===id);if(!g)return;
       const content=el(doc,'div',{className:'panelbody stack'});
-      const modal=dialog(doc,root,'Manage '+g.slug,content,{drawer:true});let eligibilityControl=null;const editControls=new Map();
+      const modal=dialog(doc,root,'Manage '+g.slug,content,{drawer:true});let eligibilityControl=null;const editControls=new Map(),controls=new Map();
       const refreshThis=()=>{if(!modal.isConnected)return;g=model.generators.find(item=>item.id===id)||g;draw();};refreshManage=refreshThis;modal.addEventListener('close',()=>{if(refreshManage===refreshThis)refreshManage=null;},{once:true});
+      function control(key,label,run){let node=controls.get(key);if(!node){node=button(doc,label,()=>run(g));controls.set(key,node);}return node;}
       function draw(){
-        const editFocus=[...editControls.values()].includes(root.activeElement)?root.activeElement:null;
+        const editFocus=[...editControls.values(),...controls.values()].includes(root.activeElement)?root.activeElement:null;
         const restoreEligibility=content.contains(root.activeElement)&&root.activeElement?.hasAttribute('data-eligibility');
         content.replaceChildren(el(doc,'p',{},'Native ID '+g.id),el(doc,'div',{className:'manage-states'},Object.entries(g.states||{}).map(([key,value])=>el(doc,'div',{},el(doc,'strong',{},key==='github'?'GitHub':key[0].toUpperCase()+key.slice(1)),el(doc,'span',{className:'tag'},value)))));
         if(g.holds?.length)content.append(el(doc,'p',{className:'notice'},g.holds.map(h=>h.kind).join(' · ')));
@@ -84,15 +85,15 @@ export function inventoryRenderer({controller,project,actions={}}) {
             },{'data-eligibility':''});
             eligibilityControl.textContent=g.excluded?'Include':'Exclude';tools.append(eligibilityControl);
           }
-          else tools.append(button(doc,action[0].toUpperCase()+action.slice(1),()=>actions[action](g,{doc,root,modal,navigate})));
+          else tools.append(control(action,action[0].toUpperCase()+action.slice(1),()=>actions[action](g,{doc,root,modal,navigate})));
         }
         if(g.managed&&g.holds?.length&&actions.stopManaging){
-          if(g.retainedTab)tools.append(button(doc,'Open retained tab',()=>actions.openRetained(g,{doc,root,modal,navigate})));
-          tools.append(button(doc,'Recheck result',()=>actions.recheckRecovery(g,{doc,root,modal,navigate})));
-          if(g.holds.some(h=>['source-drift','snapshot-failure','native-unknown','identity-mismatch'].includes(h.kind)))tools.append(button(doc,'Compare saved source',()=>actions.compareSaved(g,{doc,root,modal,navigate})));
-          if(g.holds.some(h=>h.kind==='listing-mismatch'))tools.append(button(doc,'Confirm intentional Unlisting',()=>actions.acceptUnlisted(g,{doc,root})),button(doc,'Restore Listed',()=>actions.restoreListed(g,{doc,root})));
-          if(g.holds.some(h=>h.kind==='identity-mismatch'))tools.append(button(doc,'Resolve rename',()=>actions.resolveRename(g,{doc,root})));
-          tools.append(button(doc,'Stop managing',()=>actions.stopManaging(g,{doc,root})));if(g.recovery?.message)content.append(el(doc,'p',{className:'notice'},g.recovery.message));
+          if(g.retainedTab)tools.append(control('openRetained','Open retained tab',()=>actions.openRetained(g,{doc,root,modal,navigate})));
+          tools.append(control('recheckRecovery','Recheck result',()=>actions.recheckRecovery(g,{doc,root,modal,navigate})));
+          if(g.holds.some(h=>['source-drift','snapshot-failure','native-unknown','identity-mismatch'].includes(h.kind)))tools.append(control('compareSaved','Compare saved source',()=>actions.compareSaved(g,{doc,root,modal,navigate})));
+          if(g.holds.some(h=>h.kind==='listing-mismatch'))tools.append(control('acceptUnlisted','Confirm intentional Unlisting',()=>actions.acceptUnlisted(g,{doc,root})),control('restoreListed','Restore Listed',()=>actions.restoreListed(g,{doc,root})));
+          if(g.holds.some(h=>h.kind==='identity-mismatch'))tools.append(control('resolveRename','Resolve rename',()=>actions.resolveRename(g,{doc,root})));
+          tools.append(control('stopManaging','Stop managing',()=>actions.stopManaging(g,{doc,root})));if(g.recovery?.message)content.append(el(doc,'p',{className:'notice'},g.recovery.message));
         }
         if(g.maintenance?.active){tools.append(button(doc,'Recheck result',()=>actions.recheckMaintenance?.(g,{doc,root,modal,navigate})));if(g.maintenance.message)content.append(el(doc,'p',{className:'notice'},g.maintenance.message));}
         if(g.edit){

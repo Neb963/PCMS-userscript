@@ -53,7 +53,8 @@ export function settingsRenderer({ store, controller, gate, poller, requestCrede
     const lastCheck=el(doc,'span',{className:'statusline'});
     const checkNow=button(doc,'Check now',()=>{});checkNow.onclick=run(checkNow,async()=>{const verified=await poller.check(false);if(!verified)throw new Error('github-check-unavailable');});
     const checksPanel=card('Automatic checks',el(doc,'div',{className:'panelbody'},field('Interval (minutes)',pollInput),el(doc,'div',{className:'toolbar'},savePoll),el(doc,'div',{className:'check-row'},lastCheck,checkNow)),null,'checks-card');
-    const interfacePanel=card('Interface',el(doc,'div',{className:'panelbody'},picker(doc,root,'Theme',[['light','Light'],['dark','Dark']],root.host.dataset.theme||'light',value=>{store.transact(s=>{s.settings.theme=value;}).then(()=>{root.host.dataset.theme=value;}).catch(()=>{notice.textContent='Theme could not be saved.';});})),null,'interface-card');
+    const themePicker=picker(doc,root,'Theme',[['light','Light'],['dark','Dark']],root.host.dataset.theme||'light',value=>{store.transact(s=>{s.settings.theme=value;}).then(()=>{root.host.dataset.theme=value;}).catch(()=>{notice.textContent='Theme could not be saved.';});});
+    const interfacePanel=card('Interface',el(doc,'div',{className:'panelbody'},themePicker),null,'interface-card');
     const counts=el(doc,'div',{className:'system-counts'});
     const exportButton=button(doc,'Export diagnostic',()=>{});exportButton.onclick=run(exportButton,async()=>{
       const s=await store.read();downloadJSON(doc,'pcms-diagnostic.json',{schema:1,counts:systemCounts(s)});
@@ -69,6 +70,7 @@ export function settingsRenderer({ store, controller, gate, poller, requestCrede
     async function update(){
       const state=await store.read();if(disposed)return;controller.initialize(state);
       if(!initialized){account.value=form.accountId??state.settings.account.accountId;repositoryInput.value=controller.draft.repositoryURL;pollInput.value=form.pollMinutes??String(state.settings.pollMinutes);initialized=true;}
+      themePicker.setValue(state.settings.theme);
       credentialState.textContent=controller.draft.pat?'••••••••':'Not set';
       account.disabled=state.settings.account.locked;applyAccount.disabled=state.settings.account.locked;
       const session=await gate.observe();if(disposed)return;

@@ -34,7 +34,7 @@ export function picker(doc, root, label, options, value, onChange) {
   let index = Math.max(0, options.findIndex(o => o[0] === value));
   let cleanup = () => {};
   function close(focus = true) {
-    list?.remove(); list = null; cleanup();
+    if(list?.matches(':popover-open'))list.hidePopover();list?.remove(); list = null; cleanup();
     trigger.setAttribute('aria-expanded', 'false');
     if (focus) trigger.focus();
   }
@@ -48,11 +48,19 @@ export function picker(doc, root, label, options, value, onChange) {
       list.append(option);
     });
     wrapper.append(list);
+    list.setAttribute('popover','manual');
+    list.showPopover();
+    const rect=trigger.getBoundingClientRect(),win=doc.defaultView,width=win.innerWidth,height=win.innerHeight;
+    const below=height-rect.bottom-8,above=rect.top-8,down=below>=Math.min(240,list.scrollHeight)||below>=above;
+    Object.assign(list.style,{position:'fixed',margin:'0',inset:'auto',maxWidth:Math.max(100,width-16)+'px',maxHeight:Math.max(32,Math.min(240,down?below:above))+'px',minWidth:Math.min(rect.width,width-16)+'px'});
+    const box=list.getBoundingClientRect();list.style.left=Math.max(8,Math.min(rect.left,width-box.width-8))+'px';list.style.top=(down?rect.bottom+4:Math.max(8,rect.top-box.height-4))+'px';
     trigger.setAttribute('aria-expanded', 'true');
     list.children[index].focus({ preventScroll: true });
     const outside = event => { if (!event.composedPath().includes(wrapper)) close(false); };
-    root.addEventListener('pointerdown', outside);
-    cleanup = () => root.removeEventListener('pointerdown', outside);
+    const scroll=event=>{if(list&&!list.contains(event.target))close(false);};
+    root.addEventListener('pointerdown', outside);root.addEventListener('scroll',scroll,true);win.addEventListener('resize',closeOnResize);
+    function closeOnResize(){close(false);}
+    cleanup = () => {root.removeEventListener('pointerdown', outside);root.removeEventListener('scroll',scroll,true);win.removeEventListener('resize',closeOnResize);};
   }
   wrapper.addEventListener('keydown', event => {
     if (!list) {
@@ -60,14 +68,15 @@ export function picker(doc, root, label, options, value, onChange) {
       return;
     }
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
-    else if (event.key === 'Tab') close(false);
+    else if (event.key === 'Tab') close();
     else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
       index = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
       for (const [i, option] of [...list.children].entries()) option.tabIndex = i === index ? 0 : -1;
-      list.children[index].focus({ preventScroll: true });
+      const option=list.children[index];option.focus({preventScroll:true});const top=option.offsetTop;if(top<list.scrollTop)list.scrollTop=top;else if(top+option.offsetHeight>list.scrollTop+list.clientHeight)list.scrollTop=top+option.offsetHeight-list.clientHeight;
     }
   });
+  wrapper.setValue=next=>{if(!options.some(o=>o[0]===next)||next===value)return;value=next;index=options.findIndex(o=>o[0]===next);trigger.textContent=options[index][1];if(list)for(const [i,n] of [...list.children].entries())n.setAttribute('aria-selected',String(options[i][0]===next));};
   wrapper.append(trigger);
   return wrapper;
 }

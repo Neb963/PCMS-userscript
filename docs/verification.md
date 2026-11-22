@@ -227,3 +227,7 @@ A retained native editor blocks unprotected typing/Save after Publish/End and of
 ## P27 — Rename and Rollback
 
 247 Node tests; build/syntax/bootstrap PASS. Chromium/Firefox synthetic UI 45018800781 PASS at 086a4f61ca33c33046501c33ba88c154d6fafd4c. Exact two-folder move, complete instructions preservation, occupied target, dirty draft, lost ACK/no replay, rollback source-to-new-ready revision and same-operation normal publication handoff tested. Native rename and actual GitHub writes remain DEFERRED and disabled.
+
+## P28 — Contextual recovery
+
+258 Node tests and build/syntax/bootstrap PASS. Chromium/Firefox synthetic UI 45019557202 PASS at 90c9c00d83f639ff33d900c91fc5cc0097cb605b. Tests cover guarded automatic Utility restoration, explicit recovery approval, complete source snapshots, independent Listing/source holds, unknown Save across restart with no replay, canonical active Helper Stop guard, safe terminal management stop, external rename handoff and late creation receipts. Unknown Refresher attempts stay counted/Unknown after saved-source resolution. Real native qualification remains DEFERRED; gates false.

@@ -97,6 +97,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   tools.append(status, settings, theme);
   shell.append(el(doc, 'header', { className: 'topbar' }, el(doc, 'div', { className: 'brand' }, el(doc, 'span', { className: 'brand-mark', 'aria-hidden': 'true' }, '◇'), 'PCMS'), nav, tools), main);
   root.append(style, shell);
+  root.addEventListener('keydown',event=>{if(event.key!=='/'||event.ctrlKey||event.altKey||event.metaKey||event.defaultPrevented)return;const active=root.activeElement;if(active?.matches('input,textarea,select,[contenteditable]')||active?.closest('[contenteditable]')||root.querySelector('dialog[open],[aria-expanded=true]'))return;const search=[...root.querySelectorAll('input[type=search]')].find(n=>n.getClientRects().length&&!n.disabled);if(search){event.preventDefault();search.focus({preventScroll:true});}});
   host.dataset.theme = model.theme || 'light';
   navigate('overview');
   return {

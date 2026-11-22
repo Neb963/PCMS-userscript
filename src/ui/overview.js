@@ -23,27 +23,27 @@ export function overviewRenderer({ activateRetained }) {
       navigate(row.destination,{manageId:row.nativeId});
     }
     function renderCases(){
-      cases.replaceChildren();
-      if(!model.restored){count.textContent='—';cases.append(el(doc,'p',{className:'empty'},'Checking saved state…'));expandReviews.hidden=true;return;}
+      const cached=new Map([...cases.children].filter(n=>n.dataset.key).map(n=>[n.dataset.key,n]));const next=[];
+      if(!model.restored){cases.replaceChildren();count.textContent='—';cases.append(el(doc,'p',{className:'empty'},'Checking saved state…'));expandReviews.hidden=true;return;}
       const all=model.cases||(model.storageAvailable===false?[{key:'storage',priority:0,title:'Storage unavailable',destination:'settings',action:'Settings'}]:[]);count.textContent=model.casesKnown?String(all.length):'—';
       const reviews=all.filter(c=>c.priority===5);expandReviews.hidden=reviews.length<2;expandReviews.textContent=view.expandedReviews?'Collapse reviews':'Expand reviews';
       const rows=all.filter(c=>view.expandedReviews||reviews.length<2||c.priority!==5);
       if(reviews.length>=2&&!view.expandedReviews)rows.push({key:'reviews',priority:5,title:`${reviews.length} awaiting review`,destination:'reviews',action:'Open Reviews'});
-      if(!rows.length)cases.append(el(doc,'p',{className:'empty'},model.casesKnown?'No action required':'Checking saved state…'));
-      for(const row of rows)cases.append(el(doc,'div',{className:'row'},el(doc,'div',{},el(doc,'strong',{},row.title),el(doc,'p',{},row.slug||'This profile')),button(doc,row.action,()=>{openCase(row).catch(()=>navigate(row.destination));})));
+      if(!rows.length)next.push(el(doc,'p',{className:'empty'},model.casesKnown?'No action required':'Checking saved state…'));
+      for(const row of rows){let node=cached.get(row.key);if(!node){node=el(doc,'div',{className:'row','data-key':row.key},el(doc,'div',{},el(doc,'strong'),el(doc,'p')),button(doc,'',()=>{const current=node.case;openCase(current).catch(()=>navigate(current.destination));}));}node.case=row;node.querySelector('strong').textContent=row.title;node.querySelector('p').textContent=row.slug||'This profile';node.querySelector('button').textContent=row.action;next.push(node);}for(const node of [...cases.children])if(!next.includes(node))node.remove();for(const [index,node] of next.entries())if(cases.children[index]!==node)cases.insertBefore(node,cases.children[index]||null);
     }
-    function renderOps(){coordinator.textContent='Coordinator '+(model.coordinator||'Checking');ops.replaceChildren();for(const row of model.operations||[['Refresher','refresher'],['AI Helper','reviews'],['Publication','utility'],['GitHub sync','sync']].map(([title,route])=>({title,route,status:'Unknown',detail:'State unavailable'})))ops.append(el(doc,'div',{className:'row'},el(doc,'div',{},el(doc,'strong',{},row.title),el(doc,'p',{},row.status+' · '+row.detail)),button(doc,'Open',()=>navigate(row.route),{className:'link','aria-label':'Open '+row.title})));}
+    function renderOps(){coordinator.textContent='Coordinator '+(model.coordinator||'Checking');const rows=model.operations||[['Refresher','refresher'],['AI Helper','reviews'],['Publication','utility'],['GitHub sync','sync']].map(([title,route])=>({title,route,status:'Unknown',detail:'State unavailable'}));for(const [i,row] of rows.entries()){let node=ops.children[i];if(!node){node=el(doc,'div',{className:'row'},el(doc,'div',{},el(doc,'strong'),el(doc,'p')),button(doc,'Open',()=>navigate(node.destination),{className:'link'}));ops.append(node);}node.destination=row.route;node.querySelector('strong').textContent=row.title;node.querySelector('p').textContent=row.status+' · '+row.detail;node.querySelector('button').setAttribute('aria-label','Open '+row.title);}}
     function details(event){dialog(doc,root,'Event details',el(doc,'div',{className:'panelbody stack'},el(doc,'p',{},eventLabel(event)),...Object.entries(exportJournal([event])[0]||{}).map(([key,value])=>el(doc,'p',{},`${key}: ${value??'—'}`))));}
     function renderEvents(){
-      const top=events.scrollTop;events.replaceChildren();
-      if(!model.restored||!model.journal){events.append(el(doc,'p',{className:'empty'},model.storageAvailable===false?'Journal unavailable':'Checking saved events…'));return;}
+      const top=events.scrollTop,cached=new Map([...events.children].filter(n=>n.dataset.event).map(n=>[n.dataset.event,n]));
+      if(!model.restored||!model.journal){events.replaceChildren();events.append(el(doc,'p',{className:'empty'},model.storageAvailable===false?'Journal unavailable':'Checking saved events…'));return;}
       let rows=view.expanded?[...model.journal].reverse():recentEvents(model.journal);
       rows=rows.filter(e=>(view.filter!=='warnings'||['failed','unknown','offline','held'].includes(e.outcome))&&`${eventLabel(e)} ${e.nativeId||''}`.toLowerCase().includes(view.query.toLowerCase()));
       const total=rows.length;rows=rows.slice(0,view.expanded?view.limit:3);
-      if(!rows.length)events.append(el(doc,'p',{className:'empty'},model.journal.length?'No matching events':'No activity recorded'));
-      for(const event of rows)events.append(button(doc,'',()=>details(event),{className:'journal-row','aria-label':eventLabel(event)}));
-      [...events.querySelectorAll('.journal-row')].forEach((row,i)=>{const event=rows[i];row.append(el(doc,'div',{},el(doc,'strong',{},eventLabel(event)),el(doc,'p',{},event.nativeId?'Native ID '+event.nativeId:event.component)),el(doc,'time',{},new Date(event.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})));});
-      if(view.expanded&&total>view.limit)events.append(button(doc,'Load older',()=>{view.limit+=100;renderEvents();},{className:'link'}));
+      const next=[];if(!rows.length)next.push(el(doc,'p',{className:'empty'},model.journal.length?'No matching events':'No activity recorded'));
+      for(const event of rows){let row=cached.get(event.id);if(!row)row=button(doc,'',()=>details(row.event),{className:'journal-row','data-event':event.id});row.event=event;row.setAttribute('aria-label',eventLabel(event));let identity=row.firstElementChild;if(!identity){identity=el(doc,'div',{},el(doc,'strong'),el(doc,'p'));row.append(identity,el(doc,'time'));}identity.querySelector('strong').textContent=eventLabel(event);identity.querySelector('p').textContent=event.nativeId?'Native ID '+event.nativeId:event.component;row.querySelector('time').textContent=new Date(event.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});next.push(row);}
+      if(view.expanded&&total>view.limit)next.push(button(doc,'Load older',()=>{view.limit+=100;renderEvents();},{className:'link'}));
+      for(const node of [...events.children])if(!next.includes(node))node.remove();for(const [i,node] of next.entries())if(events.children[i]!==node)events.insertBefore(node,events.children[i]||null);
       events.scrollTop=top;
     }
     function update(next){model=next;renderCases();renderOps();renderEvents();}
