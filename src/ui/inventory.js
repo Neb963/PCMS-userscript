@@ -4,7 +4,7 @@ import { filterInventory, manageActions } from '../state/inventory.js';
 export function inventoryRenderer({controller,project,actions={}}) {
   const view={query:'',filter:'all',sort:'slug',selected:new Set()};
   return ({doc,root,body,actions:headerActions,navigate,snapshot,params})=>{
-    let model=snapshot,visible=[];
+    let model=snapshot,visible=[],refreshManage=null;
     const notice=el(doc,'p',{role:'status',className:'statusline'});
     const rows=el(doc,'div',{className:'inventory-list scroll',role:'rowgroup',tabindex:0,'aria-label':'Generator inventory'});
     const count=el(doc,'span',{className:'statusline'});
@@ -63,7 +63,8 @@ export function inventoryRenderer({controller,project,actions={}}) {
     function openManage(id){
       let g=model.generators.find(g=>g.id===id);if(!g)return;
       const content=el(doc,'div',{className:'panelbody stack'});
-      const modal=dialog(doc,root,'Manage '+g.slug,content,{drawer:true});
+      const modal=dialog(doc,root,'Manage '+g.slug,content,{drawer:true});let eligibilityControl=null;
+      const refreshThis=()=>{if(!modal.isConnected)return;g=model.generators.find(item=>item.id===id)||g;draw();};refreshManage=refreshThis;modal.addEventListener('close',()=>{if(refreshManage===refreshThis)refreshManage=null;},{once:true});
       function draw(){
         const restoreEligibility=content.contains(root.activeElement)&&root.activeElement?.hasAttribute('data-eligibility');
         content.replaceChildren(el(doc,'p',{},'Native ID '+g.id),el(doc,'div',{className:'manage-states'},Object.entries(g.states||{}).map(([key,value])=>el(doc,'div',{},el(doc,'strong',{},key==='github'?'GitHub':key[0].toUpperCase()+key.slice(1)),el(doc,'span',{className:'tag'},value)))));
@@ -72,12 +73,16 @@ export function inventoryRenderer({controller,project,actions={}}) {
         const tools=el(doc,'div',{className:'toolbar'});
         for(const action of available){
           if(action==='import')tools.append(button(doc,'Bulk Import',()=>{modal.close();navigate('import');}));
-          else if(['exclude','include'].includes(action))tools.append(button(doc,action==='exclude'?'Exclude':'Include',()=>{
-            const inner=el(doc,'div',{className:'panelbody stack'},el(doc,'p',{},`${action==='exclude'?'Exclude':'Include'} ${g.slug} from local automation?`));
-            const confirmDialog=dialog(doc,root,action==='exclude'?'Exclude generator':'Include generator',inner,{returnFocus:()=>content.querySelector('[data-eligibility]')});
-            const yes=button(doc,'Confirm',async()=>{yes.disabled=true;try{const result=await controller.exclude([g.id],action==='exclude',true);update(project(result.state));g=model.generators.find(item=>item.id===id);draw();confirmDialog.close();}catch{inner.append(el(doc,'p',{className:'error'},'Change unconfirmed.'));yes.disabled=false;}},{className:'primary'});
-            inner.append(el(doc,'div',{className:'toolbar'},button(doc,'Cancel',()=>confirmDialog.close()),yes));
-          },{'data-eligibility':''}));
+          else if(['exclude','include'].includes(action)){
+            if(!eligibilityControl)eligibilityControl=button(doc,'',()=>{
+              const excluding=!g.excluded;
+              const inner=el(doc,'div',{className:'panelbody stack'},el(doc,'p',{},`${excluding?'Exclude':'Include'} ${g.slug} from local automation?`));
+              const confirmDialog=dialog(doc,root,excluding?'Exclude generator':'Include generator',inner,{returnFocus:()=>eligibilityControl});
+              const yes=button(doc,'Confirm',async()=>{yes.disabled=true;try{const result=await controller.exclude([g.id],excluding,true);update(project(result.state));g=model.generators.find(item=>item.id===id);draw();confirmDialog.close();}catch{inner.append(el(doc,'p',{className:'error'},'Change unconfirmed.'));yes.disabled=false;}},{className:'primary'});
+              inner.append(el(doc,'div',{className:'toolbar'},button(doc,'Cancel',()=>confirmDialog.close()),yes));
+            },{'data-eligibility':''});
+            eligibilityControl.textContent=g.excluded?'Include':'Exclude';tools.append(eligibilityControl);
+          }
           else tools.append(button(doc,action[0].toUpperCase()+action.slice(1),()=>actions[action](g,{doc,root,modal,navigate})));
         }
         if(g.status?.state==='review'||g.holds?.some(h=>['review','cancelled-draft','helper-unknown'].includes(h.kind)))tools.append(button(doc,'Open Reviews',()=>{modal.close();navigate('reviews');}));
@@ -89,7 +94,7 @@ export function inventoryRenderer({controller,project,actions={}}) {
       draw();
       controller.inspect(id).then(verified=>{if(!modal.isConnected)return;g={...(model.generators.find(item=>item.id===id)||g),listing:verified.listing,ownerVerified:true};draw();}).catch(()=>{if(modal.isConnected){g={...(model.generators.find(item=>item.id===id)||g),ownerVerified:false};draw();}});
     }
-    function update(next){model=next;render(false);}
+    function update(next){if(Number.isFinite(next.revision)&&Number.isFinite(model.revision)&&next.revision<model.revision)return;model=next;render(false);refreshManage?.();}
     render();if(params?.manageId)openManage(params.manageId);
     return {update};
   };

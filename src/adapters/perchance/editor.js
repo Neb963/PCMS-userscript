@@ -30,3 +30,22 @@ export class EditorSource {
     requireThat(staged.draftId===current.draftId&&sourceEqual(staged.source,intended),'draft-stage-unconfirmed');return staged;
   }
 }
+
+export function nativeSourceManifest(body,source){
+  const value=completeSource(source);requireThat(body?.generator?.modelText===value.pjs&&body.generator.outputTemplate===value.html,'native-request-source-changed');
+  let files=body.srcManifest;if(typeof files==='string'){try{files=JSON.parse(files);}catch{throw Error('native-request-files-changed');}}
+  requireThat(files&&typeof files==='object'&&!Array.isArray(files)&&JSON.stringify(Object.keys(files).sort())===JSON.stringify(Object.keys(value.files)),'native-request-files-changed');
+  const manifest=Object.create(null);
+  for(const [path,expected] of Object.entries(value.files)){
+    const file=files[path],key=typeof file==='string'?file:file?.key;
+    requireThat(typeof key==='string'&&/^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9]+)?$/.test(key)&&(typeof file==='string'||file.size===undefined||file.size===expected.length),'native-request-files-changed');manifest[path]=key;
+  }
+  return manifest;
+}
+export async function verifyUploadedSource(request,body,source){
+  const manifest=nativeSourceManifest(body,source);
+  for(const [path,key] of Object.entries(manifest)){
+    const actual=await request('https://user.uploads.dev/file/'+key,{type:'bytes'}),expected=source.files[path];
+    requireThat((actual instanceof Uint8Array||Array.isArray(actual))&&actual.length===expected.length&&expected.every((byte,i)=>actual[i]===byte),'native-upload-bytes-mismatch');
+  }
+}

@@ -104,3 +104,7 @@ test('reconciled reservation effects release only their own correlated interrupt
   await f.store.transact(s=>{s.jobs['correlation-rename-worker']={id:'correlation-rename-worker',kind:'native-rename',phase:'unknown'};s.generators['123'].holds.push({id:'correlation-rename',kind:'native-unknown'},{id:'correlation-rename-worker',kind:'native-unknown'},{id:'independent',kind:'edit'});});
   assert.equal((await f.reservation.run(f.request,'correlation')).phase,'reserved');const ids=(await f.store.read()).generators['123'].holds.map(h=>h.id);assert.equal(ids.includes('correlation-rename'),false);assert.equal(ids.includes('correlation-rename-worker'),false);assert.equal(ids.includes('independent'),true);assert.equal(f.calls.filter(c=>c==='rename').length,1);
 });
+test('native transport rejects body mutation while its protected allow check is pending',async()=>{
+  let effects=0;const options={body:'{}'},page={Promise,fetch:async()=>{effects++;return {ok:true,clone:()=>({json:async()=>({status:'saved'})})};}};
+  await assert.rejects(nativeReceipt(page,{path:'/api/save',exporter:f=>f,allow:async()=>{options.body='changed';},invoke:()=>page.fetch('/api/save',options)}));assert.equal(effects,0);
+});

@@ -100,10 +100,12 @@ try {
     assert.equal(await selected.isChecked(),true);
     await app.getByRole('button',{name:'Manage synthetic-generator-08',exact:true}).click();
     await app.getByRole('dialog',{name:'Manage synthetic-generator-08',exact:true}).waitFor();
+    const originalEligibility=await app.getByRole('dialog',{name:'Manage synthetic-generator-08',exact:true}).getByRole('button',{name:'Exclude',exact:true}).elementHandle();
     await app.getByRole('dialog',{name:'Manage synthetic-generator-08',exact:true}).getByRole('button',{name:'Exclude',exact:true}).click();
     await app.getByRole('dialog',{name:'Exclude generator',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
     await app.getByRole('dialog',{name:'Exclude generator',exact:true}).waitFor({state:'detached'});
     const inclusion=app.getByRole('dialog',{name:'Manage synthetic-generator-08',exact:true}).getByRole('button',{name:'Include',exact:true});
+    assert.equal(await originalEligibility.evaluate(n=>n.isConnected&&n.textContent==='Include'),true);
     assert.equal(await inclusion.evaluate(n=>n.getRootNode().activeElement===n),true);
     const protectedGenerator=await page.evaluate(async()=>JSON.parse(await window.GM.getValue('PCMS_STORE_V1')).generators['108']);
     assert.equal(protectedGenerator.excluded,true);assert.equal(protectedGenerator.listing,'listed');assert.equal(protectedGenerator.status.state,'done');assert.equal(protectedGenerator.holds.length,2);

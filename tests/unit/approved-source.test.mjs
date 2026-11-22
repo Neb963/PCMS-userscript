@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {testStore} from '../fixtures/store.mjs';
 import {ApprovedSource,beforeApprovedSave,bindApprovedDraft,approvedRecord} from '../../src/state/approved-source.js';
 import {ProtectedStore} from '../../src/state/store.js';
+import {nativeSourceManifest,verifyUploadedSource} from '../../src/adapters/perchance/editor.js';
 import {NativeActions} from '../../src/adapters/perchance/actions.js';
 
 async function fixture(){
@@ -55,4 +56,10 @@ test('Utility native deploy uses the same exact stored source proof immediately 
 });
 test('Utility snapshot proof write failure leaves staged draft and confirmed source recoverable without Save',async()=>{
   const f=await deploymentFixture();f.store.set=async()=>{throw Error('quota');};await assert.rejects(f.actions.deploy(f.target,'approval-1'),/unconfirmed/);assert.equal(f.saves(),0);assert.equal(f.page.modelTextEditor.getValue(),'approved');assert.equal((await f.store.read()).pending['approval-1'].source.pjs,'approved');
+});
+test('approved native request verifies both panels, exact src set and uploaded bytes before Save',async()=>{
+  const source={pjs:'approved',html:'<p>approved</p>',files:{'binary.bin':[0,255],'zero.bin':[]}},body={generator:{modelText:source.pjs,outputTemplate:source.html},srcManifest:{'binary.bin':{key:'binary',size:2},'zero.bin':{key:'zero',size:0}}};
+  const request=async url=>new URL(url).pathname.endsWith('/zero')?new Uint8Array([]):new Uint8Array([0,255]);await verifyUploadedSource(request,body,source);
+  await assert.rejects(verifyUploadedSource(async()=>new Uint8Array([0]),body,source),/upload-bytes-mismatch/);
+  for(const change of [b=>{b.generator.outputTemplate='different';},b=>{delete b.srcManifest['zero.bin'];},b=>{b.srcManifest['binary.bin'].key='../invalid';}]){const value=structuredClone(body);change(value);assert.throws(()=>nativeSourceManifest(value,source),/native-request/);}
 });

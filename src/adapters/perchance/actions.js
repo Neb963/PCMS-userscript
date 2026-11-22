@@ -1,5 +1,5 @@
 import { bindApprovedDraft, beforeApprovedSave } from '../../state/approved-source.js';
-import { EditorSource } from './editor.js';
+import { EditorSource, verifyUploadedSource } from './editor.js';
 import { requireThat, slug, sourceEqual, generatorRecord } from '../../shared/domain.js';
 import { requireLiveCapability } from './session.js';
 
@@ -10,9 +10,9 @@ export async function nativeReceipt(page,{path,invoke,matches=()=>true,allow=asy
   const original=page.fetch,PagePromise=page.Promise;let wrapped,timer,resolveReply,rejectReply,active=true,dispatched=false;
   const reply=new Promise((resolve,reject)=>{resolveReply=resolve;rejectReply=reject;});reply.catch(()=>{});
   wrapped=exporter(function(...args){
-    let matched=false,body=null;
+    let matched=false,body=null,originalURL=null,originalBody=args[1]?.body;
     try{
-      const url=new URL(typeof args[0]==='string'?args[0]:args[0].url,'https://perchance.org');
+      originalURL=typeof args[0]==='string'?args[0]:args[0].url;const url=new URL(originalURL,'https://perchance.org');
       if(url.origin==='https://perchance.org'&&url.pathname===path){body=typeof args[1]?.body==='string'?JSON.parse(args[1].body):null;matched=matches(body);}
     }catch{rejectReply(Error('native-request-unconfirmed'));}
     if(!matched)return original.apply(this,args);
@@ -20,7 +20,7 @@ export async function nativeReceipt(page,{path,invoke,matches=()=>true,allow=asy
     // A page-realm Promise returns the existing page Response, not a privileged
     // Promise/object. The allow check runs before the native transport is called.
     return new PagePromise((resolve,reject)=>{
-      Promise.resolve().then(()=>{requireThat(active,'native-observer-expired');return allow(body);}).then(()=>{requireThat(active,'native-observer-expired');requireThat(!dispatched,'duplicate-native-dispatch');dispatched=true;onDispatch();return original.apply(receiver,args);}).then(response=>{
+      Promise.resolve().then(()=>{requireThat(active,'native-observer-expired');return allow(body);}).then(()=>{requireThat(active,'native-observer-expired');requireThat(!dispatched,'duplicate-native-dispatch');requireThat((typeof args[0]==='string'?args[0]:args[0].url)===originalURL&&args[1]?.body===originalBody,'native-request-changed');dispatched=true;onDispatch();return original.apply(receiver,args);}).then(response=>{
         resolve(response);
         Promise.resolve().then(async()=>{requireThat(response.ok,'native-http-unconfirmed');const value=await response.clone().json(),safe={};for(const key of ['status','name','time','saveCount','sourceRevision','editorPayloadRevision'])if(['string','number','boolean'].includes(typeof value?.[key]))safe[key]=value[key];await observe(safe);resolveReply(safe);}).catch(()=>rejectReply(Error('native-receipt-unconfirmed')));
       }).catch(()=>{reject('PCMS native operation unavailable');rejectReply(Error('native-dispatch-unconfirmed'));});
@@ -79,7 +79,7 @@ export class NativeActions {
     const confirmed=await bindApprovedDraft(this.store,pendingId,proof,{...staged,workerId:this.workerId,documentId:this.documentId});
     await this.guard();this.selected();await this.gate.requireOwner(target);
     await beforeApprovedSave(this.store,pendingId,{...await editor.capture(target),workerId:this.workerId,documentId:this.documentId},proof.id,confirmed);
-    const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name===target.slug);
+    const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name===target.slug,{allow:async body=>{await beforeApprovedSave(this.store,pendingId,{...await editor.capture(target),workerId:this.workerId,documentId:this.documentId},proof.id,confirmed);await verifyUploadedSource((url,options)=>this.reader.request(url,options),body,confirmed.source);}});
     requireThat(receipt.status==='saved'&&receipt.name===target.slug,'save-receipt-unconfirmed');
     await this.guard();await this.store.transact(s=>{const r=s.utility?.[pending.requestId];if(r&&!r.steps.includes('native Save'))r.steps.push('native Save');});return receipt;
   }

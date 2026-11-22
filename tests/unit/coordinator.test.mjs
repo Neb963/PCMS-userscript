@@ -82,7 +82,7 @@ test('unknown source writes permit independent reads but reject another writer',
   await c.claim({...job,id:'read-only',kind:'read-saved'});await assert.rejects(c.claim({...job,id:'another-write'}),/held/);abort.abort();await run.done;
 });
 test('final native guard rejects lost/stopped/stale workers and independent source holds',()=>{
-  const command={id:'refresh-save',kind:'refresh-save',term:1,owner:'coordinator',documentId:'document',target:{id:'123',slug:'target-slug'},payload:{}},state={coordinator:{term:1,owner:'coordinator'},jobs:{'refresh-save':{phase:'dispatched',accepted:true}},workers:{worker:{role:'refresher',phase:'busy',documentId:'document'}},generators:{'123':{id:'123',slug:'target-slug',holds:[]}},pending:{},utility:{}};
+  const command={id:'refresh-save',kind:'refresh-save',term:1,owner:'coordinator',documentId:'document',target:{id:'123',slug:'target-slug'},payload:{}},state={coordinator:{term:1,owner:'coordinator'},jobs:{'refresh-save':{phase:'dispatched',accepted:true,workerId:'worker',documentId:'document',term:1,owner:'coordinator'}},workers:{worker:{role:'refresher',phase:'busy',documentId:'document'}},generators:{'123':{id:'123',slug:'target-slug',holds:[]}},pending:{},utility:{}};
   guardNativeCommand(state,command,'worker');
   for(const change of [s=>{s.workers.worker.phase='lost';},s=>{s.coordinator.term=2;},s=>{s.jobs['refresh-save'].phase='unknown';},s=>{s.generators['123'].stopRequested=true;},s=>{s.generators['123'].holds.push({id:'manual-edit',kind:'edit'});}]){const copy=structuredClone(state);change(copy);assert.throws(()=>guardNativeCommand(copy,command,'worker'));}
 });

@@ -10,6 +10,7 @@ export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generat
 
 export function publicSnapshot(state, { session = null, coordinator = 'Unverified' } = {}) {
   return {
+    revision:state.revision,
     accountId: state.settings.account.accountId,
     repositoryLabel: state.settings.github?.repository?state.settings.github.repository.owner+'/'+state.settings.github.repository.name:'Setup required',
     syncJobs:syncRecords(state).map(p=>{const g=state.generators[p.generatorId],terminal=['synced','stopped','reassigned','superseded'].includes(p.phase),writeUnknown=Object.values(state.jobs).some(j=>j.kind==='github'&&JSON.stringify(j.repository)===JSON.stringify(p.repository)&&j.slug===p.slug&&(['dispatched','unknown'].includes(j.phase)||j.remoteOutcome==='unknown'));const lastAction=Object.values(state.commands||{}).filter(c=>c.kind==='sync-action'&&c.pendingId===p.id).at(-1);return {actionBusy:['queued','running'].includes(lastAction?.phase),actionStatus:lastAction?.phase||null,actionReason:lastAction?.reason||null,id:p.id,generatorId:p.generatorId||null,slug:p.slug,repositoryLabel:p.repository.owner+'/'+p.repository.name,oldRepository:!!state.settings.github?.repository&&JSON.stringify(p.repository)!==JSON.stringify(state.settings.github.repository),phase:!terminal&&writeUnknown&&!p.phase.startsWith('publication-')?'unknown':p.phase,terminal,writeUnknown,local:g?.localDone&&g?.savedVerified?'Verified':p.phase==='stopped'?'Stopped':'Unverified',refresher:g?generatorStates({...g,managed:true},state).refresher:'Not managed',hasSource:p.kind==='source',nativeVerified:p.nativeVerified===true,baseCommit:p.baseCommit,canCompare:p.phase==='source-conflict'&&approvedLocal(p,g)&&!writeUnknown,approvalLabel:p.approval?.id||'Unverified',requestConflict:['request-conflict','account-conflict'].includes(p.phase),destination:p.status.action==='develop'&&g?.holds?.some(h=>['review','development'].includes(h.kind))?'reviews':'utility'};}),
@@ -95,7 +96,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   navigate('overview');
   return {
     navigate,
-    update(next) { model = next; const counter = nav.querySelector('[data-action-count]'); counter.textContent = model.restored && model.casesKnown && model.cases ? String(model.cases.length) : '—'; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
+    update(next) { if(Number.isFinite(next.revision)&&Number.isFinite(model.revision)&&next.revision<model.revision)return; model = next; const counter = nav.querySelector('[data-action-count]'); counter.textContent = model.restored && model.casesKnown && model.cases ? String(model.cases.length) : '—'; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
     get route() { return route; },
   };
 }

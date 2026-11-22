@@ -4,8 +4,8 @@
 
 ## Next action
 
-- Verify dedicated Refresher runtime browser regression and final native boundary/complete-source negative cases.
-- Review failed-result persistence, source holds, retained dirty tabs and coordinator takeover so no late reply reactivates a worker or repeats a Save.
+- Verify final browser regression after fixing Manage action-node replacement and stale snapshot ordering. UI run 44980455714 caught the recurring Include-focus failure; checks 44980455742 passed.
+- Final boundary checks: 185 Node tests PASS. Approved native requests validate both panels, exact src manifest and uploaded bytes before transport (including zero-byte mismatch). Request mutation during async guards is rejected. Manage reuses its eligibility node and ignores older snapshots.
 - Accept P20 synthetic evidence after checks; then plan P21 full Refresher screen. Native Save qualification remains DEFERRED and statically disabled.
 
 ## Evidence
@@ -14,10 +14,10 @@
 
 - P20 first verified batch: 164 Node tests PASS. Leading PJS/HTML markers preserve BOM/CRLF/empty panels and exact functional source/src, reject unsafe/malformed/moved/duplicate markers, and support baseline fingerprints at verified Import/publication. Native transport revalidates before dispatch, sends at most one matched request, bounds hung frontend calls and retains observed receipts. Dedicated Refresher preparation/Save/controller wiring remains to implement.
 
-P00–P19 evidence is in docs/verification.md. Build/syntax and 158 Node tests PASS. P19 checks 44978381380 and Chromium/Firefox UI 44978381382 PASS at 7d14366ceab5a44b9bc660d3eb78a14e7c4daaba. P01 live installation acceptance remains deferred.
+P00–P19 evidence is in docs/verification.md. Build/syntax and 158 Node tests PASS. P19 checks 44978381380 and Chromium/Firefox UI 44978381382 PASS at cb7165381f304dd8e8e023438b917801c5b11cfc. P01 live installation acceptance remains deferred.
 
 ## Blockers / deferred checks
 
 DEFERRED — P01–P20 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft/refresh Save and GitHub synchronization — no disposable profile/targets/PAT supplied. Static write flags remain false.
 
-**Last pushed commit:** 7d14366ceab5a44b9bc660d3eb78a14e7c4daaba.
+**Last pushed commit:** cb7165381f304dd8e8e023438b917801c5b11cfc.

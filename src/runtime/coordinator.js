@@ -129,7 +129,7 @@ export async function acceptCommand(store, command, worker) {
 
 export function guardNativeCommand(state,command,workerId){
   const job=state.jobs[command.id],worker=state.workers[workerId],parent=command.payload?.actionId&&state.jobs[command.payload.actionId],request=parent?.requestId&&state.utility?.[parent.requestId];
-  requireThat(job?.phase==='dispatched'&&job.accepted===true&&!job.locallyStopped&&!parent?.locallyStopped&&state.coordinator.term===command.term&&state.coordinator.owner===command.owner&&worker?.documentId===command.documentId&&worker.phase==='busy','stale-native-command');
+  requireThat(job?.phase==='dispatched'&&job.accepted===true&&job.workerId===workerId&&job.documentId===command.documentId&&job.term===command.term&&job.owner===command.owner&&!job.locallyStopped&&!parent?.locallyStopped&&state.coordinator.term===command.term&&state.coordinator.owner===command.owner&&worker?.documentId===command.documentId&&worker.phase==='busy','stale-native-command');
   requireThat(!request?.stopped&&!request?.stopRequested&&!state.generators[command.target?.id]?.stopRequested&&!state.pending[command.payload?.pendingId]?.stopRequested,'request-stopped');
   if(command.kind.startsWith('refresh-'))requireThat(worker.role==='refresher','wrong-native-worker-role');
   if(command.target?.id){

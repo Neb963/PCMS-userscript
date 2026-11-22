@@ -93,7 +93,7 @@ function coordinate(store, ui = null) {
   const refresh = async () => {
     if (!ui || updating) return;
     updating = true;
-    try { const state = await store.read(); const session = await gate.observe(); const verified = coordinator.active || (state.coordinator.observedAt >= mountedAt && Date.now() - state.coordinator.observedAt < 15000); ui.update(publicSnapshot(state, { session, coordinator: verified ? 'Verified' : 'Unverified' })); }
+    try { const session = await gate.observe(); const state = await store.read(); const verified = coordinator.active || (state.coordinator.observedAt >= mountedAt && Date.now() - state.coordinator.observedAt < 15000); ui.update(publicSnapshot(state, { session, coordinator: verified ? 'Verified' : 'Unverified' })); }
     catch { ui.update({ restored: true, storageAvailable: false, coordinator: 'Unverified' }); }
     finally { updating = false; }
   };
