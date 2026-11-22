@@ -1,5 +1,5 @@
 import { appendEvent } from '../state/journal.js';
-import { requireThat } from '../shared/domain.js';
+import { requireThat, isReadOnlyCommand } from '../shared/domain.js';
 
 export const COORDINATOR_LOCK = 'pcms:coordinator:v1';
 
@@ -12,7 +12,7 @@ function interruptJobs(state) {
     const worker=state.workers[job.workerId];if(worker&&worker.role!=='development')worker.phase='retained';
     const generator = state.generators[job.generatorId];
     if(generator&&worker)generator.retainedTab=worker.id;
-    if (generator && !generator.holds.some(h => h.id === job.id)) generator.holds.push({ id: job.id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
+    if (!isReadOnlyCommand(job.kind)&&generator && !generator.holds.some(h => h.id === job.id)) generator.holds.push({ id: job.id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
   }
 }
 
@@ -70,7 +70,7 @@ export class Coordinator {
     return this.store.transact(state => {
       this.assertOwner(state);
       requireThat(!Object.hasOwn(state.jobs, job.id), 'duplicate-job');
-      if (job.generatorId&&!['read-saved','inspect-target','native-capture','helper-stop','helper-resolve','approved-capture'].includes(job.kind)) requireThat(!Object.values(state.jobs).some(j => !['read-saved','inspect-target','native-capture','helper-stop','helper-resolve','approved-capture'].includes(j.kind)&&j.generatorId === job.generatorId && j.id !== job.parentId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
+      if (job.generatorId&&!['read-saved','inspect-target','native-capture','helper-stop','helper-resolve','approved-capture','edit-capture'].includes(job.kind)) requireThat(!Object.values(state.jobs).some(j => !['read-saved','inspect-target','native-capture','helper-stop','helper-resolve','approved-capture','edit-capture'].includes(j.kind)&&j.generatorId === job.generatorId && j.id !== job.parentId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
       state.jobs[job.id] = { ...structuredClone(job), owner: this.owner, term: this.term, phase: 'prepared', accepted: false };
       return structuredClone(state.jobs[job.id]);
     });
@@ -93,7 +93,7 @@ export class Coordinator {
         if (job?.phase === 'dispatched') {
           job.phase = 'unknown';
           const gen = state.generators[job.generatorId];
-          if (gen && !gen.holds.some(h => h.id === id)) gen.holds.push({ id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
+          if (!isReadOnlyCommand(job.kind)&&gen && !gen.holds.some(h => h.id === id)) gen.holds.push({ id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
         }
       });
       throw new Error('dispatch-unknown');
@@ -107,9 +107,9 @@ export class Coordinator {
       const job = state.jobs[command.id];
       requireThat(job?.phase === 'dispatched' && job.accepted && job.term === this.term && job.workerId === command.workerId && job.documentId === command.documentId, 'stale-result');
       job.phase = outcome;
-      if (outcome === 'unknown') {
+      if (outcome === 'unknown'&&!isReadOnlyCommand(job.kind)) {
         const gen = state.generators[job.generatorId];
-        if (gen && !gen.holds.some(h => h.id === job.id)) gen.holds.push({ id: job.id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
+        if (!isReadOnlyCommand(job.kind)&&gen && !gen.holds.some(h => h.id === job.id)) gen.holds.push({ id: job.id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
       }
     });
   }
@@ -134,11 +134,15 @@ export function guardNativeCommand(state,command,workerId){
   if(command.kind.startsWith('refresh-'))requireThat(worker.role==='refresher','wrong-native-worker-role');
   const development=command.payload?.developmentId&&state.development?.[command.payload.developmentId];
   if(command.kind.startsWith('helper-')||command.kind.startsWith('approved-'))requireThat(worker.role==='development'&&development&&development.generatorId===command.target.id&&(!development.workerId||development.workerId===workerId)&&(command.kind==='helper-start'?!development.stopRequested&&!state.requestQueue?.[development.id]?.incoming:['approved-save','approved-listing'].includes(command.kind)?!development.stopRequested&&['publishing','publication-unknown'].includes(development.phase):true),'helper-context-changed');
+  const edit=command.payload?.editId&&state.edits?.[command.payload.editId];
+  if(command.kind.startsWith('edit-'))requireThat(worker.role==='manual'&&edit&&edit.workerId===workerId&&(!edit.documentId||edit.documentId===command.documentId)&&edit.generatorId===command.target.id&&(command.kind!=='edit-save'||!edit.stopRequested&&['publishing','publication-unknown'].includes(edit.phase)),'edit-context-changed');
+  if(command.kind==='edit-save'){const pending=state.pending[command.payload.pendingId];requireThat(edit.approvedPending===pending?.id&&pending.editId===edit.id&&pending.retainedTab===workerId&&pending.approval?.documentId===command.documentId,'approved-context-changed');}
   if(['approved-save','approved-listing'].includes(command.kind)){const pending=state.pending[command.payload.pendingId];requireThat(development?.approvedPending===pending?.id&&pending?.generatorId===command.target.id&&pending.retainedTab===workerId&&pending.approval?.documentId===command.documentId&&(command.kind!=='approved-listing'||development.created&&pending.listingIntent==='listed'),'approved-context-changed');}
   if(command.target?.id){
     const generator=state.generators[command.target.id],allowed=new Set([command.id,parent?.id,request?.id].filter(Boolean));
+    if(edit)allowed.add(edit.id);
     if(development){allowed.add(development.id);if(command.kind==='helper-resolve')for(const suffix of ['-helper-start','-helper-stop'])allowed.add(development.id+suffix);}
     const previous=request?.request.replacesPendingId&&state.pending[request.request.replacesPendingId];if(previous?.phase==='publication-queued'&&previous.decision?.successorRequest===request.id)allowed.add('sync-'+previous.id);
-    requireThat(generator&&generator.slug===command.target.slug&&(['helper-resolve','helper-stop','approved-capture'].includes(command.kind)||generator.holds.every(h=>allowed.has(h.id))),'generator-source-held');
+    requireThat(generator&&generator.slug===command.target.slug&&(['helper-resolve','helper-stop','approved-capture','edit-capture'].includes(command.kind)||generator.holds.every(h=>allowed.has(h.id))),'generator-source-held');
   }
 }

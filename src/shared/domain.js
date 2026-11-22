@@ -117,3 +117,5 @@ export function requestIdentity(value) {
   requireThat(value && typeof value.commit === 'string' && /^[a-f0-9]{40}$/.test(value.commit), 'invalid-request-revision');
   return { repository: repository(value.repository), slug: slug(value.slug), commit: value.commit, status: statusRecord(value.status) };
 }
+
+export function isReadOnlyCommand(kind){return ['read-saved','inspect-target','native-capture','approved-capture','edit-capture','helper-resolve'].includes(kind);}

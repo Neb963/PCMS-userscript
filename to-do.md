@@ -189,10 +189,10 @@
 
 ### P25 — Approve & Publish workflow
 
-- [ ] Recheck settled draft/source after operator approval and before Save.
-- [ ] Use complete pre-Save snapshot, native Save/Listing confirmation and correct GitHub status.
-- [ ] Recover offline, unknown writes, new versus existing Unlisted generator and draft changes.
-- [ ] **Accept:** Only verified approved source is published; no false success or accidental listing.
+- [x] Recheck settled draft/source after operator approval and before Save.
+- [x] Use complete pre-Save snapshot, native Save/Listing confirmation and correct GitHub status.
+- [x] Recover offline, unknown writes, new versus existing Unlisted generator and draft changes.
+- [x] **Accept:** Only verified approved source is published; no false success or accidental listing.
 
 ### P26 — Manual Edit and Publish
 

@@ -1,5 +1,5 @@
 import { approvedRecord } from './approved-source.js';
-import { requireThat, completeSource, sourceEqual, pendingUpdate } from '../shared/domain.js';
+import { requireThat, isReadOnlyCommand, completeSource, sourceEqual, pendingUpdate } from '../shared/domain.js';
 
 export const STORE_KEY = 'PCMS_STORE_V1';
 export const STORE_LOCK = 'pcms:store:v1';
@@ -107,7 +107,7 @@ export class ProtectedStore {
         if (job.phase !== 'dispatched') continue;
         job.phase = 'unknown';
         const generator = state.generators[job.generatorId];
-        if (generator && !generator.holds.some(h => h.id === job.id)) generator.holds.push({ id: job.id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
+        if (!isReadOnlyCommand(job.kind)&&generator && !generator.holds.some(h => h.id === job.id)) generator.holds.push({ id: job.id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
       }
     });
   }

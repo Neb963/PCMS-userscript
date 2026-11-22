@@ -49,6 +49,15 @@ export class NativePage {
     return { id: nativeId(String(generator.id)), slug: slug(generator.name), publicId: typeof generator.publicId === 'string' ? generator.publicId : null };
   }
 
+  async waitUntilReady(expected,{guard=async()=>{},allowSaving=false}={}){
+    const started=performance.now();
+    while(performance.now()-started<this.timeout){
+      await guard();try{const target=expected.id?expected:{...expected,id:this.identity().id};return await this.ready(target,{allowSaving});}
+      catch(error){if(!['editor-unavailable','editor-not-settled','draft-identity-unavailable','native-identity-unavailable'].includes(error.message))throw error;}
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    throw Error('editor-readiness-timeout');
+  }
   async ready(expected,{allowSaving=false}={}) {
     const p = this.page;
     requireThat(p.app && p.modelTextEditor?.getValue && p.outputTemplateEditor?.getValue && p.srcState?.ready, 'editor-unavailable');

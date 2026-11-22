@@ -1,8 +1,8 @@
-import { requireThat, slug } from '../shared/domain.js';
+import { requireThat, slug, isReadOnlyCommand } from '../shared/domain.js';
 import { acceptCommand } from './coordinator.js';
 import { STORE_KEY } from '../state/store.js';
 
-export const WORKER_ROLES = Object.freeze(['refresher', 'utility', 'development']);
+export const WORKER_ROLES = Object.freeze(['refresher', 'utility', 'development', 'manual']);
 
 export function workerURL(worker, targetSlug) {
   slug(targetSlug);
@@ -18,18 +18,19 @@ export class WorkerPool {
     this.handles = new Map();
   }
 
-  async open(role, targetSlug, generatorId = null, fork = false) {
+  async open(role, targetSlug, generatorId = null, fork = false, {active=false,editId=null}={}) {
     requireThat(WORKER_ROLES.includes(role), 'invalid-worker-role');
     slug(targetSlug);
     const id = this.uuid();
     const result = await this.store.transact(state => {
-      const active = Object.values(state.workers).filter(w => w.role === role && w.slotReleased!==true && !['retained', 'released'].includes(w.phase) && (role === 'development' || w.phase !== 'lost'));
+      const active = Object.values(state.workers).filter(w => w.role === role && (role!=='manual'||w.generatorId===generatorId) && w.slotReleased!==true && !['retained', 'released'].includes(w.phase) && (role === 'development' || w.phase !== 'lost'));
       requireThat(active.length < (role === 'development' ? 2 : 1), 'worker-capacity');
       state.workers[id] = { id, role, generatorId, fork, slug: targetSlug, phase: 'opening', documentId: null, selected: false, observedAt: this.now() };
+      if(role==='manual'&&editId){requireThat(state.edits?.[editId]?.generatorId===generatorId,'edit-context-changed');state.edits[editId].workerId=id;}
       return structuredClone(state.workers[id]);
     });
     try {
-      const handle = await this.openTab(workerURL(result.result, targetSlug), { active: false, insert: true });
+      const handle = await this.openTab(workerURL(result.result, targetSlug), { active: role==='manual'&&active===true, insert: true });
       requireThat(handle, 'tab-open-unconfirmed');
       this.handles.set(id, handle);
       handle.onclose = () => this.lost(id).catch(() => {});
@@ -49,7 +50,7 @@ export class WorkerPool {
         if (job.workerId !== id || !['prepared', 'dispatched'].includes(job.phase)) continue;
         job.phase = 'unknown';
         const gen = state.generators[job.generatorId];
-        if (gen && !gen.holds.some(h => h.id === job.id)) gen.holds.push({ id: job.id, kind: 'worker-lost' });
+        if (!isReadOnlyCommand(job.kind)&&gen && !gen.holds.some(h => h.id === job.id)) gen.holds.push({ id: job.id, kind: 'worker-lost' });
       }
     });
   }
@@ -117,6 +118,7 @@ export class WorkerRuntime {
       const worker = state.workers[this.id];
       requireThat(worker && worker.phase === 'opening', 'unassigned-worker');
       worker.documentId = this.documentId;
+      for(const edit of Object.values(state.edits||{}))if(edit.workerId===this.id&&!edit.documentId)edit.documentId=this.documentId;
       worker.nativeVerified = false;
       delete worker.nativeProofId;
       worker.phase = 'idle';

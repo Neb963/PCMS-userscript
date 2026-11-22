@@ -63,13 +63,14 @@ export function inventoryRenderer({controller,project,actions={}}) {
     function openManage(id){
       let g=model.generators.find(g=>g.id===id);if(!g)return;
       const content=el(doc,'div',{className:'panelbody stack'});
-      const modal=dialog(doc,root,'Manage '+g.slug,content,{drawer:true});let eligibilityControl=null;
+      const modal=dialog(doc,root,'Manage '+g.slug,content,{drawer:true});let eligibilityControl=null;const editControls=new Map();
       const refreshThis=()=>{if(!modal.isConnected)return;g=model.generators.find(item=>item.id===id)||g;draw();};refreshManage=refreshThis;modal.addEventListener('close',()=>{if(refreshManage===refreshThis)refreshManage=null;},{once:true});
       function draw(){
+        const editFocus=[...editControls.values()].includes(root.activeElement)?root.activeElement:null;
         const restoreEligibility=content.contains(root.activeElement)&&root.activeElement?.hasAttribute('data-eligibility');
         content.replaceChildren(el(doc,'p',{},'Native ID '+g.id),el(doc,'div',{className:'manage-states'},Object.entries(g.states||{}).map(([key,value])=>el(doc,'div',{},el(doc,'strong',{},key==='github'?'GitHub':key[0].toUpperCase()+key.slice(1)),el(doc,'span',{className:'tag'},value)))));
         if(g.holds?.length)content.append(el(doc,'p',{className:'notice'},g.holds.map(h=>h.kind).join(' · ')));
-        const available=manageActions(g,Object.keys(actions));
+        const available=manageActions(g,model.nativeSessionConfirmed?Object.keys(actions):[]);
         const tools=el(doc,'div',{className:'toolbar'});
         for(const action of available){
           if(action==='import')tools.append(button(doc,'Bulk Import',()=>{modal.close();navigate('import');}));
@@ -85,11 +86,17 @@ export function inventoryRenderer({controller,project,actions={}}) {
           }
           else tools.append(button(doc,action[0].toUpperCase()+action.slice(1),()=>actions[action](g,{doc,root,modal,navigate})));
         }
-        if(g.status?.state==='review'||g.holds?.some(h=>['review','cancelled-draft','helper-unknown'].includes(h.kind)))tools.append(button(doc,'Open Reviews',()=>{modal.close();navigate('reviews');}));
+        if(g.edit){
+          const add=(key,label,disabled=false)=>{let control=editControls.get(key);if(!control){control=button(doc,label,()=>actions[key]?.(g,{doc,root,modal,navigate,trigger:control}));editControls.set(key,control);}control.textContent=label;control.disabled=disabled||g.edit.actionBusy;tools.append(control);};
+          if(g.edit.retainedTab)add('openEdit','Open editor');
+          if(g.edit.active){if(g.edit.phase==='editing')add('publishEdit','Publish manual edit',!g.edit.canPublish||!model.nativeSessionConfirmed);if(g.edit.phase==='editing')add('endEdit','End edit');if(g.edit.phase==='publication-unknown')add('recheckEdit','Recheck result');}
+          if(g.edit.message)content.append(el(doc,'p',{className:'notice'},g.edit.message));
+        }
+        if(g.status?.state==='review' ||g.holds?.some(h=>['review','cancelled-draft','helper-unknown'].includes(h.kind)))tools.append(button(doc,'Open Reviews',()=>{modal.close();navigate('reviews');}));
         if(g.holds?.some(h=>h.kind==='source-conflict'))tools.append(button(doc,'Open GitHub sync',()=>{modal.close();navigate('sync');}));
         content.append(tools);
         if(!g.ownerVerified)content.append(el(doc,'p',{className:'statusline'},'Ownership unverified. Confirm session in Settings before owner actions.'));
-        if(restoreEligibility)content.querySelector('[data-eligibility]')?.focus({preventScroll:true});
+        if(restoreEligibility)content.querySelector('[data-eligibility]')?.focus({preventScroll:true});if(editFocus?.isConnected)editFocus.focus({preventScroll:true});
       }
       draw();
       controller.inspect(id).then(verified=>{if(!modal.isConnected)return;g={...(model.generators.find(item=>item.id===id)||g),listing:verified.listing,ownerVerified:true};draw();}).catch(()=>{if(modal.isConnected){g={...(model.generators.find(item=>item.id===id)||g),ownerVerified:false};draw();}});

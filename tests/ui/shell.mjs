@@ -33,6 +33,8 @@ for(let i=0;i<32;i++){const id=i===0?'conflict-source':'synced-'+i;initialState.
 initialState.development={};
 for(let i=0;i<36;i++){const id='review-'+i,generatorId=String(300+i),workerId='review-worker-'+i,slug='synthetic-review-'+String(i).padStart(2,'0'),phase=i<34?'review':'running';initialState.generators[generatorId]={id:generatorId,slug,listing:'listed',status:{account:'synthetic-account',action:'develop',state:phase==='review'?'review':'reserved'},holds:[{id,kind:phase==='review'?'review':'development'}],savedVerified:true,ownerVerified:true};initialState.workers[workerId]={id:workerId,role:'development',slug,generatorId,phase:phase==='review'?'retained':'idle',slotReleased:phase==='review',documentId:'synthetic-doc-'+i};initialState.development[id]={id,generatorId,slug,phase,created:false,originalListing:'listed',workerId,documentId:'synthetic-doc-'+i,request:{repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),status:{account:'synthetic-account',action:'develop',state:'reserved'}},baselineSource:{pjs:'synthetic-review-private-source',html:'private',files:{}}};}
 for(let i=0;i<35;i++){const id='develop-queued-'+i;initialState.requestQueue[id]={id,phase:'waiting',closed:false,reason:'live-verification-required',request:{valid:true,slug:'synthetic-queued-'+i,repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),requestCommit:'a'.repeat(40),instructions:[],status:{account:'synthetic-account',action:'develop',state:'ready'}}};}
+initialState.edits={manual:{id:'manual',generatorId:'600',slug:'synthetic-manual-editor',phase:'editing',workerId:'manual-worker',documentId:'manual-doc',draftId:'manual-draft',baselineSource:{pjs:'private-manual-source',html:'private',files:{}}}};
+initialState.generators['600']={id:'600',slug:'synthetic-manual-editor',listing:'listed',status:{account:'synthetic-account',action:'publish_from_github',state:'done'},holds:[{id:'manual',kind:'edit'}],ownerVerified:true,savedVerified:true};initialState.workers['manual-worker']={id:'manual-worker',role:'manual',slug:'synthetic-manual-editor',generatorId:'600',documentId:'manual-doc',phase:'idle'};
 try {
   for (const scenario of [...[1440,1024,800,531,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
     const {width}=scenario;
@@ -102,6 +104,14 @@ try {
     await checkRefresher({page,app,width});
     await checkReviews({page,app});
     await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();
+    await app.getByRole('button',{name:'Manage synthetic-manual-editor',exact:true}).click();
+    const manualDrawer=app.getByRole('dialog',{name:'Manage synthetic-manual-editor',exact:true});
+    assert.equal(await manualDrawer.getByRole('button',{name:'Publish manual edit',exact:true}).isDisabled(),true);
+    const endEdit=manualDrawer.getByRole('button',{name:'End edit',exact:true});await endEdit.click();
+    await app.getByRole('dialog',{name:'End edit',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
+    assert.equal(await endEdit.evaluate(n=>n.getRootNode().activeElement===n),true);
+    assert.equal(await page.evaluate(()=>JSON.parse(window.__syntheticGM.data.get('PCMS_STORE_V1')).generators['600'].holds[0].kind),'edit');
+    await page.keyboard.press('Escape');
     const inventoryList=app.getByRole('rowgroup');
     const inventoryTop=await inventoryList.evaluate(n=>{n.scrollTop=n.querySelector('[role=row][data-id="108"]').offsetTop-60;return n.scrollTop;});
     const selected=app.getByRole('checkbox',{name:'Select synthetic-generator-08',exact:true});

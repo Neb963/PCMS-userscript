@@ -41,7 +41,7 @@ export class NativeActions {
   }
   selected(){requireThat(this.doc.visibilityState!=='visible'||this.operatorAction===true,'operator-selected-tab');}
   async create(actionId){
-    this.capability('create');this.selected();await this.guard();const state=await this.gate.store.read();await this.gate.requireSession(state.settings.account.accountId);
+    this.capability('create');this.selected();await this.guard();if(this.native.waitUntilReady)await this.native.waitUntilReady({slug:'minimal'},{guard:this.guard});const state=await this.gate.store.read();await this.gate.requireSession(state.settings.account.accountId);
     requireThat(this.page.location.pathname==='/minimal'&&['#edit:new','#edit'].includes(this.page.location.hash),'creation-template-unconfirmed');
     requireThat(this.page.currentInterfaceMode==='edit'&&this.page.perchanceSaveState!=='saving'&&this.page.__draftChoiceSettled!==false,'editor-not-settled');
     await this.native.ready(this.native.identity());
@@ -61,7 +61,7 @@ export class NativeActions {
   }
   async listing(target,intent){
     this.capability('listing');this.selected();await this.guard();requireThat(['listed','unlisted'].includes(intent),'invalid-listing');
-    await this.gate.requireOwner(target);await this.native.ready(target);
+    if(this.native.waitUntilReady)await this.native.waitUntilReady(target,{guard:this.guard});else await this.native.ready(target);await this.gate.requireOwner(target);
     this.page.app.openListingMenu();
     const control=this.page.document.querySelector('#listingMenuEl button[data-value="'+intent+'"]');
     requireThat(control&&!control.disabled&&control.getClientRects().length,'listing-control-unavailable');
@@ -69,7 +69,7 @@ export class NativeActions {
     requireThat(receipt.status==='success','listing-receipt-unconfirmed');return receipt;
   }
   async deploy(target,pendingId){
-    this.capability('save');this.selected();await this.guard();await this.gate.requireOwner(target);
+    this.capability('save');this.selected();await this.guard();if(this.native.waitUntilReady)await this.native.waitUntilReady(target,{guard:this.guard});await this.gate.requireOwner(target);
     const pending=(await this.store.read()).pending[pendingId];
     requireThat(pending?.kind==='source'&&pending.generatorId===target.id&&pending.slug===target.slug&&pending.previousSource,'publication-snapshot-unavailable');
     const editor=new EditorSource({page:this.page,native:this.native,guard:async()=>{this.selected();await this.guard();}});
@@ -83,20 +83,20 @@ export class NativeActions {
     requireThat(receipt.status==='saved'&&receipt.name===target.slug,'save-receipt-unconfirmed');
     await this.guard();await this.store.transact(s=>{const r=s.utility?.[pending.requestId];if(r&&!r.steps.includes('native Save'))r.steps.push('native Save');});return receipt;
   }
-  async captureApproved(target,{ownSave=false}={}){
-    await this.guard();await this.gate.requireOwner(target);requireThat(typeof this.page.aiAgentActivityState==='function','helper-state-unavailable');
-    const quiet=()=>{const a=this.page.aiAgentActivityState();requireThat(a.active===false&&a.unknown===false,'helper-not-settled');};quiet();await this.page.aiAgentWaitForWorkspaceWrites?.();
-    const editor=new EditorSource({page:this.page,native:this.native,guard:this.guard,allowSaving:ownSave}),current=await editor.capture(target);requireThat(typeof this.page.aiAgentWorkspaceSnapshot==='function','helper-workspace-unavailable');const workspace=await this.page.aiAgentWorkspaceSnapshot();
+  async captureApproved(target,{ownSave=false,allowNoHelper=false}={}){
+    await this.guard();if(!ownSave&&this.native.waitUntilReady)await this.native.waitUntilReady(target,{guard:this.guard});await this.gate.requireOwner(target);const hasHelper=typeof this.page.aiAgentActivityState==='function';requireThat(hasHelper||allowNoHelper&&!this.page.srcState.getDraftChatSid?.(),'helper-state-unavailable');
+    const quiet=()=>{if(!hasHelper)return;const a=this.page.aiAgentActivityState();requireThat(a.active===false&&a.unknown===false,'helper-not-settled');};quiet();await this.page.aiAgentWaitForWorkspaceWrites?.();
+    const editor=new EditorSource({page:this.page,native:this.native,guard:this.guard,allowSaving:ownSave}),current=await editor.capture(target);requireThat(typeof this.page.aiAgentWorkspaceSnapshot==='function'||allowNoHelper&&!hasHelper,'helper-workspace-unavailable');const workspace=await this.page.aiAgentWorkspaceSnapshot?.();
     quiet();requireThat(!workspace?.unavailable&&!workspace?.preferWorkspace?.modelText&&!workspace?.preferWorkspace?.outputTemplate,'helper-workspace-unsettled');
     return {...current,workerId:this.workerId,documentId:this.documentId,settled:true};
   }
-  async saveApproved(target,pendingId,approvalId){
-    this.capability('save');await this.guard();const pending=await beforeApprovedSave(this.store,pendingId,await this.captureApproved(target),approvalId);
-    const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name===target.slug,{allow:async body=>{await beforeApprovedSave(this.store,pendingId,await this.captureApproved(target,{ownSave:true}),approvalId,pending);await verifyUploadedSource((url,options)=>this.reader.request(url,options),body,pending.source);await beforeApprovedSave(this.store,pendingId,await this.captureApproved(target,{ownSave:true}),approvalId,pending);}});
+  async saveApproved(target,pendingId,approvalId,{allowNoHelper=false}={}){
+    this.capability('save');await this.guard();const pending=await beforeApprovedSave(this.store,pendingId,await this.captureApproved(target,{allowNoHelper}),approvalId);
+    const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name===target.slug,{allow:async body=>{await beforeApprovedSave(this.store,pendingId,await this.captureApproved(target,{ownSave:true,allowNoHelper}),approvalId,pending);await verifyUploadedSource((url,options)=>this.reader.request(url,options),body,pending.source);await beforeApprovedSave(this.store,pendingId,await this.captureApproved(target,{ownSave:true,allowNoHelper}),approvalId,pending);}});
     requireThat(receipt.status==='saved'&&receipt.name===target.slug,'save-receipt-unconfirmed');return receipt;
   }
   async rename(target,targetSlug){
-    this.capability('rename');this.selected();await this.guard();slug(targetSlug);await this.gate.requireOwner(target);await this.native.ready(target);
+    this.capability('rename');this.selected();await this.guard();slug(targetSlug);if(this.native.waitUntilReady)await this.native.waitUntilReady(target,{guard:this.guard});else await this.native.ready(target);await this.gate.requireOwner(target);
     this.page.app.openSettingsModal();const modal=this.page.settingsModal;
     requireThat(modal?.refs?.newGeneratorName&&typeof modal.changeGeneratorName==='function','rename-control-unavailable');
     modal.refs.newGeneratorName.value=targetSlug;

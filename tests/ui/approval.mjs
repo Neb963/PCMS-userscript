@@ -24,6 +24,20 @@ export async function checkApprovalComponent(browser){
   await modal.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await fixture.getByRole('button',{name:'Prepare approval',exact:true}).evaluate(n=>n.getRootNode().activeElement===n),true);
   await fixture.getByRole('button',{name:'Prepare approval',exact:true}).click();await modal.getByRole('button',{name:'Approve & Publish',exact:true}).click();await modal.waitFor({state:'detached'});
   const approved=await page.evaluate(()=>Object.values(window.syntheticApproval.state.commands).filter(c=>c.action==='approve'));assert.equal(approved.length,1);assert.equal(approved[0].token,'synthetic-approval');
-  await page.evaluate(()=>{window.syntheticApproval.held=true;});await fixture.getByRole('button',{name:'Prepare approval',exact:true}).click();await modal.getByText(/current draft could not be verified/).waitFor();assert.equal(await modal.getByRole('button',{name:'Approve & Publish',exact:true}).count(),0);
+  await page.evaluate(()=>{window.syntheticApproval.held=true;});await fixture.getByRole('button',{name:'Prepare approval',exact:true}).click();await modal.getByText(/current draft could not be verified/).waitFor();assert.equal(await modal.getByRole('button',{name:'Approve & Publish',exact:true}).count(),0);await modal.getByRole('button',{name:'Close',exact:true}).click();
+  await page.evaluate(async()=>{
+   const {manualEditorGuard}=await import('/src/runtime/manual-editor.js'),state=window.syntheticApproval.state;
+   Object.assign(state,{settings:{account:{accountId:'alpha',confirmed:true},github:{repository:{owner:'synthetic',name:'repo'}}},commands:{},jobs:{},pending:{},journal:[],journalSequence:0,generators:{'123':{id:'123',slug:'synthetic-target',listing:'listed',ownerVerified:true,savedVerified:true,githubCommit:'a'.repeat(40),status:{account:'alpha',action:'publish_from_github',state:'done'},holds:[]}},edits:{old:{id:'old',generatorId:'123',phase:'done',workerId:'manual'}}});
+   const editor=document.createElement('div');editor.id='synthetic-editor';editor.contentEditable=true;editor.textContent='retained source';document.body.append(editor);
+   const store={read:async()=>structuredClone(state),transact:async change=>{const result=change(state);return {result,state:structuredClone(state)};}};
+   const guard=manualEditorGuard({store,doc:document,page:{modelTextEditor:{contentDOM:editor},perchanceSaveState:'saved'},workerId:'manual',generatorId:'123'});window.syntheticManual={guard,editor};await guard.refresh();
+  });
+  assert.equal(await page.evaluate(()=>window.syntheticManual.editor.dispatchEvent(new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'x'}))),false);
+  assert.equal(await page.evaluate(()=>window.syntheticManual.editor.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'ArrowLeft'}))),true);
+  await page.getByRole('button',{name:'Edit again',exact:true}).click();
+  const edit=await page.evaluate(()=>Object.values(window.syntheticApproval.state.edits).at(-1));assert.equal(edit.activate,false);assert.equal(await page.evaluate(()=>window.syntheticApproval.state.generators['123'].holds[0].kind),'edit');
+  await page.evaluate(async()=>{const state=window.syntheticApproval.state,edit=Object.values(state.edits).at(-1);edit.workerId='manual';edit.phase='editing';await window.syntheticManual.guard.refresh();});
+  assert.equal(await page.getByRole('button',{name:'Edit again',exact:true}).isVisible(),false);assert.equal(await page.evaluate(()=>window.syntheticManual.editor.dispatchEvent(new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'x'}))),true);
+  await page.evaluate(()=>window.syntheticManual.guard.dispose());
  }finally{await page.close();}
 }

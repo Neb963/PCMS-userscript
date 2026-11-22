@@ -55,3 +55,7 @@ test('only explicitly owned Save inspection tolerates saving; identity and draft
  const f=fixture();Object.assign(f.page,{modelTextEditor:{getValue:()=>''},outputTemplateEditor:{getValue:()=>''},srcState:{ready:async()=>{},getDraftId:()=> 'draft-1'},currentInterfaceMode:'edit',__draftChoiceSettled:true,perchanceSaveState:'saving'});
  await assert.rejects(f.native.ready({id:'123',slug:'synthetic-generator'}),/not-settled/);assert.equal((await f.native.ready({id:'123',slug:'synthetic-generator'},{allowSaving:true})).draftId,'draft-1');await assert.rejects(f.native.ready({id:'456',slug:'synthetic-generator'},{allowSaving:true}),/target-mismatch/);f.page.__draftChoiceSettled=false;await assert.rejects(f.native.ready({id:'123',slug:'synthetic-generator'},{allowSaving:true}),/not-settled/);
 });
+test('bounded worker readiness waits for editor hydration without accepting a wrong target',async()=>{
+ const f=fixture();f.native.timeout=1000;setTimeout(()=>Object.assign(f.page,{modelTextEditor:{getValue:()=>''},outputTemplateEditor:{getValue:()=>''},srcState:{ready:async()=>{},getDraftId:()=> 'draft'},currentInterfaceMode:'edit',__draftChoiceSettled:true}),10);
+ assert.equal((await f.native.waitUntilReady({id:'123',slug:'synthetic-generator'})).draftId,'draft');await assert.rejects(f.native.waitUntilReady({id:'456',slug:'synthetic-generator'}),/target-mismatch/);
+});

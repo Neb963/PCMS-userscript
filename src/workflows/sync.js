@@ -98,14 +98,14 @@ export class Synchronizer {
     let client;
     try{client=await this.services(p.repository);}catch{await this.annotate(id,'original-access-unavailable');return this.record(id);}
     try{
-      if(p.kind==='source'&&p.developmentId){
+      if(p.kind==='source'&&(p.developmentId||p.predecessorIds?.length)){
         const latest=await this.store.read();
-        for(const older of Object.values(latest.pending).filter(row=>row.id!==p.id&&row.developmentId===p.developmentId&&row.kind==='status'&&row.stopRequested&&row.writeId&&!['synced','superseded'].includes(row.phase))){
+        for(const older of Object.values(latest.pending).filter(row=>row.id!==p.id&&(row.supersededBy===p.id||p.developmentId&&row.developmentId===p.developmentId&&row.kind==='status')&&row.stopRequested&&row.writeId&&!['synced','superseded'].includes(row.phase))){
           const job=(await this.store.read()).jobs[older.writeId];
           if(!job||['cancelled','rejected','prepared'].includes(job.phase))continue;
           const receipt=await client.writer.reconcile(older.writeId,{fresh:true});
           if(!receipt.verified){await this.annotate(id,'unknown');return this.record(id);}
-          await this.store.transact(s=>{this.assertCurrent(s);const old=s.pending[older.id],current=s.pending[p.id];requireThat(old.developmentId===current.developmentId&&JSON.stringify(old.repository)===JSON.stringify(current.repository),'status-scope-changed');old.phase='superseded';if(!current.writeId)current.baseCommit=receipt.commit;const native=s.generators[current.generatorId];if(native)s.generators[native.id]=releaseHold(native,'sync-'+old.id);if(s.jobs[old.writeId]){s.jobs[old.writeId].phase='verified';s.jobs[old.writeId].resolution='superseded-status-reconciled';}});
+          await this.store.transact(s=>{this.assertCurrent(s);const old=s.pending[older.id],current=s.pending[p.id];requireThat(old.generatorId===current.generatorId&&(old.supersededBy===current.id||old.developmentId===current.developmentId)&&JSON.stringify(old.repository)===JSON.stringify(current.repository),'status-scope-changed');old.phase='superseded';if(!current.writeId)current.baseCommit=receipt.commit;const native=s.generators[current.generatorId];if(native)s.generators[native.id]=releaseHold(native,'sync-'+old.id);if(s.jobs[old.writeId]){s.jobs[old.writeId].phase='verified';s.jobs[old.writeId].resolution='superseded-status-reconciled';}});
           p=await this.record(id);
         }
       }

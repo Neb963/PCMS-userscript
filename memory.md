@@ -4,3 +4,7 @@
 - Production UI is a closed shadow root; UI tests open it through test-only instrumentation. No production test hook.
 - Shell browser launch is restricted; run the synthetic UI suite in Actions. Firefox connector returned Internal error.
 - GitHub connector checkpoints and local commits may have different commit IDs; their tree SHAs are checked for equality. Use the remote SHA from `todo.md` when resuming.
+
+- Native appExtras marks Save `saving` before its HTTP request. Only matched own-Save capture permits it; ordinary readiness remains strict. Native worker startup waits for hydration before interpreting session/target state.
+- Manual records use `edits`, an independent manual worker role, and edit approval kind. Retained explicit commands keep `slotReleased` so they never consume an automatic Development slot. Read-only capture failures must not add write holds.
+- A newer verified approved publication supersedes older unsent source synchronization while retaining full snapshots. Uncertain predecessor writes must reconcile before the newest source/done write.

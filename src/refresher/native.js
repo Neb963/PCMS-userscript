@@ -22,7 +22,7 @@ export class NativeRefresher {
   }
   async prepare(target,id){
     let touched=false;try{
-    this.actions.capability('save');this.actions.selected();await this.actions.guard();await this.gate.requireOwner(target);
+    this.actions.capability('save');this.actions.selected();await this.actions.guard();if(this.native.waitUntilReady)await this.native.waitUntilReady(target,{guard:this.actions.guard});await this.gate.requireOwner(target);
     const state=await this.store.read(),generator=state.generators[target.id];requireThat(generator&&/^[a-f0-9]{64}$/.test(generator.verifiedFingerprint),'refresh-baseline-unavailable');requireThat(refresherReason({...generator,managed:true})===null,'generator-source-held');
     const saved=await this.reader.saved(target.slug,target.id);requireThat(saved.listing==='listed','listing-unconfirmed');
     requireThat(await functionalFingerprint(saved.source)===generator.verifiedFingerprint,'source-drift');

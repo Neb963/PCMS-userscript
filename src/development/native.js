@@ -96,7 +96,7 @@ export class NativeHelper {
     }catch{ /* No new completion proof when the editor or native state cannot be read. */ }
   }
   async start(target,id){
-    this.actions.capability('helper');this.actions.selected();await this.actions.guard();await this.gate.requireOwner(target);
+    this.actions.capability('helper');this.actions.selected();await this.actions.guard();if(this.native.waitUntilReady)await this.native.waitUntilReady(target,{guard:this.actions.guard});await this.gate.requireOwner(target);
     const r=(await this.store.read()).development?.[id];requireThat(r&&r.phase==='starting'&&!r.sendInvoked,'helper-start-not-replayable');
     const current=await this.editor.capture(target),saved=await this.reader.saved(target.slug,target.id);
     requireThat(current.clean&&sourceEqual(current.source,saved.source)&&saved.listing===r.originalListing,'dirty-or-stale-editor');
