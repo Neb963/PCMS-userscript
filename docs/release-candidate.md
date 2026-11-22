@@ -11,7 +11,7 @@ The production artifact is one deterministic userscript with no backend, compani
 - Chromium and Firefox synthetic UI pass at six widths plus empty setup and short-height/reduced-motion interaction checks.
 - Candidate validation checks exact source/bundle reproducibility, version, metadata, expected hosts, JavaScript parseability, no known fixture/token/private-key payload and all mutation gates disabled.
 
-See `verification.md` and `integration-matrix.md` for exact commits/run IDs and limits. Clean exported-source build/hash evidence is recorded there when packaging finishes.
+See `verification.md` and `integration-matrix.md` for exact commits/run IDs and limits. Clean exported-source checks and a fresh local clone of the exact GitHub-verified tree produce identical bytes: 453396 bytes, SHA-256 `4972820441bbab22c3df33b3c56119b294b868705a19f3a51fbc3e4f7fe14554`. This was not an authenticated remote clone.
 
 ## Remaining limitation
 

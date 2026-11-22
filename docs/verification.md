@@ -239,3 +239,13 @@ A retained native editor blocks unprotected typing/Save after Publish/End and of
 ## P30 — Integration and failure regression
 
 266 Node tests and build/syntax/bootstrap PASS. Checks 45021180355 and Chromium/Firefox UI 45021180381 PASS at cb63140f11214ad2ce3764a21305dd53701296d2. Full lifecycle tests use production GitHubReader/Writer against immutable synthetic Git Data objects for Listed and Unlisted generators, through import/manual/offline/lost ACK/restart/restoration/rollback/ordinary publication/rename/exclusion. Fixed fresh Manual Edit baseline, temporary local priority clearance after latest sync, scoped write predicates, and confirmed inventory refresh isolated from managed renames. See integration-matrix.md for interruption coverage. All native/fresh-profile qualification remains explicitly DEFERRED; gates false.
+
+## P31 — Candidate build evidence; live release blocked
+
+Node 24.22.3: 266 tests PASS in the working tree and a clean `git archive` export of the committed tree. Build, syntax, bootstrap/reference checks and `npm run check:candidate` PASS. A separate fresh local clone also builds identical bytes with a clean tracked worktree. The exported/cloned tree `de11859d76024ae43069b77a0df21ca22748b7d8` equals verified GitHub checkpoint `3e7abe00b45986aa71e7f28158863be1d73ce02e`. CLI remote authentication is unavailable, so this was a local clone of the exact remote-verified tree, not an authenticated GitHub clone.
+
+Artifact: one userscript, version 0.1.0, 453396 bytes, SHA-256 `4972820441bbab22c3df33b3c56119b294b868705a19f3a51fbc3e4f7fe14554`. Runtime source is unchanged from the P30 browser-verified checkpoint; only documentation and candidate checking were added. All five native mutation gates and application GitHub write gate are false.
+
+DEFERRED — P01 actual installation and P31 clean-profile/VM/native/provider qualification: no operator-designated disposable profile, native targets/free slug or protected repository credential. No native effect or authenticated application GitHub write is claimed passed. P31 release acceptance remains unchecked. `operator-qualification.md` states the exact needed environment and checks. Distribute only the disabled candidate.
+
+Candidate checkpoint checks 45021550610 and Chromium/Firefox UI 45021550631 PASS at `3e7abe00b45986aa71e7f28158863be1d73ce02e` (same runtime hash above). This is synthetic acceptance only.

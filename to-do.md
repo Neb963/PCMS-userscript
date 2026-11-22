@@ -231,7 +231,7 @@
 
 ### P31 — Release and fresh-profile verification
 
-- [ ] Build/inspect one production userscript; confirm metadata and no mockup/demo payload.
+- [x] Build/inspect one production userscript; confirm metadata and no mockup/demo payload.
 - [ ] Smoke-test install, reload, saved state and focused workflows on a clean disposable Firefox profile.
 - [ ] Run full relevant regression, document known limitations and publish verified release artifact.
 - [ ] **Accept:** A clean clone builds the same artifact and the recorded tests support only the claims in release notes.
