@@ -106,6 +106,12 @@ export class GitHubReader {
     return completeSource({ pjs: await this.text(snapshot, targetSlug + '/main.pjs'), html: await this.text(snapshot, targetSlug + '/main.html'), files });
   }
 
+  async revisions(targetSlug){
+    slug(targetSlug);const head=await this.head(),rows=await this.api('/commits?path='+encodeURIComponent(targetSlug+'/')+'&sha='+head+'&per_page=100');
+    requireThat(Array.isArray(rows),'github-history-unavailable');
+    return rows.map(r=>({commit:commitSha(r.sha),date:r.commit?.committer?.date||r.commit?.author?.date||''})).filter(r=>Number.isFinite(Date.parse(r.date)));
+  }
+
   async requests(snapshot, account) {
     accountId(account);
     const results = [];

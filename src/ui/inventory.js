@@ -86,6 +86,7 @@ export function inventoryRenderer({controller,project,actions={}}) {
           }
           else tools.append(button(doc,action[0].toUpperCase()+action.slice(1),()=>actions[action](g,{doc,root,modal,navigate})));
         }
+        if(g.maintenance?.active){tools.append(button(doc,'Recheck result',()=>actions.recheckMaintenance?.(g,{doc,root,modal,navigate})));if(g.maintenance.message)content.append(el(doc,'p',{className:'notice'},g.maintenance.message));}
         if(g.edit){
           const add=(key,label,disabled=false)=>{let control=editControls.get(key);if(!control){control=button(doc,label,()=>actions[key]?.(g,{doc,root,modal,navigate,trigger:control}));editControls.set(key,control);}control.textContent=label;control.disabled=disabled||g.edit.actionBusy;tools.append(control);};
           if(g.edit.retainedTab)add('openEdit','Open editor');

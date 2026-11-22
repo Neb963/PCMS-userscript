@@ -6,6 +6,7 @@ export class RequestRunner {
   async reconcile(){
     const state=await this.store.read(),before=JSON.stringify(state.requestQueue||{}),queue=structuredClone(state.requestQueue||{});
     for(const incoming of state.requests||[]){
+      if(Object.values(state.maintenance||{}).some(r=>!['done','failed','stopped'].includes(r.phase)&&[r.from,r.to].includes(incoming.slug)&&JSON.stringify(r.repository)===JSON.stringify(incoming.repository)))continue;
       if(!incoming.valid||!['ready','reserved'].includes(incoming.status.state))continue;
       const prior=Object.values(queue).filter(r=>r.request.slug===incoming.slug&&JSON.stringify(r.request.repository)===JSON.stringify(incoming.repository)).at(-1);
       const utility=prior&&state.utility?.[prior.id];

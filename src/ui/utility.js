@@ -14,7 +14,7 @@ export function utilityRenderer(){
       const scroll=list.scrollTop,focus=list.contains(list.getRootNode().activeElement)?list.getRootNode().activeElement.dataset.job:null;
       list.replaceChildren();
       if(!jobs.length)list.append(el(doc,'p',{className:'empty'},model.restored?'No Utility jobs':'Checking saved jobs…'));
-      for(const job of jobs){const row=button(doc,'',()=>{selected=job.id;detail();for(const n of list.children)n.setAttribute('aria-pressed',String(n.dataset.job===selected));},{className:'journal-row','data-job':job.id,'aria-pressed':job.id===selected,role:'listitem'});row.append(el(doc,'div',{},el(doc,'strong',{},job.slug),el(doc,'p',{},job.action==='develop'?'Reservation':'Publish from GitHub')),el(doc,'span',{className:'tag'},job.phase));list.append(row);}
+      for(const job of jobs){const row=button(doc,'',()=>{selected=job.id;detail();for(const n of list.children)n.setAttribute('aria-pressed',String(n.dataset.job===selected));},{className:'journal-row','data-job':job.id,'aria-pressed':job.id===selected,role:'listitem'});row.append(el(doc,'div',{},el(doc,'strong',{},job.slug),el(doc,'p',{},job.action==='develop'?'Reservation':job.action==='rename'?'Rename':job.action==='rollback'?'Rollback':'Publish from GitHub')),el(doc,'span',{className:'tag'},job.phase));list.append(row);}
       list.scrollTop=scroll;if(focus)list.querySelector('[data-job="'+focus+'"]')?.focus({preventScroll:true});detail();
     }
     function detail(){

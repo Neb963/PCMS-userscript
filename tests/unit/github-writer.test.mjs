@@ -62,3 +62,12 @@ test('a prepared action with no dispatch can resume, while changed intended cont
   await assert.rejects(f.writer.write({...input,changes:statusChanges('synthetic-generator',{...status,state:'blocked'})}),/prepared-write-changed/);
   f.store.markDispatched=mark;assert.equal((await f.writer.write(input)).verified,true);assert.equal(f.calls.filter(c=>c.path==='/git/commits').length,1);
 });
+
+test('rename moves every file in one tree and rejects partial moves and occupied destination',async()=>{
+ const {folderMoveChanges}=await import('../../src/adapters/github/writer.js');const f=await fixture();
+ f.reader.bytes=async(_snapshot,path)=>new TextEncoder().encode('old-'+path.slice('synthetic-generator/'.length));
+ const changes=await folderMoveChanges(f.reader,f.baseline,'synthetic-generator','new-name');
+ await assert.rejects(f.writer.write({id:'partial',targetSlug:'synthetic-generator',destinationSlug:'new-name',baseline:f.baseline,changes:{'synthetic-generator/main.pjs':null,'new-name/main.pjs':[1]},operation:'rename'}),/incomplete-folder/);
+ const receipt=await f.writer.write({id:'move',targetSlug:'synthetic-generator',destinationSlug:'new-name',baseline:f.baseline,changes,operation:'rename'});assert.equal(receipt.verified,true);const current=await f.reader.snapshot();assert.equal(Object.keys(current.entries).some(p=>p.startsWith('synthetic-generator/')),false);assert.equal(current.entries['new-name/prompt.md'].sha,f.baseline.entries['synthetic-generator/prompt.md'].sha);assert.equal(f.calls.filter(c=>c.path==='/git/commits').length,1);
+ const g=await fixture();g.reader.snapshot=async()=>({...g.baseline,entries:{...g.baseline.entries,'new-name/status.md':{path:'new-name/status.md',sha:'f'.repeat(40),type:'blob',mode:'100644'}}});await assert.rejects(g.writer.write({id:'taken',targetSlug:'synthetic-generator',destinationSlug:'new-name',baseline:g.baseline,changes,operation:'rename'}),/destination-conflict/);assert.equal(g.calls.length,0);
+});

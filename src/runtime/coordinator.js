@@ -70,7 +70,7 @@ export class Coordinator {
     return this.store.transact(state => {
       this.assertOwner(state);
       requireThat(!Object.hasOwn(state.jobs, job.id), 'duplicate-job');
-      if (job.generatorId&&!['read-saved','inspect-target','native-capture','helper-stop','helper-resolve','approved-capture','edit-capture'].includes(job.kind)) requireThat(!Object.values(state.jobs).some(j => !['read-saved','inspect-target','native-capture','helper-stop','helper-resolve','approved-capture','edit-capture'].includes(j.kind)&&j.generatorId === job.generatorId && j.id !== job.parentId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
+      if (job.generatorId&&!['read-saved','inspect-target','native-capture','maintenance-capture','helper-stop','helper-resolve','approved-capture','edit-capture'].includes(job.kind)) requireThat(!Object.values(state.jobs).some(j => !['read-saved','inspect-target','native-capture','maintenance-capture','helper-stop','helper-resolve','approved-capture','edit-capture'].includes(j.kind)&&j.generatorId === job.generatorId && j.id !== job.parentId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
       state.jobs[job.id] = { ...structuredClone(job), owner: this.owner, term: this.term, phase: 'prepared', accepted: false };
       return structuredClone(state.jobs[job.id]);
     });
@@ -141,6 +141,7 @@ export function guardNativeCommand(state,command,workerId){
   if(command.target?.id){
     const generator=state.generators[command.target.id],allowed=new Set([command.id,parent?.id,request?.id].filter(Boolean));
     if(edit)allowed.add(edit.id);
+    const maintenance=command.payload?.maintenanceId&&state.maintenance?.[command.payload.maintenanceId];if(maintenance){requireThat(worker.role==='utility'&&maintenance.generatorId===command.target.id&&!['done','failed','stopped'].includes(maintenance.phase),'maintenance-context-changed');allowed.add(maintenance.id);}
     if(development){allowed.add(development.id);if(command.kind==='helper-resolve')for(const suffix of ['-helper-start','-helper-stop'])allowed.add(development.id+suffix);}
     const previous=request?.request.replacesPendingId&&state.pending[request.request.replacesPendingId];if(previous?.phase==='publication-queued'&&previous.decision?.successorRequest===request.id)allowed.add('sync-'+previous.id);
     requireThat(generator&&generator.slug===command.target.slug&&(['helper-resolve','helper-stop','approved-capture','edit-capture'].includes(command.kind)||generator.holds.every(h=>allowed.has(h.id))),'generator-source-held');

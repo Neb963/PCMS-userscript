@@ -39,5 +39,13 @@ export async function checkApprovalComponent(browser){
   await page.evaluate(async()=>{const state=window.syntheticApproval.state,edit=Object.values(state.edits).at(-1);edit.workerId='manual';edit.phase='editing';await window.syntheticManual.guard.refresh();});
   assert.equal(await page.getByRole('button',{name:'Edit again',exact:true}).isVisible(),false);assert.equal(await page.evaluate(()=>window.syntheticManual.editor.dispatchEvent(new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'x'}))),true);
   await page.evaluate(()=>window.syntheticManual.guard.dispose());
+  await page.evaluate(async()=>{
+   const {maintenanceActions}=await import('/src/ui/maintenance.js'),state=window.syntheticApproval.state,root=document.querySelector('#fixture').shadowRoot;
+   const actions=maintenanceActions({store:{transact:async fn=>({result:fn(state)})},history:async()=>[{commit:'b'.repeat(40),date:'2026-01-01T00:00:00Z'}]}),g=state.generators['123'];
+   for(const key of ['rename','rollback']){const trigger=document.createElement('button');trigger.textContent='Open '+key;trigger.onclick=()=>actions[key](g,{doc:document,root});root.append(trigger);}
+  });
+  await fixture.getByRole('button',{name:'Open rename',exact:true}).click();const rename=fixture.getByRole('dialog',{name:'Rename generator',exact:true});await rename.getByRole('textbox',{name:'Exact target slug'}).fill('another-target');await rename.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await fixture.getByRole('button',{name:'Open rename',exact:true}).evaluate(n=>n.getRootNode().activeElement===n),true);
+  await fixture.getByRole('button',{name:'Open rollback',exact:true}).click();const rollback=fixture.getByRole('dialog',{name:'Rollback source',exact:true});await rollback.getByRole('button',{name:'Earlier source revision'}).click();await page.keyboard.press('Escape');assert.equal(await rollback.isVisible(),true);await rollback.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await fixture.getByRole('button',{name:'Open rollback',exact:true}).evaluate(n=>n.getRootNode().activeElement===n),true);
+
  }finally{await page.close();}
 }

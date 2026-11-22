@@ -27,12 +27,24 @@ export function statusChanges(targetSlug, status) {
   return { [targetSlug + '/status.md']: Array.from(new TextEncoder().encode(formatStatus(status))) };
 }
 
+export async function folderMoveChanges(reader,snapshot,from,to){
+  slug(from);slug(to);requireThat(from!==to,'rename-target-unchanged');
+  requireThat(!snapshot.entries[to]&&!Object.keys(snapshot.entries).some(p=>p.startsWith(to+'/')),'github-destination-conflict');
+  const changes=Object.create(null);
+  for(const entry of Object.values(snapshot.entries).filter(e=>e.path.startsWith(from+'/')&&e.type!=='tree')){
+    requireThat(entry.type==='blob'&&entry.mode==='100644','unsupported-move-file');
+    changes[entry.path]=null;changes[to+entry.path.slice(from.length)]=Array.from(await reader.bytes(snapshot,entry.path));
+  }
+  requireThat(Object.keys(changes).length,'github-folder-missing');return changes;
+}
+
 export class GitHubWriter {
   constructor({ reader, store, locks, guard }) { Object.assign(this, { reader, store, locks, guard }); }
 
-  async write({ id, targetSlug, baseline, changes, operation = 'source' }) {
+  async write({ id, targetSlug, destinationSlug = null, baseline, changes, operation = 'source' }) {
     requireThat(/^[A-Za-z0-9_-]{1,128}$/.test(id) && ['source', 'status', 'rename', 'rollback', 'import'].includes(operation), 'invalid-github-write');
     slug(targetSlug);
+    if(operation==='rename')requireThat(slug(destinationSlug)!==targetSlug,'rename-target-unchanged');else requireThat(destinationSlug===null,'unexpected-destination');
     return this.locks.request('pcms:github-writes:v1', { mode: 'exclusive' }, async () => {
       await this.guard();
       const prepared=(await this.store.read()).jobs[id];
@@ -40,16 +52,21 @@ export class GitHubWriter {
       requireThat(JSON.stringify(baseline.repository) === JSON.stringify(this.reader.repository), 'github-repository-changed');
       const current = await this.reader.snapshot();
       requireThat(folderVersion(current, targetSlug) === folderVersion(baseline, targetSlug), 'github-generator-conflict');
+      if(destinationSlug)requireThat(!current.entries[destinationSlug]&&!Object.keys(current.entries).some(p=>p.startsWith(destinationSlug+'/'))&&!baseline.entries[destinationSlug]&&!Object.keys(baseline.entries).some(p=>p.startsWith(destinationSlug+'/')),'github-destination-conflict');
       const intended = Object.create(null);
       for (const [path, bytes] of Object.entries(changes)) {
-        requireThat(path.startsWith(targetSlug + '/') && !/[\\\x00-\x1f]/.test(path) && path.split('/').every(p => p && p !== '.' && p !== '..'), 'github-write-path-invalid');
+        requireThat((path.startsWith(targetSlug + '/') || destinationSlug&&path.startsWith(destinationSlug+'/')) && !/[\\\x00-\x1f]/.test(path) && path.split('/').every(p => p && p !== '.' && p !== '..'), 'github-write-path-invalid');
         intended[path] = bytes === null ? null : await blobHash(Uint8Array.from(bytes));
       }
       requireThat(Object.keys(intended).length > 0, 'empty-github-write');
+      if(destinationSlug){
+        const files=Object.values(baseline.entries).filter(e=>e.path.startsWith(targetSlug+'/')&&e.type!=='tree');
+        requireThat(files.length>0&&Object.keys(intended).length===files.length*2&&files.every(e=>e.type==='blob'&&e.mode==='100644'&&intended[e.path]===null&&intended[destinationSlug+e.path.slice(targetSlug.length)]===e.sha),'incomplete-folder-move');
+      }
       if(prepared){
-        requireThat(prepared.kind==='github'&&prepared.stage==='objects'&&prepared.slug===targetSlug&&prepared.operation===operation&&JSON.stringify(prepared.repository)===JSON.stringify(this.reader.repository)&&JSON.stringify(prepared.intended)===JSON.stringify(intended),'github-prepared-write-changed');
+        requireThat(prepared.kind==='github'&&prepared.stage==='objects'&&prepared.slug===targetSlug&&(prepared.destinationSlug||null)===destinationSlug&&prepared.operation===operation&&JSON.stringify(prepared.repository)===JSON.stringify(this.reader.repository)&&JSON.stringify(prepared.intended)===JSON.stringify(intended),'github-prepared-write-changed');
         await this.store.transact(s=>{requireThat(s.jobs[id].phase==='prepared','github-action-changed');s.jobs[id].baseCommit=current.commit;});
-      }else await this.store.prepareAction({ id, kind: 'github', repository: this.reader.repository, slug: targetSlug, baseCommit: current.commit, intended, stage: 'objects', operation });
+      }else await this.store.prepareAction({ id, kind: 'github', repository: this.reader.repository, slug: targetSlug, destinationSlug, baseCommit: current.commit, intended, stage: 'objects', operation });
       await this.store.markDispatched(id);
       try {
         const tree = [];

@@ -97,6 +97,7 @@ export class NativeActions {
   }
   async rename(target,targetSlug){
     this.capability('rename');this.selected();await this.guard();slug(targetSlug);if(this.native.waitUntilReady)await this.native.waitUntilReady(target,{guard:this.guard});else await this.native.ready(target);await this.gate.requireOwner(target);
+    requireThat(this.page.modelTextEditor?.isClean?.()===true&&this.page.outputTemplateEditor?.isClean?.()===true&&this.page.srcState?.isDirty?.()===false,'dirty-rename-blocked');
     this.page.app.openSettingsModal();const modal=this.page.settingsModal;
     requireThat(modal?.refs?.newGeneratorName&&typeof modal.changeGeneratorName==='function','rename-control-unavailable');
     modal.refs.newGeneratorName.value=targetSlug;

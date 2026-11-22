@@ -196,10 +196,10 @@
 
 ### P26 — Manual Edit and Publish
 
-- [ ] Open native editor with durable edit hold; guard unsaved work.
-- [ ] Publish via snapshot/native Save/GitHub sync without changing existing Listing.
-- [ ] End Edit or cancel with explicit draft disposition and correct hold release.
-- [ ] **Accept:** No auto-save overwrites dirty draft; published saved version can rejoin Refresher.
+- [x] Open native editor with durable edit hold; guard unsaved work.
+- [x] Publish via snapshot/native Save/GitHub sync without changing existing Listing.
+- [x] End Edit or cancel with explicit draft disposition and correct hold release.
+- [x] **Accept:** No auto-save overwrites dirty draft; published saved version can rejoin Refresher.
 
 ### P27 — Rename, Rollback and exclusion
 
