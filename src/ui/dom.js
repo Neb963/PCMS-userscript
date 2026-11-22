@@ -21,7 +21,7 @@ export function dialog(doc, root, title, content, { trigger = root.activeElement
   const close = () => modal.close();
   modal.append(el(doc, 'header', {}, el(doc, 'h2', {}, title), button(doc, '×', close, { 'aria-label': 'Close ' + title })), content);
   modal.addEventListener('click', event => { if (event.target === modal) close(); });
-  modal.addEventListener('close', () => { modal.remove(); const target = trigger?.isConnected ? trigger : returnFocus?.() || [...root.querySelectorAll('dialog[open]')].at(-1)?.querySelector('button:not(:disabled)') || root.querySelector('[aria-current=page]'); if (target?.isConnected) target.focus(); }, { once: true });
+  modal.addEventListener('close', () => { modal.remove(); const target = trigger?.isConnected && !trigger.disabled ? trigger : returnFocus?.() || [...root.querySelectorAll('dialog[open]')].at(-1)?.querySelector('button:not(:disabled)') || root.querySelector('[aria-current=page]'); if (target?.isConnected) target.focus(); }, { once: true });
   root.append(modal);
   modal.showModal();
   return modal;

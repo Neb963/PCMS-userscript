@@ -27,7 +27,7 @@ export function reviewsRenderer({action,activate,publish=null}){
           if(job.phase==='publication-unknown')add('Recheck result',async()=>{try{await action(job.id,'recheck-publication',true);notice.textContent='Publication recheck recorded.';}catch{notice.textContent='Publication recheck unavailable. The approved source is retained.';}});
           if(job.phase==='unknown'&&!job.slotReleased)add('Abandon local run',b=>confirm(job,'abandon',b));
           if(job.canResume)add('Resume saved version',b=>confirm(job,'resume',b));if(job.canDiscard)add('Discard draft & keep Unlisted',b=>confirm(job,'discard',b));
-          next.append(tools);if(row)row.replaceWith(next);row=next;if(hadFocus){const replacement=[...row.querySelectorAll('button')].find(n=>n.getAttribute('aria-label')===focus&&!n.disabled)||row.querySelector('button:not(:disabled)');replacement?.focus({preventScroll:true});}
+          next.append(tools);if(row)row.replaceWith(next);row=next;if(hadFocus){const replacement=[...row.querySelectorAll('button')].find(n=>n.getAttribute('aria-label')===focus&&!n.disabled)||row.querySelector('button:not(:disabled)')||row;replacement?.focus({preventScroll:true});}
         }
         row.querySelector('[data-message]').textContent=job.message||'';if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
       }list.scrollTop=top;
