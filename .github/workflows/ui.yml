@@ -38,3 +38,18 @@ jobs:
         run: npm run test:ui
         env:
           PCMS_UI_BROWSER: firefox
+      - name: Chromium visual scenario audit
+        if: always()
+        run: node tests/ui/visual-audit.mjs
+      - name: Firefox visual scenario audit
+        if: always()
+        run: node tests/ui/visual-audit.mjs
+        env:
+          PCMS_UI_BROWSER: firefox
+      - name: Visual audit screenshots and measurements
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: synthetic-visual-audit
+          path: test-results/visual-audit
+          retention-days: 7
