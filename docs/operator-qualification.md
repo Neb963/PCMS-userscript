@@ -4,7 +4,7 @@
 
 The candidate implements the workflows but **cannot perform native mutations or application GitHub writes**. All `LIVE_CAPABILITIES` and `INTEGRATION_PROOF.githubWrite` remain false. A synthetic test is not a reason to change them. There is no normal-use unlock switch.
 
-The package contains `PCMS.user.txt`. For an explicitly designated disposable test profile, rename a copy to `PCMS.user.js` and open it through Violentmonkey's installer. Inspect the metadata: PCMS, version 0.1.0, only `https://perchance.org/*`, content injection, and the three documented connect hosts. Keep the previous installed version and protected local state available when updating. Do not install the simulated reference.
+The package contains `PCMS.user.txt`. For an explicitly designated disposable test profile, rename a copy to `PCMS.user.js` and open it through Violentmonkey's installer. Inspect the metadata: PCMS, version 0.1.1, only `https://perchance.org/*`, content injection, and the three documented connect hosts. Keep the previous installed version and protected local state available when updating. Do not install the simulated reference.
 
 Read-only inspection is useful, but its success does not qualify Save, Listing, Rename, Helper or authenticated GitHub writes.
 

@@ -1,11 +1,11 @@
 # Active work — handoff
 
-**Current phase:** P29 — Full visual audit and UI remediation (reopened by operator). **Status:** Reproduce Settings double scrolling, audit all synthetic scenarios and fix end to end. P31/operator testing paused by user request.
+**Current phase:** P29 — Full visual audit and UI remediation (reopened by operator). **Status:** Final browser acceptance pending for corrected 0.1.1 candidate. P31/operator testing paused by user request.
 
 ## Next action
 
 - Baseline captured in CI 45054383271 at 312328f1bd78dff41229e70130ca3847bcb45044: 128 captures/browser. Nested short-screen scroll and collapsed Refresher content confirmed; screenshot/measurements retrieved locally.
-- Reproduce and screenshot actual production UI via synthetic-only fixtures in Firefox/Chromium; inspect every vertical/horizontal scroll owner and clipped control, starting with Settings.
+- Final run: verify complete built-script Chromium/Firefox regressions and strict 216-capture/browser visual sweep after removal of unused empty-notice spacing. Intermediate strict sweep 45056645315 passed both browsers; built Settings fit still exceeded its pane by 2px due to an empty status sibling.
 - Audit all main routes, Utility, sync, import, Manage and nested dialogs across setup/empty/loading/error/offline/conflict/unknown/long-content scenarios, both themes, 320px/mobile/tablet/desktop, short height and enlarged text.
 - Fix scroll ownership, spacing, wrapping, focus, picker/dialog and state affordance defects; retain accepted routes and native mutation gates. Add assertions for nested scroll chains, not only document overflow.
 - Verify screenshots and complete relevant browser regression; push meaningful checkpoints and deliver corrected candidate/report. Do not advance native qualification/P31.
@@ -24,4 +24,4 @@ P00–P25: docs/verification.md.
 
 DEFERRED — Real Firefox/Violentmonkey install, native Save/Listing/Helper/rename/draft recovery and GitHub writes — no operator-designated disposable profile/targets/PAT; Firefox connector fails, local browser launch restricted. TESTING.md permits independent coding. All live mutation gates remain false. P01 install remains unchecked.
 
-**Last pushed commit:** b359b5615492fff5a61b3086e29d080fa3a754ee. Check actual remote before writes; local/connector commit IDs differ, trees verified equal.
+**Last pushed commit:** 349a00596e3686fc728eb2d3b14641d00a057901. Check actual remote before writes; local/connector commit IDs differ, trees verified equal.

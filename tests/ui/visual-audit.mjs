@@ -15,7 +15,8 @@ async function capture(page,meta,suffix=''){
  const horizontal=elements.filter(n=>visible(n)&&n.clientWidth>0&&n.scrollWidth>n.clientWidth+2&&!n.closest('pre')&&!n.matches('input,textarea,.topnav,.inventory-filters')&&getComputedStyle(n).textOverflow!=='ellipsis').map(label);
  const tiny=scroll.filter(n=>n.clientHeight<28).map(n=>({element:label(n),height:n.clientHeight}));
  const clipped=elements.filter(n=>visible(n)&&n.matches('button,input,summary')&&!n.closest('[popover]')).flatMap(n=>{const r=n.getBoundingClientRect();let p=n.parentElement;while(p){const s=getComputedStyle(p),b=p.getBoundingClientRect();if((/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+2)||(/auto|scroll/.test(s.overflowX)&&p.scrollWidth>p.clientWidth+2))return [];if(/hidden|clip/.test(s.overflowY)&&(r.top<b.top-2||r.bottom>b.bottom+2||r.left<b.left-2||r.right>b.right+2))return [{element:n.getAttribute('aria-label')||n.textContent,parent:label(p)}];p=p.parentElement;}return [];});
- return {scroll:scroll.map(label),nested,horizontal,tiny,clipped,outer:document.documentElement.scrollHeight>innerHeight+1};
+ const cards=elements.filter(n=>visible(n)&&n.matches('.settings-card')),overlap=cards.flatMap((n,i)=>cards.slice(i+1).filter(p=>{const a=n.getBoundingClientRect(),b=p.getBoundingClientRect();return Math.min(a.right,b.right)-Math.max(a.left,b.left)>2&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>2;}).map(p=>({first:label(n),second:label(p)})));
+ return {scroll:scroll.map(label),nested,horizontal,tiny,clipped,overlap,outer:document.documentElement.scrollHeight>innerHeight+1};
  });findings.push({...meta,suffix,...metrics});await page.screenshot({path:out+'/'+`${meta.viewport.width}x${meta.viewport.height}-${meta.theme}-${meta.scenario}-${meta.route}${suffix}.png`});
 }
 try{
@@ -47,6 +48,6 @@ try{
  }
  const viewport={width:320,height:420},theme='dark',scenario='interactive',route='settings',page=await pageFor(viewport,scenario,theme,route);await page.evaluate(()=>window.syntheticAudit.dialog());await capture(page,{viewport,theme,scenario,route},'-long-dialog');await page.locator('#audit-app').getByRole('button',{name:'Nested confirmation',exact:true}).click();await capture(page,{viewport,theme,scenario,route},'-nested-dialog');await page.keyboard.press('Escape');await page.getByRole('dialog',{name:'Long recovery dialog'}).waitFor();await page.close();
 }finally{await browser.close();await writeFile(out+'/metrics.json',JSON.stringify({browser:name,findings,errors},null,2));}
-console.log(JSON.stringify({browser:name,scenarios:findings.length,nested:findings.filter(r=>r.nested.length).length,horizontal:findings.filter(r=>r.horizontal.length).length,tiny:findings.filter(r=>r.tiny.length).length,clipped:findings.filter(r=>r.clipped.length).length,errors}));
+console.log(JSON.stringify({browser:name,scenarios:findings.length,nested:findings.filter(r=>r.nested.length).length,horizontal:findings.filter(r=>r.horizontal.length).length,tiny:findings.filter(r=>r.tiny.length).length,clipped:findings.filter(r=>r.clipped.length).length,overlap:findings.filter(r=>r.overlap.length).length,errors}));
 if(errors.length)throw Error('Synthetic fixture failed: '+errors.join(', '));
-if(process.env.PCMS_AUDIT_STRICT==='1'&&findings.some(r=>r.nested.length||r.horizontal.length||r.tiny.length||r.clipped.length||r.outer))throw Error('Visual audit found scroll/overflow defects; inspect metrics and screenshots');
+if(process.env.PCMS_AUDIT_STRICT==='1'&&findings.some(r=>r.nested.length||r.horizontal.length||r.tiny.length||r.clipped.length||r.overlap.length||r.outer))throw Error('Visual audit found scroll/overflow defects; inspect metrics and screenshots');

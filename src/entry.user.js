@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PCMS
 // @namespace    https://github.com/Neb963/PCMS-userscript
-// @version      0.1.0
+// @version      0.1.1
 // @description  Perchance account management with protected local state.
 // @match        https://perchance.org/*
 // @run-at       document-end
