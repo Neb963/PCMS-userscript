@@ -21,6 +21,11 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { NativeActions } from './adapters/perchance/actions.js';
+import { SlugReader } from './adapters/perchance/slugs.js';
+import { Reservation } from './workflows/reservation.js';
+import { NativeClient } from './runtime/native-client.js';
+import { requireLiveCapability } from './adapters/perchance/session.js';
 import { CommandRunner } from './runtime/commands.js';
 import { BulkImport } from './workflows/import.js';
 import { GitHubReader } from './adapters/github/reader.js';
@@ -99,7 +104,13 @@ function coordinate(store, ui = null) {
   const timer = setInterval(tick, 1000);
   const viewTimer = ui ? setInterval(refresh, 5000) : null;
   window.addEventListener('pagehide', () => { clearInterval(timer); clearInterval(viewTimer); unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });
-  return { coordinator, pool, poller, importWorkflow };
+  const reservationWorkflow=async request=>{
+    // Preflight before opening any native worker. Live qualification is required.
+    requireLiveCapability('create');requireLiveCapability('rename');requireLiveCapability('listing');requireGitHubWriteProof();
+    const services=await importWorkflow({repository:request.repository});
+    return new Reservation({store,reader:services.reader,gate,github:services.github,writer:services.writer,slugs:new SlugReader({request:(url,options)=>privilegedRequest(GM_xmlhttpRequest,url,options),reader:services.reader}),native:new NativeClient({store,pool,coordinator}),guard:services.guard,assertCurrent:current=>coordinator.assertOwner(current)});
+  };
+  return { coordinator, pool, poller, importWorkflow, reservationWorkflow };
 }
 
 async function startAssignedWorker() {
@@ -108,10 +119,16 @@ async function startAssignedWorker() {
   const id = requested || retained;
   if (!id) return;
   const store = createStore();
-  const runtime = new WorkerRuntime({ store, id, documentId: crypto.randomUUID(), doc: document, execute: async command => {
+  const cleanNavigation=async()=>{if(unsafeWindow.perchanceSaveState!=='saved'||unsafeWindow.srcState?.isDirty?.()!==false)throw new Error('dirty-editor-navigation-blocked');};
+  const runtime = new WorkerRuntime({ store, id, documentId: crypto.randomUUID(), doc: document, beforeNavigate:cleanNavigation,navigate:url=>location.assign(url), execute: async command => {
     const native = new NativePage(unsafeWindow);
     const gate = new SessionGate(store, native);
     const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
+    if(command.kind==='navigate'){await cleanNavigation();return {outcome:'verified'};}
+    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,exporter:typeof exportFunction==='function'?exportFunction:null});
+    if(command.kind==='native-create')return {outcome:'verified',data:await actions.create()};
+    if(command.kind==='native-listing')return {outcome:'verified',data:await actions.listing(command.target,command.payload.intent)};
+    if(command.kind==='native-rename')return {outcome:'verified',data:await actions.rename(command.target,command.payload.targetSlug)};
     if (command.kind === 'read-saved') {
       await gate.requireOwner(command.target);
       return { outcome: 'verified', data: await reader.saved(command.target.slug, command.target.id) };

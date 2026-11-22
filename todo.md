@@ -1,21 +1,19 @@
 # Active work — handoff
 
-**Current phase:** P15 — Slug reservation in Utility. **Status:** Planned.
+**Current phase:** P15 — Slug reservation in Utility. **Status:** Implemented; regression checks pending.
 
 ## Next action
 
-- Implement exact rendered slug classification with contradictory/challenge reads returning Unknown.
-- Implement one persisted reservation per GitHub request: owned reuse, create receipt/temporary ID, explicit Unlisted, exact Rename, independent identity/owner verification.
-- Persist each external action before dispatch; interrupted create never creates again. Block only the affected request and queue status against its original repository.
-- Verify taken/reserved/unknown, ownership/session, rename race, crash and temporary generator outcomes with synthetic adapters. Keep native capabilities disabled pending live proof.
+- Confirm CI regression after the native receipt/Utility worker handoff changes.
+- Accept P15 synthetic evidence and plan P16 source publication; automatic GitHub request dispatch belongs to the P16 integration.
 
 ## Evidence
 
 - P00–P14 implemented with synthetic evidence in docs/verification.md; P01 live installation acceptance remains deferred.
-- Build/syntax and 67 Node tests pass. P14 browser run 44973566403 and checks 44973566397 PASS.
+- Build/syntax and 81 Node tests pass. Exact slug messages, owned reuse, create → Unlist → Rename, temporary ID, uncertain creation/rename, storage/session failure, protected command deduplication and clean hidden navigation are covered. P14 browser run 44973566403 and checks 44973566397 PASS.
 
 ## Blockers / deferred checks
 
 DEFERRED — P01–P15 live Firefox/Violentmonkey isolated injection, storage/session, real inventory/source, GitHub-write and disposable native reservation checks — no disposable profile/targets/PAT supplied. No UI toggle enables unverified writes.
 
-**Last pushed commit:** 2271908424ab290c6be515515408fe6585993393.
+**Last pushed commit:** a0f248b4d706a1e62fc9a3349eaaa392dbf5ea46.

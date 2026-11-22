@@ -67,7 +67,7 @@ export class Coordinator {
     return this.store.transact(state => {
       this.assertOwner(state);
       requireThat(!Object.hasOwn(state.jobs, job.id), 'duplicate-job');
-      if (job.generatorId) requireThat(!Object.values(state.jobs).some(j => j.generatorId === job.generatorId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
+      if (job.generatorId) requireThat(!Object.values(state.jobs).some(j => j.generatorId === job.generatorId && j.id !== job.parentId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
       state.jobs[job.id] = { ...structuredClone(job), owner: this.owner, term: this.term, phase: 'prepared', accepted: false };
       return structuredClone(state.jobs[job.id]);
     });

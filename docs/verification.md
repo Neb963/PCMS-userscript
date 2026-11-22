@@ -134,3 +134,7 @@
 ## P14 — Bulk Import
 
 67 Node tests, build and syntax pass. Synthetic UI run 44973566403 (Chromium and Firefox) and checks 44973566397 pass at remote 2271908424ab290c6be515515408fe6585993393. Import preselection, folder skips, exact source/deletions, retained snapshots, original repository, uncertain commit and post-commit source drift are covered. The delayed Manage inspection race preserves both current exclusion state and keyboard focus. Live VM/private GitHub/native inventory evidence remains DEFERRED; write gates remain closed.
+
+## P15 — Reservation
+
+Build/syntax and 81 Node tests pass. SlugReader uses exact normalized visible messages and independent saved identity; HTTP codes/iframe shells do not establish availability. Reservation checkpoints create before dispatch, retains native ID before Unlisting/Rename, rechecks availability, verifies owner/ID/slug and queues original-repository reserved/blocked writes. Lost create is never replayed; same-ID landed Rename reconciles without a second request. New native receipt observer watches the matched native fetch response and excludes credentials/source/arbitrary response data. Utility navigation requires a hidden clean original document, unexpired current-term intent and new document registration. A request factory and protected worker handlers are bundled; automatic request scheduling is P16. Native capability flags remain false; Firefox exportFunction/native endpoints and disposable reservation are DEFERRED.

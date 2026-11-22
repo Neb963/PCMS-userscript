@@ -98,6 +98,13 @@ export class SessionGate {
     });
   }
 
+  async requireSession(expectedAccount) {
+    const session = await this.observe();
+    requireThat(session.signedIn, 'sign-in-required');
+    requireThat(session.configured && session.confirmed, 'confirm-session-required');
+    requireThat((await this.store.read()).settings.account.accountId === expectedAccount, 'account-assignment-mismatch');
+  }
+
   async requireOwner(target) {
     const session = await this.observe();
     requireThat(session.signedIn, 'sign-in-required');

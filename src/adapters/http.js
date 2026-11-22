@@ -22,6 +22,7 @@ export function privilegedRequest(xhr, url, { method = 'GET', body, type = 'json
           requireThat(new URL(response.finalUrl || target.href).origin === target.origin, 'redirect-target-rejected');
           requireThat(response.status >= 200 && response.status < 300, response.status === 409 || response.status === 422 ? 'http-conflict' : response.status === 404 ? 'http-not-found' : 'http-unavailable');
           if (type === 'bytes') { requireThat(response.response && Object.prototype.toString.call(response.response) === '[object ArrayBuffer]', 'http-invalid-response'); resolve(new Uint8Array(response.response)); }
+          else if(type==='text'){requireThat(typeof response.responseText==='string','http-invalid-response');resolve(response.responseText);}
           else resolve(JSON.parse(response.responseText));
         } catch (error) { fail(['redirect-target-rejected', 'http-conflict', 'http-not-found', 'http-unavailable'].includes(error.message) ? error.message : 'http-invalid-response'); }
       },

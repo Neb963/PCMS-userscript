@@ -6,7 +6,7 @@ export const WORKER_ROLES = Object.freeze(['refresher', 'utility', 'development'
 
 export function workerURL(worker, targetSlug) {
   slug(targetSlug);
-  return `https://perchance.org/${targetSlug}?pcms_worker=${encodeURIComponent(worker.id)}#edit`;
+  return `https://perchance.org/${targetSlug}?pcms_worker=${encodeURIComponent(worker.id)}#edit${worker.fork ? ':new' : ''}`;
 }
 
 export class WorkerPool {
@@ -18,14 +18,14 @@ export class WorkerPool {
     this.handles = new Map();
   }
 
-  async open(role, targetSlug, generatorId = null) {
+  async open(role, targetSlug, generatorId = null, fork = false) {
     requireThat(WORKER_ROLES.includes(role), 'invalid-worker-role');
     slug(targetSlug);
     const id = this.uuid();
     const result = await this.store.transact(state => {
       const active = Object.values(state.workers).filter(w => w.role === role && !['retained', 'released'].includes(w.phase) && (role === 'development' || w.phase !== 'lost'));
       requireThat(active.length < (role === 'development' ? 2 : 1), 'worker-capacity');
-      state.workers[id] = { id, role, generatorId, slug: targetSlug, phase: 'opening', documentId: null, selected: false, observedAt: this.now() };
+      state.workers[id] = { id, role, generatorId, fork, slug: targetSlug, phase: 'opening', documentId: null, selected: false, observedAt: this.now() };
       return structuredClone(state.workers[id]);
     });
     try {
@@ -77,6 +77,7 @@ export class WorkerPool {
         const own = current.workers[worker.id];
         requireThat(own?.documentId === reply.documentId, 'stale-worker-reply');
         if (own.outbox?.data !== undefined) current.jobs[command.id].data = structuredClone(own.outbox.data);
+        if(command.kind==='navigate'&&reply.outcome==='verified')own.navigation={slug:command.target.slug,generatorId:command.target.id||null,fork:command.fork===true,term:command.term,expiresAt:this.now()+15000};
         delete own.outbox;
         own.phase = reply.outcome === 'unknown' ? (own.role === 'development' ? 'busy' : 'retained') : 'idle';
       });
@@ -104,8 +105,8 @@ export function watchProtectedStore(addListener, removeListener, callback) {
 }
 
 export class WorkerRuntime {
-  constructor({ store, id, documentId, doc, execute, now = () => Date.now() }) {
-    Object.assign(this, { store, id, documentId, doc, execute, now });
+  constructor({ store, id, documentId, doc, execute, beforeNavigate=async()=>{}, navigate=null, now = () => Date.now() }) {
+    Object.assign(this, { store, id, documentId, doc, execute, beforeNavigate, navigate, now });
     this.busy = false;
   }
 
@@ -121,6 +122,18 @@ export class WorkerRuntime {
   }
 
   async observe() {
+    const latest=(await this.store.read()).workers[this.id];
+    if(latest?.navigation&&this.navigate&&this.doc.visibilityState!=='visible'){
+      await this.beforeNavigate();
+      const result=await this.store.transact(state=>{
+        const own=state.workers[this.id],intent=own?.navigation;
+        requireThat(own?.documentId===this.documentId&&own.phase==='idle','navigation-worker-changed');
+        if(!intent||intent.expiresAt<this.now()||intent.term!==state.coordinator.term){delete own.navigation;return null;}
+        requireThat(this.doc.visibilityState!=='visible','operator-selected-tab');
+        Object.assign(own,{slug:intent.slug,generatorId:intent.generatorId,fork:intent.fork,phase:'opening',documentId:null});delete own.navigation;return workerURL(own,own.slug);
+      });
+      if(result.result){await this.navigate(result.result);return;}
+    }
     await this.store.transact(state => {
       const worker = state.workers[this.id];
       requireThat(worker && worker.documentId === this.documentId, 'stale-worker');
