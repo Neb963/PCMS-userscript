@@ -68,3 +68,11 @@ test('late draft switch and mutated src during capture are rejected',async()=>{
 test('same-generator GitHub changes before Save are held without staging source',async()=>{
   const f=await fixture(),original=f.github.snapshot;f.github.snapshot=async at=>{const s=structuredClone(await original(at));if(!at)s.entries['target-slug/main.pjs']={path:'target-slug/main.pjs',type:'blob',mode:'100644',sha:'f'.repeat(40)};return s;};assert.equal((await f.publication.run(f.request,'publish')).phase,'blocked');assert.deepEqual(f.calls,[]);
 });
+test('choosing GitHub source retains the previous approved snapshot until new native source is verified',async()=>{
+  const f=await fixture();f.request.replacesPendingId='old-approved';await f.store.transact(s=>{
+    s.utility.publish.request=f.request;s.generators['123'].localApproved=true;s.generators['123'].holds.push({id:'sync-old-approved',kind:'source-conflict'});
+    s.pending['old-approved']={id:'old-approved',generatorId:'123',slug:'target-slug',repository:f.request.repository,baseCommit:'a'.repeat(40),kind:'source',source:f.previous,previousSource:f.previous,status:{account:'alpha',action:'develop',state:'done'},phase:'publication-queued',listingIntent:'listed',nativeVerified:true,approval:{id:'old-approval',kind:'review',draftId:'draft',workerId:'retained',documentId:'doc',confirmedAt:1},draftId:'draft',retainedTab:'retained',decision:{successorRequest:'publish',phase:'queued'}};
+  });const save=f.native.deploy;f.native.deploy=async(...args)=>{await save(...args);throw Error('reply lost');};
+  assert.equal((await f.publication.run(f.request,'publish')).phase,'unknown');assert.equal((await f.store.read()).pending['old-approved'].phase,'publication-queued');
+  assert.equal((await f.publication.run(f.request,'publish')).phase,'done');const s=await f.store.read();assert.equal(s.pending['old-approved'].phase,'superseded');assert.deepEqual(s.pending['old-approved'].source,f.previous);assert.equal(s.generators['123'].localApproved,false);assert.equal(s.generators['123'].holds.length,0);
+});

@@ -57,3 +57,8 @@ test('fresh reconciliation detects a superseding edit after an earlier verified 
   const current=await f.reader.snapshot();current.entries['synthetic-generator/status.md'].sha='f'.repeat(40);f.reader.snapshot=async()=>structuredClone(current);
   assert.equal((await f.writer.reconcile('landed',{fresh:true})).superseded,true);assert.equal((await f.writer.reconcile('landed')).superseded,true);assert.equal(f.calls.filter(c=>c.path==='/git/refs/heads/main').length,1);
 });
+test('a prepared action with no dispatch can resume, while changed intended content cannot reuse it',async()=>{
+  const f=await fixture(),mark=f.store.markDispatched;f.store.markDispatched=async()=>{throw Error('before dispatch');};const input={id:'prepared',targetSlug:'synthetic-generator',baseline:f.baseline,changes:statusChanges('synthetic-generator',status)};await assert.rejects(f.writer.write(input),/before dispatch/);assert.equal(f.s.jobs.prepared.phase,'prepared');assert.equal(f.calls.length,0);
+  await assert.rejects(f.writer.write({...input,changes:statusChanges('synthetic-generator',{...status,state:'blocked'})}),/prepared-write-changed/);
+  f.store.markDispatched=mark;assert.equal((await f.writer.write(input)).verified,true);assert.equal(f.calls.filter(c=>c.path==='/git/commits').length,1);
+});

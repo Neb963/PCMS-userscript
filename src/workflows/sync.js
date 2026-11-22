@@ -2,7 +2,7 @@ import {requireThat,sourceEqual,parseStatus,addHold,releaseHold,completeSource} 
 import {sourceChanges,statusChanges} from '../adapters/github/writer.js';
 import {appendEvent} from '../state/journal.js';
 
-const TERMINAL=['synced','stopped','reassigned'];
+const TERMINAL=['synced','stopped','reassigned','superseded'];
 function signature(snapshot,targetSlug,predicate){return JSON.stringify(Object.values(snapshot.entries).filter(e=>e.type!=='tree'&&e.path.startsWith(targetSlug+'/')&&predicate(e.path.slice(targetSlug.length+1))).map(e=>[e.path,e.sha,e.mode,e.type]).sort((a,b)=>a[0].localeCompare(b[0])));}
 function sourceSignature(snapshot,targetSlug){return signature(snapshot,targetSlug,p=>p==='main.pjs'||p==='main.html'||p.startsWith('src/'));}
 function instructionSignature(snapshot,targetSlug){return signature(snapshot,targetSlug,p=>p==='prompt.md'||p.startsWith('scratch/'));}
@@ -62,6 +62,7 @@ export class Synchronizer {
   }
   async syncOne(id){
     await this.guard();let p=await this.record(id);if(TERMINAL.includes(p.phase))return p;
+    if(p.decision?.choice==='github')return this.queuePublication({pending:p});
     const state=await this.store.read(),g=state.generators[p.generatorId];
     if(state.settings.account.accountId!==p.status.account){await this.annotate(id,'account-conflict');return this.record(id);}
     const importCommand=g?.importCommand&&state.commands[g.importCommand];
@@ -112,7 +113,7 @@ export class Synchronizer {
   }
   async tick(){
     if(this.busy||this.now()<this.nextAt)return;this.busy=true;this.nextAt=this.now()+30000;
-    try{for(const p of syncRecords(await this.store.read()))if(!TERMINAL.includes(p.phase)&&!['source-conflict','request-conflict','account-conflict','snapshot-unverified'].includes(p.phase)){await this.guard();await this.syncOne(p.id);}}
+    try{for(const p of syncRecords(await this.store.read()))if(!TERMINAL.includes(p.phase)&&!['publication-queued','source-conflict','request-conflict','account-conflict','snapshot-unverified'].includes(p.phase)){await this.guard();await this.syncOne(p.id);}}
     finally{this.busy=false;}
   }
   async compare(id){
@@ -123,6 +124,44 @@ export class Synchronizer {
     // Text is returned only to the focused comparison; never to journal/diagnostics.
     return {token,local:structuredClone(p.source),remote:result.remote,commit:result.current.commit};
   }
+  async queuePublication({pending:p,snapshot=null,source=null}){
+    await this.guard();const client=await this.services(p.repository);
+    if(p.phase==='publication-queued')return p;
+    let decision=p.decision;
+    if(!decision){
+      requireThat(snapshot&&source,'comparison-required');
+      decision={choice:'github',writeId:'choose-'+this.uuid(),comparedCommit:snapshot.commit,source:completeSource(source),phase:'prepared'};
+      await this.update(p.id,row=>{requireThat(row.phase==='source-conflict','source-conflict-required');row.decision=decision;row.phase='publication-pending';});
+    }
+    try{
+      const baseline=await client.github.snapshot(decision.comparedCommit),current=await client.github.snapshot();
+      requireThat(instructionSignature(baseline,p.slug)===instructionSignature(current,p.slug)&&sourceEqual(await client.github.source(current,p.slug),decision.source),'comparison-changed');
+      const status=parseStatus(await client.github.text(current,p.slug+'/status.md'));
+      requireThat(status.account===p.status.account,'account-assignment-mismatch');
+      const ready={account:p.status.account,action:'publish_from_github',state:'ready'};
+      const prior=(await this.store.read()).jobs[decision.writeId];
+      let receipt;
+      if(prior&&prior.phase!=='prepared')receipt=await client.writer.reconcile(decision.writeId,{fresh:true});
+      else{
+        requireThat(current.commit===decision.comparedCommit,'comparison-changed');
+        receipt=await client.writer.write({id:decision.writeId,targetSlug:p.slug,baseline,changes:statusChanges(p.slug,ready),operation:'status'});
+      }
+      if(!receipt.verified){await this.update(p.id,row=>{row.phase='publication-unknown';row.decision.phase='unknown';});return this.record(p.id);}
+      const latest=await client.github.snapshot(),latestStatus=parseStatus(await client.github.text(latest,p.slug+'/status.md'));
+      const history=await client.github.api('/commits?path='+encodeURIComponent(p.slug+'/status.md')+'&sha='+latest.commit+'&per_page=1');
+      requireThat(sameStatus(latestStatus,ready)&&history[0]?.sha===receipt.commit&&sourceEqual(await client.github.source(latest,p.slug),decision.source)&&instructionSignature(baseline,p.slug)===instructionSignature(latest,p.slug),'publication-request-changed');
+      const id='publication-'+this.uuid(),instructions=Object.values(latest.entries).filter(e=>e.path===p.slug+'/prompt.md'||e.path.startsWith(p.slug+'/scratch/')).map(e=>[e.path,e.sha]);
+      const request={valid:true,slug:p.slug,repository:p.repository,commit:latest.commit,requestCommit:receipt.commit,readyTransition:false,status:ready,instructions,replacesPendingId:p.id};
+      await this.update(p.id,(row,s)=>{
+        requireThat(row.decision.writeId===decision.writeId&&!TERMINAL.includes(row.phase),'source-decision-changed');
+        row.phase='publication-queued';row.decision.phase='queued';row.decision.commit=receipt.commit;row.decision.successorRequest=id;
+        s.requestQueue||={};s.requestQueue[id]={id,request,phase:'queued',closed:false};
+      });return this.record(p.id);
+    }catch(error){
+      const job=(await this.store.read()).jobs[decision.writeId];
+      await this.update(p.id,row=>{if(!TERMINAL.includes(row.phase)){row.phase=job?.phase==='unknown'?'publication-unknown':error.message==='github-write-not-live-verified'?'live-verification-required':'request-conflict';row.reason=error.message==='account-assignment-mismatch'?'account-conflict':row.phase;row.decision.phase=job?.phase==='unknown'?'unknown':'held';}});return this.record(p.id);
+    }
+  }
   async decide(token,choice,confirmed){
     requireThat(confirmed===true&&['local','github'].includes(choice),'source-confirmation-required');
     const compared=this.comparisons.get(token);requireThat(compared,'comparison-required');
@@ -131,7 +170,7 @@ export class Synchronizer {
     requireThat(!p.writeId||!['dispatched','unknown'].includes((await this.store.read()).jobs[p.writeId]?.phase),'github-result-unknown');
     requireThat(JSON.stringify(p.repository)===JSON.stringify(compared.repository),'comparison-repository-changed');
     if(choice==='github'){
-      requireThat(this.publishGitHub,'publication-unavailable');await this.publishGitHub({pending:p,snapshot:result.current,source:completeSource(result.remote)});this.comparisons.delete(token);return;
+      await (this.publishGitHub?this.publishGitHub({pending:p,snapshot:result.current,source:completeSource(result.remote)}):this.queuePublication({pending:p,snapshot:result.current,source:completeSource(result.remote)}));this.comparisons.delete(token);return;
     }
     // The explicit decision rebases only synchronization. The approved live copy
     // and original snapshot stay protected; the normal atomic writer preserves history.

@@ -15,7 +15,7 @@ async function fixture({mode='source',approved=true}={}){
   const github={snapshot:async at=>{if(remote.offline)throw Error('offline');return structuredClone(at===baseCommit?baseline:remote.snapshot);},source:async()=>structuredClone(remote.source),text:async snapshot=>snapshot.commit===baseCommit?'account: alpha\naction: develop\nstate: review\n':`account: ${remote.status.account}\naction: ${remote.status.action}\nstate: ${remote.status.state}\n`,api:async path=>[{sha:path.includes(baseCommit)?baseCommit:remote.history}]};
   const writer={write:async input=>{
     calls.push(input);await store.prepareAction({id:input.id,kind:'github'});await store.markDispatched(input.id);
-    if(land){if(input.operation==='source')remote.source=structuredClone(source);remote.status=parseStatus(new TextDecoder().decode(Uint8Array.from(input.changes['target-slug/status.md'])));if(input.operation==='source')remote.snapshot.entries=entries('approved','done');else remote.snapshot.entries['target-slug/status.md'].sha=remote.status.state;remote.snapshot.commit='c'.repeat(40);}
+    if(land){if(input.operation==='source')remote.source=structuredClone(source);remote.status=parseStatus(new TextDecoder().decode(Uint8Array.from(input.changes['target-slug/status.md'])));if(input.operation==='source')remote.snapshot.entries=entries('approved','done');else remote.snapshot.entries['target-slug/status.md'].sha=remote.status.state;remote.snapshot.commit='c'.repeat(40);remote.history=remote.snapshot.commit;}
     if(unknown){await store.transact(s=>{s.jobs[input.id].phase='unknown';});throw Error('github-write-unknown');}await store.transact(s=>{s.jobs[input.id].phase='verified';});return {verified:true,commit:remote.snapshot.commit};
   },reconcile:async()=>({verified:land,commit:remote.snapshot.commit}),guard:async()=>{}};
   const client={github,writer},sync=new Synchronizer({store,services:async repo=>{assert.deepEqual(repo,repository);return client;},uuid:()=>String(++uuid)});
@@ -65,4 +65,12 @@ test('Unknown writes remain recheck-only even when remote source now differs',as
 test('a utility status without a native ID has a durable synced row after recovery',async()=>{
   const f=await fixture();await f.store.transact(s=>{delete s.pending.pending;delete s.generators['123'];s.utility={request:{id:'request',request:{slug:'target-slug',repository:f.remote.snapshot.repository,status:{account:'alpha',action:'develop',state:'ready'}},generatorId:null,pendingStatus:{status:{account:'alpha',action:'develop',state:'blocked'},repository:f.remote.snapshot.repository,baseCommit:'a'.repeat(40)}}};});
   const row=syncRecords(await f.store.read())[0];assert.equal(row.generatorId,null);assert.equal((await f.sync.syncOne(row.id)).phase,'synced');assert.equal(syncRecords(await f.store.read()).length,1);
+});
+test('Publish GitHub version queues the ordinary workflow while retaining the approved live snapshot',async()=>{
+  const f=await fixture();f.conflict();await f.sync.syncOne('pending');const comparison=await f.sync.compare('pending');await f.sync.decide(comparison.token,'github',true);const s=await f.store.read(),p=s.pending.pending,q=Object.values(s.requestQueue)[0];
+  assert.equal(p.phase,'publication-queued');assert.deepEqual(p.source,f.source);assert.equal(p.decision.phase,'queued');assert.equal(q.request.status.action,'publish_from_github');assert.equal(q.request.status.state,'ready');assert.equal(q.request.replacesPendingId,'pending');assert.equal(q.request.requestCommit,'c'.repeat(40));assert.equal(s.generators['123'].savedVerified,true);assert.ok(s.generators['123'].holds.some(h=>h.kind==='source-conflict'));assert.equal(f.calls.length,1);assert.deepEqual(Object.keys(f.calls[0].changes),['target-slug/status.md']);
+});
+test('unknown source-choice commit reconciles without a second ready commit',async()=>{
+  const f=await fixture();f.conflict();await f.sync.syncOne('pending');const comparison=await f.sync.compare('pending');f.unknown();await f.sync.decide(comparison.token,'github',true);assert.equal((await f.store.read()).pending.pending.phase,'publication-unknown');
+  await f.sync.syncOne('pending');assert.equal((await f.store.read()).pending.pending.phase,'publication-queued');assert.equal(f.calls.length,1);
 });

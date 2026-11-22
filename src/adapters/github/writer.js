@@ -35,7 +35,8 @@ export class GitHubWriter {
     slug(targetSlug);
     return this.locks.request('pcms:github-writes:v1', { mode: 'exclusive' }, async () => {
       await this.guard();
-      if ((await this.store.read()).jobs[id]) return this.reconcile(id);
+      const prepared=(await this.store.read()).jobs[id];
+      if(prepared&&prepared.phase!=='prepared')return this.reconcile(id);
       requireThat(JSON.stringify(baseline.repository) === JSON.stringify(this.reader.repository), 'github-repository-changed');
       const current = await this.reader.snapshot();
       requireThat(folderVersion(current, targetSlug) === folderVersion(baseline, targetSlug), 'github-generator-conflict');
@@ -45,7 +46,10 @@ export class GitHubWriter {
         intended[path] = bytes === null ? null : await blobHash(Uint8Array.from(bytes));
       }
       requireThat(Object.keys(intended).length > 0, 'empty-github-write');
-      await this.store.prepareAction({ id, kind: 'github', repository: this.reader.repository, slug: targetSlug, baseCommit: current.commit, intended, stage: 'objects', operation });
+      if(prepared){
+        requireThat(prepared.kind==='github'&&prepared.stage==='objects'&&prepared.slug===targetSlug&&prepared.operation===operation&&JSON.stringify(prepared.repository)===JSON.stringify(this.reader.repository)&&JSON.stringify(prepared.intended)===JSON.stringify(intended),'github-prepared-write-changed');
+        await this.store.transact(s=>{requireThat(s.jobs[id].phase==='prepared','github-action-changed');s.jobs[id].baseCommit=current.commit;});
+      }else await this.store.prepareAction({ id, kind: 'github', repository: this.reader.repository, slug: targetSlug, baseCommit: current.commit, intended, stage: 'objects', operation });
       await this.store.markDispatched(id);
       try {
         const tree = [];

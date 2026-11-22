@@ -36,7 +36,10 @@ export class Reservation {
       requireThat(!r.generatorId||r.generatorId===target.id,'reservation-identity-changed');
       const existing=s.generators[target.id];
       requireThat(!existing||existing.slug===target.slug,'managed-identity-conflict');
-      requireThat(!existing||!existing.holds.some(h=>h.id!==id),'generator-held');
+      const superseded=r.request.replacesPendingId&&s.pending[r.request.replacesPendingId];
+      const handoff=superseded&&superseded.phase==='publication-queued'&&superseded.decision?.successorRequest===id&&superseded.decision?.commit===r.request.requestCommit&&superseded.generatorId===target.id&&JSON.stringify(superseded.repository)===JSON.stringify(r.request.repository);
+      requireThat(!r.request.replacesPendingId||handoff,'source-handoff-unconfirmed');
+      requireThat(!existing||!existing.holds.some(h=>h.id!==id&&!(handoff&&h.id==='sync-'+superseded.id&&h.kind==='source-conflict')),'generator-held');
       r.generatorId=target.id;r.nativeSlug=target.slug;r.created=created;r.originalListing=target.listing;
       s.settings.account.locked=true;
       s.generators[target.id]=addHold(existing||{...generatorRecord({id:target.id,slug:target.slug,listing:target.listing||'unknown',status:r.request.status,holds:[]}),repository:r.request.repository}, {id,kind:'publication'});
