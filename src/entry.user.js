@@ -21,6 +21,7 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { RefreshScheduler } from './refresher/scheduler.js';
 import { Synchronizer, enqueueSyncAction } from './workflows/sync.js';
 import { syncRenderer } from './ui/sync.js';
 import { RequestRunner } from './runtime/requests.js';
@@ -67,6 +68,7 @@ function coordinate(store, ui = null) {
   const coordinator = new Coordinator({ store, locks: navigator.locks, owner: crypto.randomUUID() });
   const pool = new WorkerPool({ store, openTab: GM_openInTab });
   const poller = new GitHubPoller({ store, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
+  const scheduler=new RefreshScheduler({store,bootId:coordinator.owner,guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
   let consuming = false;
   let lastPulse = 0;
   const mountedAt = Date.now();
@@ -97,7 +99,7 @@ function coordinate(store, ui = null) {
     consuming = true;
     try {
       if (Date.now() - lastPulse >= 5000) { await store.transact(state => { coordinator.assertOwner(state); state.coordinator.observedAt = Date.now(); }); lastPulse = Date.now(); }
-      await pool.consume(coordinator);
+      scheduler.reconcile().catch(()=>{});await pool.consume(coordinator);
       if(!requests.busy&&!commands.busy)commands.tick().then(()=>requests.tick()).catch(()=>{});
       synchronizer.tickCommands().catch(()=>{});synchronizer.tick().catch(()=>{});await poller.check(true);
     } catch { /* Durable state retains the unresolved command. */ }
@@ -119,7 +121,7 @@ function coordinate(store, ui = null) {
   };
   const requests=new RequestRunner({store,coordinator,factory:async request=>{const reservation=await reservationWorkflow(request);if(request.status.action==='develop')return reservation;return new Publication({reservation,store,github:reservation.github,native:reservation.native,reader:reservation.reader,gate,locks:navigator.locks,guard:reservation.guard,assertCurrent:current=>coordinator.assertOwner(current)});}});
   const synchronizer=new Synchronizer({store,services:async repo=>{const service=await importWorkflow({repository:repo});return {github:service.github,writer:service.writer,reader:service.reader};},guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current),importWorkflow});
-  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests, synchronizer };
+  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests, synchronizer, scheduler };
 }
 
 async function startAssignedWorker() {
