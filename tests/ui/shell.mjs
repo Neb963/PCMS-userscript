@@ -69,10 +69,10 @@ try {
     }
 
     if(scenario.setupOnly){
-      await app.getByRole('button',{name:'Settings',exact:true}).click();
+      await app.getByLabel('Settings',{exact:true}).click();
       await app.getByLabel('Account ID',{exact:true}).fill('staged-account');
       await app.getByRole('navigation').getByRole('button',{name:'Generators',exact:true}).click();
-      await app.getByRole('button',{name:'Settings',exact:true}).click();
+      await app.getByLabel('Settings',{exact:true}).click();
       assert.equal(await app.getByLabel('Account ID',{exact:true}).inputValue(),'staged-account');
       await page.close();continue;
     }
@@ -99,11 +99,11 @@ try {
     assert.equal(await app.getByRole('dialog').count(),0);
     await app.getByRole('button',{name:'Clear selection',exact:true}).click();
     assert.equal(await selected.isChecked(),false);
-    await app.getByRole('button', { name: 'Settings', exact: true }).click();
+    await app.getByLabel('Settings', { exact: true }).click();
     assert.equal(await app.getByLabel('Account ID', { exact: true }).isDisabled(),true);
     await app.getByLabel('Repository URL', { exact: true }).fill('https://github.com/synthetic/staged-repository');
     await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();
-    await app.getByRole('button', { name: 'Settings', exact: true }).click();
+    await app.getByLabel('Settings', { exact: true }).click();
     assert.equal(await app.getByLabel('Account ID', { exact: true }).inputValue(), 'synthetic-account');
     assert.equal(await app.getByLabel('Repository URL', { exact: true }).inputValue(), 'https://github.com/synthetic/staged-repository');
     page.once('dialog', d => d.accept('synthetic-secret-never-in-dom'));

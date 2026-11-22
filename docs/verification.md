@@ -112,3 +112,8 @@
 - [UI run 44970649444](https://github.com/Neb963/PCMS-userscript/actions/runs/44970649444) PASS in Chromium and Firefox, four widths, including verified authority, exact protected probe nonce, probe removal, history details/focus and preserved settings drafts.
 - [Synthetic run 44970649403](https://github.com/Neb963/PCMS-userscript/actions/runs/44970649403) PASS (52 tests, build, syntax, reference hashes).
 - The earlier Firefox failures were synthetic injection/lifecycle timing defects; receipt-based assertions remain active. Actual VM provider persistence/injection is still deferred and native writes stay disabled.
+
+## P13 verification in progress
+
+- 57 Node tests, build and syntax PASS.
+- UI run 44971376854 reached the separate unbound setup case; its new locator matched both the Settings icon and the valid Overview recovery link. Scoped the test to the accepted top-right icon's accessible label; no UI behavior/assertion removed.
