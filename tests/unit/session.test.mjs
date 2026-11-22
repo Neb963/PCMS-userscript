@@ -43,3 +43,10 @@ test('native identity/draft readiness rejects wrong targets and unresolved choic
   await assert.rejects(f.native.ready({id:'123',slug:'synthetic-generator'}),/not-settled/);
   assert.throws(()=>requireLiveCapability('save'),/not-live-verified/);
 });
+
+test('server-rejected session invalidates manual confirmation even with stale page login flag',async()=>{
+  const f=fixture();await f.gate.bind('alpha');await f.gate.confirm(true);
+  f.page.fetch=async()=>({ok:true,json:async()=>({status:'session-token-error'})});
+  await assert.rejects(f.gate.requireOwner({slug:'synthetic-generator'}),/sign-in/);
+  assert.equal((await f.store.read()).settings.account.confirmed,false);
+});

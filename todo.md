@@ -1,20 +1,21 @@
 # Active work — handoff
 
-**Current phase:** P11 — Settings UI and safe configuration. **Status:** Implemented; browser CI pending.
+**Current phase:** P12 — Overview action cases, operations and journal. **Status:** Planned.
 
 ## Next action
 
-- Check Chromium/Firefox settings tests: staged form values across navigation, native prompt credential isolation, invalid poll preserving applied cap, desktop/narrow layout.
-- Accept P11 after verification, then implement P12 Overview cases and journal.
+- Derive distinct unresolved cases by identity, priorities and canonical recovery destinations.
+- Show four operational paths with live coordinator/worker verification and Unknown snapshots.
+- Add one bounded journal with 3-event summary, 100-event batches, search/details and allowlisted exports.
+- Wire live state updates without destroying form/list/focus state.
 
 ## Evidence
 
-- Build/syntax and 43 Node tests pass. Settings tests cover invalid/stale Test, pending-switch confirmation, original repository credentials, PAT-only switch and polling bounds.
-- Aligned accepted settings cards and narrow Connection / Controls & system views; credentials never bound to page input; diagnostic export contains only six fixed counts.
+- P11 synthetic UI passed in Chromium and Firefox (44968484461). Targeted session/settings tests pass; complete evidence in `docs/verification.md`.
 
 ## Blockers / deferred checks
 
 - DEFERRED — P01/P06/P07/P08 — live Firefox/Violentmonkey install/session/inventory/source/tab activation — disposable profile unavailable.
 - Native write flags remain false.
 
-**Last pushed commit:** 62a2e59dfb2b43bcc180f4dc0dfab340b25ad130.
+**Last pushed commit:** 945cb747536f908620b92300233fa7a1cb45488e.

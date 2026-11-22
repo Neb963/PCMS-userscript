@@ -104,7 +104,13 @@ export class SessionGate {
     requireThat(session.configured && session.confirmed, 'confirm-session-required');
     const state = await this.store.read();
     if (target.account !== undefined) requireThat(target.account === state.settings.account.accountId, 'account-assignment-mismatch');
-    if (!await this.native.ownership(target.slug)) {
+    let owns;
+    try { owns = await this.native.ownership(target.slug); }
+    catch (error) {
+      if (error.message === 'sign-in-required') await this.store.transact(current => { current.settings.account.confirmed = false; });
+      throw error;
+    }
+    if (!owns) {
       await this.store.transact(current => { current.settings.account.confirmed = false; });
       throw new Error('owner-mismatch');
     }

@@ -91,10 +91,10 @@
 
 ### P11 — Settings UI and safe configuration
 
-- [ ] Implement Account, GitHub Test → Apply, poll interval, theme and compact System.
-- [ ] Keep real credentials in isolated userscript-controlled context, not page or exports.
-- [ ] Test staged edits, invalid candidate, repository/PAT switch confirmation and sign-out UI.
-- [ ] **Accept:** Uncommitted input survives rerender; invalid settings preserve working config.
+- [x] Implement Account, GitHub Test → Apply, poll interval, theme and compact System.
+- [x] Keep real credentials in isolated userscript-controlled context, not page or exports.
+- [x] Test staged edits, invalid candidate, repository/PAT switch confirmation and sign-out UI.
+- [x] **Accept:** Uncommitted input survives rerender; invalid settings preserve working config.
 
 ### P12 — Overview action cases, operations and journal
 
