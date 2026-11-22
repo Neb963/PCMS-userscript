@@ -57,7 +57,7 @@ export class Publication {
           await this.reservation.update(id,(record,s)=>{
             record.localDone=true;record.closed=true;record.phase='done';record.steps.push('intended Listing confirmed');
             const g=s.generators[target.id];s.generators[target.id]={...releaseHold(g,id),listing:live.listing,localDone:true,savedVerified:true,ownerVerified:true};
-            s.pending[pendingId].phase='local-done';appendEvent(s,{component:'utility',outcome:'verified',nativeId:target.id});
+            s.pending[pendingId].phase='local-done';s.pending[pendingId].nativeVerified=true;appendEvent(s,{component:'utility',outcome:'verified',nativeId:target.id});
           });
         }
         const synced=await this.reservation.status(id,'done');
