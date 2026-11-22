@@ -164,7 +164,7 @@ try {
     assert.equal(await app.getByRole('heading', { name: 'Overview', exact: true }).count(), 1);
     await app.getByRole('button',{name:'Open GitHub sync',exact:true}).click();
     await app.getByRole('list',{name:'Synchronization jobs',exact:true}).waitFor();
-    const syncList=app.getByRole('list',{name:'Synchronization jobs',exact:true});assert.equal(await syncList.getByRole('listitem').count(),32);
+    const syncList=app.getByRole('list',{name:'Synchronization jobs',exact:true});assert.equal(await syncList.getByRole('listitem').count(),33);assert.equal(await syncList.getByRole('listitem').filter({hasText:'synthetic-review-00'}).count(),1);
     await syncList.getByRole('listitem').first().click();
     const keepLocal=app.getByRole('button',{name:'Keep approved local',exact:true});assert.equal(await keepLocal.isDisabled(),true);assert.equal(await app.getByRole('button',{name:'Publish GitHub version',exact:true}).isDisabled(),true);
     assert.equal((await app.textContent()).includes('synthetic-private-sync-source'),false);
