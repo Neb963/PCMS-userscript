@@ -1,20 +1,20 @@
 # Active work — handoff
 
-**Current phase:** P05 — Single coordinator lifecycle. **Status:** Planned.
+**Current phase:** P06 — Worker tabs and communication. **Status:** Planned.
 
 ## Next action
 
-- Hold one cooperative coordinator Web Lock, increment durable terms and claim operation IDs before dispatch.
-- Reject stale/duplicate worker commands and reconcile prior dispatched jobs as Unknown on takeover.
-- Test simultaneous candidates, owner loss and worker result fencing.
+- Implement privileged userscript messages and worker roles with dedicated Refresher, one Utility and two active Development slots.
+- Retain review tabs, protect operator-selected tabs and activate only on explicit action.
+- Test lost workers, duplicate/out-of-order communication and isolation.
 
 ## Evidence
 
-- P04 synthetic UI passed in Chromium and Firefox at four widths (Actions 44966701167). 15 Node tests/build/syntax pass. See `docs/verification.md`.
+- P05: 17 tests/build/syntax pass. P04 follow-up Chromium/Firefox UI run 44966839223 green. Evidence in `docs/verification.md`.
 
 ## Blockers / deferred checks
 
 - DEFERRED — P01 — actual Firefox/Violentmonkey install/reload/launch — disposable profile unavailable.
-- No real native effects enabled; no designated disposable account targets.
+- Native provider effects remain unavailable pending live capability checks.
 
-**Last pushed commit:** 370dd19f74b6231a45cdb241f1bcdfe796d07e1b.
+**Last pushed commit:** 3d0eb3965640da0d8606353aa0df01bf45cd7dd1.

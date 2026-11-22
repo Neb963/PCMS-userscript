@@ -12,6 +12,7 @@
 // @grant        GM_setValue
 // ==/UserScript==
 
+import { Coordinator } from './runtime/coordinator.js';
 import { ProtectedStore } from './state/store.js';
 import { mountShell, publicSnapshot } from './ui/shell.js';
 import { isAppPage, openPCMS, installLauncher, APP_NAME } from './runtime/launch.js';
@@ -32,7 +33,15 @@ if (isAppPage(location)) {
   document.body.style.overflow = 'hidden';
   const store = new ProtectedStore({ get: GM_getValue, set: GM_setValue, locks: navigator.locks });
   const ui = mountShell(document, host, { onTheme: theme => store.transact(state => { state.settings.theme = theme; }) });
-  store.read().then(state => ui.update(publicSnapshot(state))).catch(() => ui.update({ restored: true, storageAvailable: false }));
+  const lifecycle = new AbortController();
+  const coordinator = new Coordinator({ store, locks: navigator.locks, owner: crypto.randomUUID() });
+  store.read().then(state => {
+    ui.update(publicSnapshot(state));
+    coordinator.run(lifecycle.signal, async () => {
+      ui.update({ ...publicSnapshot(await store.read()), coordinator: 'Verified' });
+    }).catch(() => ui.update({ restored: true, storageAvailable: store.available, coordinator: 'Unverified' }));
+  }).catch(() => ui.update({ restored: true, storageAvailable: false }));
+  window.addEventListener('pagehide', () => { lifecycle.abort(); coordinator.stop(); }, { once: true });
   document.body.append(host);
 } else {
   installLauncher(document, launch);

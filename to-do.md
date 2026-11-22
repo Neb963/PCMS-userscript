@@ -49,10 +49,10 @@
 
 ### P05 — Single coordinator lifecycle
 
-- [ ] Implement one cooperative Web-Lock coordinator role and saved term/job claims.
-- [ ] Reject duplicate and stale worker commands and rehydrate without double-dispatch.
-- [ ] Test simultaneous candidates, loss of coordinator and uncertain in-flight job.
-- [ ] **Accept:** Exactly one active simulated coordinator dispatches; old commands cannot re-dispatch jobs.
+- [x] Implement one cooperative Web-Lock coordinator role and saved term/job claims.
+- [x] Reject duplicate and stale worker commands and rehydrate without double-dispatch.
+- [x] Test simultaneous candidates, loss of coordinator and uncertain in-flight job.
+- [x] **Accept:** Exactly one active simulated coordinator dispatches; old commands cannot re-dispatch jobs.
 
 ### P06 — Worker tabs and communication
 

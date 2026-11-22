@@ -36,3 +36,9 @@
 - Closed production shadow root, native dialogs and app-styled keyboard picker. No sample data or remote success substituted.
 - Separate path-scoped UI workflow avoids browser runs for unrelated pure-module changes.
 - Actual Violentmonkey installation remains P01 deferred; UI evidence uses controlled synthetic pages.
+
+## P05
+
+- Build/syntax and 17 Node tests PASS. P04 follow-up [UI run 44966839223](https://github.com/Neb963/PCMS-userscript/actions/runs/44966839223) PASS.
+- Runtime holds one coordinator Web Lock, increments protected terms and persists job claim/dispatch/acceptance before effects.
+- Tests exercise simultaneous candidates, owner loss, durable Unknown takeover, duplicate dispatch/delivery, wrong document and rejected late result. Same-generator unresolved work prevents another dispatch; unrelated jobs remain possible.

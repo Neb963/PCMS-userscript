@@ -49,9 +49,11 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
       for (const [name, destination] of [['Refresher', 'refresher'], ['AI Helper', 'reviews'], ['Publication', 'utility'], ['GitHub sync', 'sync']]) {
         operations.append(el(doc, 'div', { className: 'row' }, el(doc, 'div', {}, el(doc, 'strong', {}, name), el(doc, 'p', {}, 'Unknown')), button(doc, 'Open', () => navigate(destination), { className: 'link', 'aria-label': 'Open ' + name })));
       }
+      const operationPanel = panel('Operations', operations);
+      operationPanel.querySelector('header').append(el(doc, 'span', { className: 'statusline' }, 'Coordinator ' + (model.coordinator || 'Checking')));
       body.append(el(doc, 'div', { className: 'columns overview' },
         panel('Requires action', el(doc, 'div', { className: 'row' }, el(doc, 'div', {}, el(doc, 'strong', {}, action)), button(doc, 'Settings', () => navigate('settings')))),
-        panel('Operations', operations),
+        operationPanel,
         panel('Recent activity', el(doc, 'p', { className: 'empty' }, !model.restored ? 'Checking saved events…' : model.storageAvailable === false ? 'Journal unavailable' : model.journalCount === 0 ? 'No activity recorded' : 'Checking saved events…')),
       ));
     } else {
