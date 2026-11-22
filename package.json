@@ -1,12 +1,16 @@
 {
   "name": "pcms-userscript",
   "private": true,
-  "version": "0.0.0",
-  "description": "PCMS userscript planning scaffold (no production runtime yet)",
+  "version": "0.1.0",
+  "description": "PCMS Perchance management userscript",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "check:bootstrap": "node scripts/check-bootstrap.mjs",
-    "test": "node --test tests/bootstrap.test.mjs"
+    "test": "node --test tests/bootstrap.test.mjs tests/unit/*.test.mjs",
+    "build": "node scripts/build.mjs",
+    "check:syntax": "node scripts/check-syntax.mjs"
   }
 }

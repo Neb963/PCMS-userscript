@@ -21,9 +21,9 @@
 
 ### P01 — Build a real installable userscript
 
-- [ ] Create the production `src/entry.user.js` and a simple deterministic single-file build.
-- [ ] Make the initial userscript load on Perchance without changing native behavior or opening duplicate PCMS tabs.
-- [ ] Add metadata, syntax and build-output smoke tests.
+- [x] Create the production `src/entry.user.js` and a simple deterministic single-file build.
+- [x] Make the initial userscript load on Perchance without changing native behavior or opening duplicate PCMS tabs.
+- [x] Add metadata, syntax and build-output smoke tests.
 - [ ] **Accept:** One generated `.user.js` installs in Violentmonkey; source and reference mockup remain separate.
 
 ### P02 — Define the minimum domain records

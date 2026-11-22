@@ -1,4 +1,4 @@
-name: bootstrap checks
+name: synthetic checks
 on:
   push:
     branches: [main]
@@ -17,5 +17,9 @@ jobs:
           node-version: '24'
       - name: Verify repository and references
         run: npm run check:bootstrap
-      - name: Verify bootstrap tests
+      - name: Build production userscript
+        run: npm run build
+      - name: JavaScript syntax
+        run: npm run check:syntax
+      - name: Synthetic contracts
         run: npm test

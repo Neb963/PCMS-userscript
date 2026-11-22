@@ -1,20 +1,19 @@
 # Active work — handoff
 
-**Current phase:** P01 — Build a real installable userscript. **Status:** Planned.
+**Current phase:** P02 — Define the minimum domain records. **Status:** Planned.
 
 ## Next action
 
-- Build isolated entry, explicit launch and reusable dedicated tab.
-- Add deterministic, dependency-free ES-module bundling; metadata and native-page noninterference tests.
-- Expand lightweight CI to syntax/build/tests after local validation.
+- Implement validated manual account configuration, generator identity, Listing/workflow, independent holds, request identity and complete source records.
+- Enforce strict three-required-field status parsing with optional-field tolerance; add inverse tests.
 
 ## Evidence
 
-- P00 complete: bootstrap checks, 3 tests and clean Actions checkout PASS. See `docs/verification.md`.
-- Read v1.4, discovery and accepted UI entry/layout reference. Authority overrides older discovery references to ranking, instruction files in src and PersonaMonkey.
+- P00 complete; P01 build/syntax and 5 synthetic tests pass. `docs/verification.md` retains evidence.
 
 ## Blockers / deferred checks
 
-- Native actions need disposable Firefox/Violentmonkey verification before normal-use enablement; no live account targets designated.
+- DEFERRED — P01 — install/reload/launch in Firefox + Violentmonkey — no disposable browser profile connected. Does not block domain implementation.
+- No live provider targets designated; native effects remain unavailable.
 
-**Last pushed commit:** d33ebffcc51b95fdda0a70104f379acaeb10c742.
+**Last pushed commit:** 693cbd5d92016caac90540b79f873e28ed3d3992.
