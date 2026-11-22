@@ -21,6 +21,9 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { RequestRunner } from './runtime/requests.js';
+import { Publication } from './workflows/publication.js';
+import { utilityRenderer } from './ui/utility.js';
 import { NativeActions } from './adapters/perchance/actions.js';
 import { SlugReader } from './adapters/perchance/slugs.js';
 import { Reservation } from './workflows/reservation.js';
@@ -92,15 +95,17 @@ function coordinate(store, ui = null) {
     consuming = true;
     try {
       if (Date.now() - lastPulse >= 5000) { await store.transact(state => { coordinator.assertOwner(state); state.coordinator.observedAt = Date.now(); }); lastPulse = Date.now(); }
-      await pool.consume(coordinator); commands.tick().catch(() => {}); await poller.check(true);
+      await pool.consume(coordinator);
+      if(!requests.busy&&!commands.busy)commands.tick().then(()=>requests.tick()).catch(()=>{});
+      await poller.check(true);
     } catch { /* Durable state retains the unresolved command. */ }
     finally { consuming = false; }
   };
   const unwatch = watchProtectedStore(GM_addValueChangeListener, GM_removeValueChangeListener, () => { tick(); refresh(); });
-  coordinator.run(lifecycle.signal, async () => {
+  Promise.resolve().then(()=>coordinator.run(lifecycle.signal, async () => {
     await refresh();
     await tick();
-  }).catch(() => { store.available = false; if (ui) ui.update({ restored: true, storageAvailable: false, coordinator: 'Unverified' }); });
+  })).catch(() => { store.available = false; if (ui) ui.update({ restored: true, storageAvailable: false, coordinator: 'Unverified' }); });
   const timer = setInterval(tick, 1000);
   const viewTimer = ui ? setInterval(refresh, 5000) : null;
   window.addEventListener('pagehide', () => { clearInterval(timer); clearInterval(viewTimer); unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });
@@ -110,7 +115,8 @@ function coordinate(store, ui = null) {
     const services=await importWorkflow({repository:request.repository});
     return new Reservation({store,reader:services.reader,gate,github:services.github,writer:services.writer,slugs:new SlugReader({request:(url,options)=>privilegedRequest(GM_xmlhttpRequest,url,options),reader:services.reader}),native:new NativeClient({store,pool,coordinator}),guard:services.guard,assertCurrent:current=>coordinator.assertOwner(current)});
   };
-  return { coordinator, pool, poller, importWorkflow, reservationWorkflow };
+  const requests=new RequestRunner({store,coordinator,factory:async request=>{const reservation=await reservationWorkflow(request);if(request.status.action==='develop')return reservation;return new Publication({reservation,store,github:reservation.github,native:reservation.native,reader:reservation.reader,gate,locks:navigator.locks,guard:reservation.guard,assertCurrent:current=>coordinator.assertOwner(current)});}});
+  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests };
 }
 
 async function startAssignedWorker() {
@@ -125,8 +131,9 @@ async function startAssignedWorker() {
     const gate = new SessionGate(store, native);
     const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
     if(command.kind==='navigate'){await cleanNavigation();return {outcome:'verified'};}
-    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,exporter:typeof exportFunction==='function'?exportFunction:null});
-    if(command.kind==='native-create')return {outcome:'verified',data:await actions.create()};
+    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,guard:async()=>{const state=await store.read();if(state.coordinator.term!==command.term||state.coordinator.owner!==command.owner||state.workers[id]?.documentId!==command.documentId)throw Error('stale-native-command');},exporter:typeof exportFunction==='function'?exportFunction:null});
+    if(command.kind==='native-deploy')return {outcome:'verified',data:await actions.deploy(command.target,command.payload.pendingId)};
+    if(command.kind==='native-create')return {outcome:'verified',data:await actions.create(command.payload.actionId)};
     if(command.kind==='native-listing')return {outcome:'verified',data:await actions.listing(command.target,command.payload.intent)};
     if(command.kind==='native-rename')return {outcome:'verified',data:await actions.rename(command.target,command.payload.targetSlug)};
     if (command.kind === 'read-saved') {
@@ -175,7 +182,7 @@ if (isAppPage(location)) {
   let runtime;
   const ui = mountShell(document, host, {
     onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
-    renderers: { import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
+    renderers: { utility: utilityRenderer(), import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
       requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
       signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
     }) },

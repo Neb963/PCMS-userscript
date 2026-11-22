@@ -20,6 +20,8 @@ initialState.settings.account={accountId:'synthetic-account',locked:true,confirm
 for(let i=0;i<48;i++){
   const id=String(100+i);initialState.generators[id]={id,slug:'synthetic-generator-'+String(i).padStart(2,'0'),listing:i%3===0?'unlisted':'listed',status:{account:'synthetic-account',action:'publish_from_github',state:'done'},holds:i===8?[{id:'edit-108',kind:'edit'},{id:'unknown-108',kind:'native-unknown'}]:[],savedVerified:true,ownerVerified:true,excluded:false,githubCommit:'a'.repeat(40)};
 }
+initialState.requestQueue={};initialState.utility={};
+for(let i=0;i<35;i++){const id='utility-'+i,request={valid:true,slug:'synthetic-utility-'+String(i).padStart(2,'0'),repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),requestCommit:'a'.repeat(40),instructions:[],status:{account:'synthetic-account',action:'publish_from_github',state:'ready'}};initialState.requestQueue[id]={id,request,phase:i===1?'reserved':'waiting',closed:false,reason:'live-verification-required'};if(i===1)initialState.utility[id]={id,request,phase:'reserved',steps:['request checked','slug checked','identity checked']};}
 try {
   for (const scenario of [...[1440,1024,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
     const {width}=scenario;
@@ -137,6 +139,11 @@ try {
     await app.getByRole('button', { name: 'Open Publication' }).focus();
     await page.keyboard.press('Enter');
     await app.getByRole('heading', { name: 'Utility', exact: true }).first().waitFor();
+    const utilityList=app.getByRole('list',{name:'Utility jobs',exact:true});assert.equal(await utilityList.getByRole('listitem').count(),35);
+    await utilityList.getByRole('listitem').filter({hasText:'synthetic-utility-01'}).click();
+    assert.equal(await app.getByText('identity checked · Verified',{exact:true}).count(),1);
+    assert.equal(await app.getByRole('navigation').getByRole('button').count(),4);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false);
     await app.getByRole('button', { name: 'Back', exact: true }).click();
     assert.equal(await app.getByRole('heading', { name: 'Overview', exact: true }).count(), 1);
     await app.getByRole('button', { name: 'Show all', exact: true }).click();

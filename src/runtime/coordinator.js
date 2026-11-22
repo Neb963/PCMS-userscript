@@ -4,6 +4,7 @@ import { requireThat } from '../shared/domain.js';
 export const COORDINATOR_LOCK = 'pcms:coordinator:v1';
 
 function interruptJobs(state) {
+  for (const request of Object.values(state.requestQueue || {})) if(request.phase==='running')request.phase='unknown';
   for (const command of Object.values(state.commands || {})) if (command.phase === 'running') command.phase = 'unknown';
   for (const job of Object.values(state.jobs)) {
     if (job.phase !== 'dispatched') continue;

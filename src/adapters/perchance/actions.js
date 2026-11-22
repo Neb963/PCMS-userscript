@@ -1,4 +1,5 @@
-import { requireThat, slug } from '../../shared/domain.js';
+import { EditorSource } from './editor.js';
+import { requireThat, slug, sourceEqual, generatorRecord } from '../../shared/domain.js';
 import { requireLiveCapability } from './session.js';
 
 // Observe only the specific native endpoint while its own UI action is running.
@@ -29,10 +30,10 @@ export async function nativeReceipt(page,{path,invoke,matches=()=>true,exporter,
 }
 
 export class NativeActions {
-  constructor({page,native,gate,reader,doc,exporter,capability=requireLiveCapability}) {Object.assign(this,{page,native,gate,reader,doc,exporter,capability});}
+  constructor({page,native,gate,reader,doc,exporter,store=null,guard=async()=>{},capability=requireLiveCapability}) {Object.assign(this,{page,native,gate,reader,doc,exporter,store,guard,capability});}
   receipt(path,invoke,matches){return nativeReceipt(this.page,{path,invoke,matches,exporter:this.exporter});}
   selected(){requireThat(this.doc.visibilityState!=='visible','operator-selected-tab');}
-  async create(){
+  async create(actionId){
     this.capability('create');this.selected();const state=await this.gate.store.read();await this.gate.requireSession(state.settings.account.accountId);
     requireThat(this.page.location.pathname==='/minimal'&&['#edit:new','#edit'].includes(this.page.location.hash),'creation-template-unconfirmed');
     requireThat(this.page.currentInterfaceMode==='edit'&&this.page.perchanceSaveState!=='saving'&&this.page.__draftChoiceSettled!==false,'editor-not-settled');
@@ -41,7 +42,14 @@ export class NativeActions {
     requireThat(!await this.native.ownership('minimal'),'creation-template-owned');
     const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name==='minimal');
     requireThat(receipt.status==='created'&&typeof receipt.name==='string','creation-receipt-unconfirmed');
-    slug(receipt.name);const saved=await this.reader.metadata(receipt.name);await this.gate.requireOwner(saved);return saved;
+    slug(receipt.name);
+    if(this.store&&actionId){await this.guard();await this.store.transact(s=>{s.jobs[actionId].creationReceipt=receipt;});}
+    const saved=await this.reader.metadata(receipt.name);
+    if(this.store&&actionId){await this.guard();await this.store.transact(s=>{
+      const parent=s.jobs[actionId],r=s.utility?.[parent.requestId];parent.createdIdentity=structuredClone(saved);
+      if(r){requireThat(!s.generators[saved.id],'creation-identity-already-managed');r.generatorId=saved.id;r.nativeSlug=saved.slug;r.created=true;r.originalListing=saved.listing;s.generators[saved.id]={...generatorRecord({id:saved.id,slug:saved.slug,listing:saved.listing,status:r.request.status,holds:[{id:r.id,kind:'native-unknown'}]}),repository:r.request.repository,reservationId:r.id,ownerVerified:false};}
+    });}
+    await this.gate.requireOwner(saved);return saved;
   }
   async listing(target,intent){
     this.capability('listing');this.selected();requireThat(['listed','unlisted'].includes(intent),'invalid-listing');
@@ -51,6 +59,21 @@ export class NativeActions {
     requireThat(control&&!control.disabled&&control.getClientRects().length,'listing-control-unavailable');
     const receipt=await this.receipt('/api/changeGeneratorPrivacy',()=>control.click(),body=>body?.generatorName===target.slug&&body.isPrivate===(intent==='unlisted'));
     requireThat(receipt.status==='success','listing-receipt-unconfirmed');return receipt;
+  }
+  async deploy(target,pendingId){
+    this.capability('save');this.selected();await this.guard();await this.gate.requireOwner(target);
+    const pending=(await this.store.read()).pending[pendingId];
+    requireThat(pending?.kind==='source'&&pending.generatorId===target.id&&pending.slug===target.slug&&pending.previousSource,'publication-snapshot-unavailable');
+    const editor=new EditorSource({page:this.page,native:this.native,guard:async()=>{this.selected();await this.guard();}});
+    const staged=await editor.stage(target,pending.source,pending.previousSource);
+    await this.store.transact(s=>{requireThat(sourceEqual(s.pending[pendingId].source,staged.source),'snapshot-changed');s.pending[pendingId].draftId=staged.draftId;s.pending[pendingId].phase='staged';const r=s.utility?.[s.pending[pendingId].requestId];if(r&&!r.steps.includes('complete source staged'))r.steps.push('complete source staged');});
+    const confirmed=(await this.store.read()).pending[pendingId];
+    requireThat(confirmed.draftId===staged.draftId&&sourceEqual(confirmed.source,staged.source),'snapshot-readback-mismatch');
+    await this.guard();this.selected();await this.gate.requireOwner(target);
+    const current=await editor.capture(target);requireThat(current.draftId===confirmed.draftId&&sourceEqual(current.source,confirmed.source),'approved-draft-changed');
+    const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name===target.slug);
+    requireThat(receipt.status==='saved'&&receipt.name===target.slug,'save-receipt-unconfirmed');
+    await this.guard();await this.store.transact(s=>{const r=s.utility?.[pending.requestId];if(r&&!r.steps.includes('native Save'))r.steps.push('native Save');});return receipt;
   }
   async rename(target,targetSlug){
     this.capability('rename');this.selected();slug(targetSlug);await this.gate.requireOwner(target);await this.native.ready(target);

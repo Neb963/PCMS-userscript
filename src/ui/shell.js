@@ -14,6 +14,8 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
     restored: true,
     storageAvailable: true,
     generators: inventoryRows(state).map(g => ({ id:g.id, slug:g.slug, listing:g.listing, status:g.status, holds:g.holds, excluded:g.excluded, managed:g.managed, ownerVerified:g.ownerVerified===true, savedVerified:g.savedVerified===true, localDone:g.localDone===true, localApproved:g.localApproved===true, states:generatorStates(g,state) })),
+    utility: Object.values(state.requestQueue||{}).map(job=>{const r=state.utility?.[job.id];return {id:job.id,slug:job.request.slug,action:job.request.status.action,phase:r?.phase||job.phase,reason:job.reason||r?.reason||null,generatorId:r?.generatorId||null,steps:r?.steps||[]};}),
+    utilityWorker: Object.values(state.workers).find(w=>w.role==='utility'&&!['released','lost','retained'].includes(w.phase))?.phase||'Unknown',
     journalCount: state.journal.length,
     coordinator,
     casesKnown: coordinator === 'Verified',

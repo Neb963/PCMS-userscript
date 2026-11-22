@@ -10,6 +10,8 @@ export function pendingWork(state) {
   for (const j of Object.values(state.jobs)) if (['prepared','dispatched','unknown'].includes(j.phase)) work.push({ id: j.id, generatorId: j.generatorId || null, slug: j.slug || null, repository: j.repository || state.settings.github?.repository || null, kind: j.kind });
   for (const g of Object.values(state.generators)) if (g.holds?.some(h => ['edit','development','review','cancelled-draft'].includes(h.kind))) work.push({ id: 'draft-' + g.id, generatorId: g.id, slug: g.slug, repository: g.repository || state.settings.github?.repository || null, kind: 'draft' });
   for (const command of Object.values(state.commands || {})) if (['queued','running','unknown','blocked'].includes(command.phase)) work.push({ id:command.id,generatorId:null,slug:null,repository:command.repository,kind:command.kind });
+  for(const request of Object.values(state.requestQueue||{}))if(!request.closed)work.push({id:request.id,generatorId:state.utility?.[request.id]?.generatorId||null,slug:request.request.slug,repository:request.request.repository,kind:'utility'});
+  for(const record of Object.values(state.utility||{}))if(record.pendingStatus)work.push({id:record.id+'-status',generatorId:record.generatorId||null,slug:record.request.slug,repository:record.request.repository,kind:'sync'});
   return work.sort((a,b)=>a.id.localeCompare(b.id));
 }
 

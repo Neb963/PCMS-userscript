@@ -28,6 +28,7 @@ export class NativeClient {
     await this.coordinator.claim({id,kind,target,payload,parentId:payload.actionId||null,generatorId:target.id||null,workerId:worker.id,documentId:worker.documentId,operatorAction});
     await this.coordinator.dispatch(id,c=>this.pool.send(c));return this.result(id);
   }
+  deploy(target,pendingId,actionId){return this.command('native-deploy',target,{pendingId,actionId},actionId+'-worker');}
   create(actionId){return this.command('native-create',{slug:'minimal'},{actionId},actionId+'-worker');}
   listing(target,intent,actionId){return this.command('native-listing',target,{intent,actionId},actionId+'-worker');}
   rename(target,targetSlug,actionId){return this.command('native-rename',target,{targetSlug,actionId},actionId+'-worker');}

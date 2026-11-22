@@ -23,7 +23,7 @@ export class Reservation {
         await this.update(id,(_r,s)=>{s.jobs[actionId].phase='verified';s.jobs[actionId].data=structuredClone(result);const child=s.jobs[actionId+'-worker'];if(child&&['dispatched','unknown'].includes(child.phase)){child.phase='verified';child.data=structuredClone(result);}});return result;
       }
     }else await this.store.prepareAction({id:actionId,kind:'native-'+step,generatorId:(await this.current(id)).generatorId,requestId:id});
-    await this.guard();await this.store.markDispatched(actionId);
+    await this.guard();if(step==='create')await this.update(id,(_r,s)=>{s.settings.account.locked=true;});await this.store.markDispatched(actionId);
     try{
       const result=await perform(actionId);
       await this.update(id,(_r,s)=>{s.jobs[actionId].phase='verified';s.jobs[actionId].data=structuredClone(result);const child=s.jobs[actionId+'-worker'];if(child&&['dispatched','unknown'].includes(child.phase)){child.phase='verified';child.data=structuredClone(result);}});return result;
@@ -46,9 +46,9 @@ export class Reservation {
 
   async status(id,state){
     const r=await this.current(id),status={...r.request.status,state};
-    await this.update(id,record=>{record.pendingStatus={status,repository:r.request.repository,baseCommit:r.request.commit};});
+    await this.update(id,record=>{record.pendingStatus={status,repository:r.request.repository,baseCommit:r.statusCommit||r.request.commit};});
     try{
-      const baseline=await this.github.snapshot(r.request.commit);
+      const baseline=await this.github.snapshot(r.statusCommit||r.request.commit);
       const receipt=await this.writer.write({id:id+'-status-'+state,targetSlug:r.request.slug,baseline,changes:statusChanges(r.request.slug,status),operation:'status'});
       requireThat(receipt.verified&&!receipt.superseded,'github-status-unconfirmed');
       await this.update(id,(record,s)=>{record.statusCommit=receipt.commit;record.pendingStatus=null;if(record.generatorId)s.generators[record.generatorId].status=status;});return true;
@@ -66,8 +66,11 @@ export class Reservation {
       if(!r.generatorId){
         const previous=(await this.store.read()).jobs[id+'-create'];
         if(previous){
-          requireThat(previous.phase==='verified'&&previous.data?.id,'creation-result-unknown');
-          await this.adopt(id,previous.data,true);
+          let created=previous.phase==='verified'?previous.data:null;
+          if(!created&&previous.creationReceipt?.status==='created'){
+            created=await this.effect(id,'create',async()=>{throw Error('create-not-replayable');},async()=>{const found=await this.reader.metadata(previous.creationReceipt.name);return this.verify({...found,account:request.status.account});});
+          }
+          requireThat(created?.id,'creation-result-unknown');await this.adopt(id,created,true);
         }else{
           await this.gate.requireSession(request.status.account);
           const baseline=await this.github.snapshot(request.commit),current=await this.github.snapshot();
@@ -94,6 +97,8 @@ export class Reservation {
         await this.update(id,(record,s)=>{record.nativeSlug=request.slug;s.generators[target.id].slug=request.slug;});target={...target,slug:request.slug};
       }
       let saved=await this.verify(target);
+      const createJob=(await this.store.read()).jobs[id+'-create'];
+      if(r.created&&createJob&&createJob.phase!=='verified')await this.effect(id,'create',async()=>{throw Error('create-not-replayable');},async()=>this.verify(target));
       if(r.created){
         await this.effect(id,'unlist',async actionId=>{if(saved.listing!=='unlisted')await this.native.listing(target,'unlisted',actionId);const current=await this.verify(target);requireThat(current.listing==='unlisted','listing-unconfirmed');return current;},async()=>{const current=await this.verify(target);return current.listing==='unlisted'?current:null;});
         await this.update(id,(record,s)=>{record.steps.push('new generator Unlisted');s.generators[target.id].listing='unlisted';});

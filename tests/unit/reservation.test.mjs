@@ -67,3 +67,13 @@ test('a new request cannot bypass an unresolved creation for the same repository
   const f=await fixture();f.native.create=async()=>{f.calls.push('create');throw Error('lost');};await f.reservation.run(f.request,'old');
   await assert.rejects(f.reservation.run({...f.request,requestCommit:'c'.repeat(40)},'new'),/already-active/);assert.deepEqual(f.calls,['create']);
 });
+test('creation checkpoints the temporary ID before ownership confirmation can fail',async()=>{
+  const f=await fixture();await f.store.transact(s=>{s.utility={native:{id:'native',request:f.request,phase:'checking',generatorId:null,steps:[]}};s.jobs.create={id:'create',kind:'native-create',requestId:'native',phase:'dispatched'};});
+  const page={location:{pathname:'/minimal',hash:'#edit'},currentInterfaceMode:'edit',perchanceSaveState:'saved',srcState:{isDirty:()=>false},modelTextEditor:{isClean:()=>true},outputTemplateEditor:{isClean:()=>true},app:{saveGenerator:async()=>{}}};
+  const actions=new NativeActions({store:f.store,page,doc:{visibilityState:'hidden'},capability:()=>{},native:{identity:()=>({id:'minimal',slug:'minimal'}),ready:async()=>{},ownership:async()=>false},gate:{store:f.store,requireSession:async()=>{},requireOwner:async()=>{throw Error('session changed');}},reader:{metadata:async()=>({id:'123',slug:'temporary-slug',listing:'listed'})}});
+  actions.receipt=async()=>({status:'created',name:'temporary-slug'});await assert.rejects(actions.create('create'),/session changed/);const s=await f.store.read();assert.equal(s.utility.native.generatorId,'123');assert.equal(s.generators['123'].ownerVerified,false);assert.equal(s.jobs.create.createdIdentity.id,'123');
+});
+test('known created receipt can recover a temporarily unreadable ID without creating again',async()=>{
+  const f=await fixture();f.native.create=async actionId=>{f.calls.push('create');await f.store.transact(s=>{s.jobs[actionId].creationReceipt={status:'created',name:'temporary-slug'};});throw Error('metadata unavailable');};
+  assert.equal((await f.reservation.run(f.request,'receipt')).phase,'unknown');assert.equal((await f.reservation.run(f.request,'receipt')).phase,'reserved');assert.equal(f.calls.filter(c=>c==='create').length,1);
+});
