@@ -28,3 +28,10 @@ test('inventory refresh retains renamed/missing IDs and holds unexpected unlisti
   const c=new InventoryController({store,reader:{inventory:async()=>[{id:'123',slug:'renamed-generator',listing:'listed',verified:true}]}});await c.refresh();assert.equal(s.generators['123'].slug,gen.slug);assert.ok(s.generators['123'].holds.some(h=>h.kind==='identity-mismatch'));
   c.reader.inventory=async()=>[{id:'123',slug:gen.slug,listing:'unlisted',verified:true}];await c.refresh();assert.equal(s.generators['123'].listing,'unlisted');assert.ok(s.generators['123'].holds.some(h=>h.kind==='listing-mismatch'));assert.ok(s.generators['123'].holds.some(h=>h.kind==='edit'));
 });
+
+test('inventory refresh does not infer an external rename during a managed native→GitHub rename',async()=>{
+ const s=emptyState();s.generators['123']=structuredClone(gen);s.maintenance={moving:{id:'moving',generatorId:'123',phase:'github-pending'}};const c=new InventoryController({store:{read:async()=>structuredClone(s),transact:async fn=>({state:s,result:fn(s)})},reader:{inventory:async()=>[{id:'123',slug:'new-name',listing:'listed',verified:true}]}});await c.refresh();assert.equal(s.generators['123'].holds.length,0);await assert.rejects(c.inspect('123'),/maintenance-in-progress/);assert.equal(s.generators['123'].slug,gen.slug);
+});
+test('Manage inspection persists unexpected Unlisting independently of other holds',async()=>{
+ const s=emptyState();s.generators['123']={...structuredClone(gen),holds:[{id:'edit',kind:'edit'}]};const c=new InventoryController({store:{read:async()=>structuredClone(s),transact:async fn=>({state:s,result:fn(s)})},reader:{metadata:async()=>({id:'123',listing:'unlisted'})},gate:{requireOwner:async()=>true}});await c.inspect('123');assert.equal(s.generators['123'].listing,'unlisted');assert.equal(s.generators['123'].holds.some(h=>h.kind==='listing-mismatch'),true);assert.equal(s.generators['123'].holds.some(h=>h.kind==='edit'),true);
+});

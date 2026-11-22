@@ -49,6 +49,7 @@ export class InventoryController {
     return this.store.transact(state=>{
       state.inventory=observed;state.inventoryAt=Date.now();
       for(const [id,g] of Object.entries(state.generators)) {
+        if(Object.values(state.maintenance||{}).some(r=>r.generatorId===id&&!['done','failed','stopped'].includes(r.phase)))continue;
         const row=observed.find(r=>r.verified&&r.id===id);
         if(!row||row.slug!==g.slug){state.generators[id]=addHold({...g,ownerVerified:false},{id:'identity-'+id,kind:'identity-mismatch'});continue;}
         g.ownerVerified=true;
@@ -60,13 +61,14 @@ export class InventoryController {
 
   async inspect(id) {
     nativeId(id);const state=await this.store.read(),g=inventoryRows(state).find(g=>g.id===id);requireThat(g,'generator-not-found');
+    requireThat(!Object.values(state.maintenance||{}).some(r=>r.generatorId===id&&!['done','failed','stopped'].includes(r.phase)),'maintenance-in-progress');
     let live;
     try { await this.gate.requireOwner({id,slug:g.slug});live=await this.reader.metadata(g.slug);requireThat(live.id===id,'native-target-mismatch'); }
     catch(error){
       if(g.managed&&['owner-mismatch','native-target-mismatch'].includes(error.message))await this.store.transact(s=>{if(s.generators[id]?.slug===g.slug)s.generators[id]=addHold({...s.generators[id],ownerVerified:false},{id:'identity-'+id,kind:'identity-mismatch'});});
       throw error;
     }
-    if(g.managed)await this.store.transact(s=>{if(s.generators[id]?.slug===g.slug)s.generators[id].ownerVerified=true;});
+    if(g.managed)await this.store.transact(s=>{if(s.generators[id]?.slug===g.slug){const own=s.generators[id];own.ownerVerified=true;if(own.listing==='listed'&&live.listing==='unlisted')s.generators[id]=addHold({...own,listing:'unlisted'},{id:'listing-'+id,kind:'listing-mismatch'});else own.listing=live.listing;}});
     return {...g,listing:live.listing,ownerVerified:true};
   }
 

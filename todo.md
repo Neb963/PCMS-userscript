@@ -4,8 +4,8 @@
 
 ## Next action
 
-- Verify P30 browser regression. 262 Node tests, build/syntax/bootstrap PASS, including full Listed/Unlisted lifecycle through actual Git Data adapters and restart.
-- Fixed current-baseline Manual Edit, completion clearing temporary local source priority only after latest sync, and scoped per-write guards. Bounded interrupted source-comparison UI.
+- Verify P30 browser regression. 266 Node tests, build/syntax/bootstrap PASS, including full Listed/Unlisted lifecycle through actual Git Data adapters and restart.
+- Wired native inventory refresh on confirmed Generators entry without interfering with an active rename. Fixed current-baseline Manual Edit, completion clearing temporary local source priority only after latest sync, and scoped per-write guards. Bounded interrupted source-comparison UI.
 - P31 next: build and inspect identical artifact from clean exported source, document exact live qualification, package disabled candidate with operator guide and evidence. Native/fresh-profile checks remain deferred; do not claim a qualified production release.
 
 ## Evidence

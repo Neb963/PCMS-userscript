@@ -4,7 +4,7 @@ import { filterInventory, manageActions } from '../state/inventory.js';
 export function inventoryRenderer({controller,project,actions={}}) {
   const view={query:'',filter:'all',sort:'slug',selected:new Set()};
   return ({doc,root,body,actions:headerActions,navigate,snapshot,params})=>{
-    let model=snapshot,visible=[],refreshManage=null;
+    let model=snapshot,visible=[],refreshManage=null,checking=false,inventoryChecked=false,disposed=false;
     const notice=el(doc,'p',{role:'status',className:'statusline'});
     const rows=el(doc,'div',{className:'inventory-list scroll',role:'rowgroup',tabindex:0,'aria-label':'Generator inventory'});
     const count=el(doc,'span',{className:'statusline'});
@@ -111,8 +111,9 @@ export function inventoryRenderer({controller,project,actions={}}) {
       draw();
       controller.inspect(id).then(verified=>{if(!modal.isConnected)return;g={...(model.generators.find(item=>item.id===id)||g),listing:verified.listing,ownerVerified:true};draw();}).catch(()=>{if(modal.isConnected){g={...(model.generators.find(item=>item.id===id)||g),ownerVerified:false};draw();}});
     }
-    function update(next){if(Number.isFinite(next.revision)&&Number.isFinite(model.revision)&&next.revision<model.revision)return;model=next;render(false);refreshManage?.();}
-    render();if(params?.manageId)openManage(params.manageId);
-    return {update};
+    async function refreshInventory(){if(disposed||checking||inventoryChecked||!model.nativeSessionConfirmed)return;checking=true;inventoryChecked=true;try{const result=await controller.refresh();if(!disposed)update(project(result.state));}catch{if(!disposed)notice.textContent='Native inventory unavailable. The saved inventory remains a snapshot; confirm the session or reopen Generators to recheck.';}finally{checking=false;}}
+    function update(next){if(Number.isFinite(next.revision)&&Number.isFinite(model.revision)&&next.revision<model.revision)return;model=next;if(!model.nativeSessionConfirmed)inventoryChecked=false;render(false);refreshManage?.();refreshInventory();}
+    render();refreshInventory();if(params?.manageId)openManage(params.manageId);
+    return {update,dispose:()=>{disposed=true;}};
   };
 }
