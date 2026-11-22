@@ -108,3 +108,6 @@ test('a confirmed Stop intent inhibits further effects before the Coordinator pr
   const f=await fixture();const intent=await enqueueSyncAction(f.store,'stop','pending',{confirmed:true});const pending=await f.store.read();assert.equal(pending.pending.pending.stopRequested,true);assert.equal(pending.generators['123'].stopRequested,true);await f.sync.syncOne('pending');assert.equal(f.calls.length,0);
   await f.sync.tickCommands();assert.equal((await f.store.read()).pending.pending.phase,'stopped');assert.equal((await f.store.read()).commands[intent.id].phase,'done');
 });
+test('original credentials are pruned only after no pending work needs them',async()=>{
+  const f=await fixture();await f.store.transact(s=>{s.settings.github.repository={owner:'synthetic',name:'different-repo'};s.settings.repositoryCredentials={'synthetic/original':'synthetic-old-token'};});f.remote.offline=true;await f.sync.syncOne('pending');assert.equal((await f.store.read()).settings.repositoryCredentials['synthetic/original'],'synthetic-old-token');f.remote.offline=false;await f.sync.syncOne('pending');assert.equal((await f.store.read()).settings.repositoryCredentials['synthetic/original'],undefined);
+});

@@ -54,7 +54,7 @@ export class BulkImport {
         requireThat(state.settings.account.accountId===command.account,'account-assignment-mismatch');
         const pending=state.pending[pendingId];
         if(pending?.phase==='synced'){const g=state.generators[id];outcomes.push(await this.record(command,id,{id,slug:pending.slug,outcome:g?.savedVerified?'imported':'held',reason:g?.savedVerified?null:g?.holds?.[0]?.kind||'saved-source-unavailable',commit:pending.commit}));continue;}
-        if(pending&&state.jobs[writeId]){
+        if(pending&&state.jobs[writeId]&&state.jobs[writeId].phase!=='prepared'){
           const receipt=await this.writer.reconcile(writeId,{fresh:true});
           if(!receipt.verified){outcomes.push(await this.record(command,id,{id,slug:pending.slug,outcome:'unknown',reason:'github-result'}));continue;}
           outcomes.push(await this.finish(command,id,pendingId,receipt));continue;
@@ -71,6 +71,7 @@ export class BulkImport {
           if(folderExists(current,pending.slug)){
             const remote=await this.github.source(current,pending.slug),status=await this.github.text(current,pending.slug+'/status.md');
             requireThat(sourceEqual(remote,pending.source)&&JSON.stringify(parseStatus(status))===JSON.stringify(pending.status),'import-folder-conflict');
+            if(state.jobs[writeId]?.phase==='prepared')await this.store.transact(s=>{this.assertCurrent(s);s.jobs[writeId].phase='cancelled';s.jobs[writeId].resolution='known-not-dispatched';});
             outcomes.push(await this.finish(command,id,pendingId,{verified:true,commit:current.commit}));continue;
           }
           this.writeAllowed();

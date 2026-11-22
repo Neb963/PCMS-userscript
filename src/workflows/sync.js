@@ -1,6 +1,6 @@
 import {requireThat,sourceEqual,parseStatus,addHold,releaseHold,completeSource} from '../shared/domain.js';
 import {sourceChanges,statusChanges} from '../adapters/github/writer.js';
-import {pendingWork,repositoryKey} from '../state/settings.js';
+import {pruneRepositoryCredentials} from '../state/settings.js';
 import {appendEvent} from '../state/journal.js';
 
 const TERMINAL=['synced','stopped','reassigned','superseded'];
@@ -77,6 +77,7 @@ export class Synchronizer {
       if(p.writeId&&s.jobs[p.writeId]?.phase==='unknown'){s.jobs[p.writeId].phase='cancelled';s.jobs[p.writeId].resolution='desired-state-present';s.jobs[p.writeId].remoteOutcome='unknown';}
       appendEvent(s,{component:'github',outcome:'verified',nativeId:p.generatorId||null});
     });
+    await this.store.transact(s=>{this.assertCurrent(s);this.cleanupCredentials(s);});
   }
   syncOne(id){
     if(this.inFlight.has(id))return this.inFlight.get(id);const running=this.synchronize(id);this.inFlight.set(id,running);running.finally(()=>{if(this.inFlight.get(id)===running)this.inFlight.delete(id);}).catch(()=>{});return running;
@@ -141,6 +142,7 @@ export class Synchronizer {
     const p=await this.record(id),client=await this.services(p.repository),result=await this.describe(p,client);
     requireThat(result.kind==='source-conflict'&&result.approved&&result.remote,'approved-source-conflict-required');
     requireThat(!p.writeId||!['dispatched','unknown'].includes((await this.store.read()).jobs[p.writeId]?.phase),'github-result-unknown');
+    for(const [token,old] of this.comparisons)if(old.id===id)this.comparisons.delete(token);
     const token=this.uuid();this.comparisons.set(token,{id,commit:result.current.commit,source:structuredClone(p.source),remote:structuredClone(result.remote),repository:p.repository,status:result.status});
     // Text is returned only to the focused comparison; never to journal/diagnostics.
     return {token,local:structuredClone(p.source),remote:result.remote,commit:result.current.commit};
@@ -203,13 +205,12 @@ export class Synchronizer {
         else{
           const compared=await this.compare(p.id);requireThat(compared.commit===command.comparison?.commit&&await sourceFingerprint(compared.local)===command.comparison.local&&await sourceFingerprint(compared.remote)===command.comparison.remote,'comparison-changed');await this.decide(compared.token,command.action,true);
         }
-        await this.store.transact(s=>{this.assertCurrent(s);s.commands[command.id].phase='done';});
+        await this.store.transact(s=>{this.assertCurrent(s);s.commands[command.id].phase='done';this.cleanupCredentials(s);});
       }catch(error){await this.store.transact(s=>{this.assertCurrent(s);s.commands[command.id].phase='blocked';s.commands[command.id].reason=['comparison-changed','sync-intent-changed','resolve-development-before-stop','recheck-original-write-first','reassignment-target-request-conflict','reassignment-target-source-conflict'].includes(error.message)?error.message:'sync-action-unconfirmed';});}
     }finally{this.commandsBusy=false;}
   }
   cleanupCredentials(state){
-    const needed=new Set(pendingWork(state).filter(w=>w.repository).map(w=>repositoryKey(w.repository)));
-    for(const key of Object.keys(state.settings.repositoryCredentials||{}))if(!needed.has(key))delete state.settings.repositoryCredentials[key];
+    pruneRepositoryCredentials(state);
   }
   unresolvedWrites(state,p){
     return Object.values(state.jobs).some(j=>j.kind==='github'&&JSON.stringify(j.repository)===JSON.stringify(p.repository)&&j.slug===p.slug&&(['dispatched','unknown'].includes(j.phase)||j.remoteOutcome==='unknown'));

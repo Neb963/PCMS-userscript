@@ -1,3 +1,4 @@
+import {pruneRepositoryCredentials} from '../state/settings.js';
 import { requireThat, accountId, nativeId } from '../shared/domain.js';
 
 export async function enqueueImport(store, ids, expectedRepository=null, uuid=()=>crypto.randomUUID()) {
@@ -22,7 +23,7 @@ export class CommandRunner {
       try{
         requireThat(command.kind==='bulk-import','unsupported-command');
         const workflow=await this.importWorkflow(command);const results=await workflow.run(command);
-        await this.store.transact(s=>{this.coordinator.assertOwner(s);if(s.commands[command.id].phase==='stopped')return;s.commands[command.id].phase=results.some(r=>r.outcome==='unknown')?'unknown':'done';});
+        await this.store.transact(s=>{this.coordinator.assertOwner(s);if(s.commands[command.id].phase==='stopped')return;s.commands[command.id].phase=results.some(r=>r.outcome==='unknown')?'unknown':'done';pruneRepositoryCredentials(s);});
       }catch{
         await this.store.transact(s=>{this.coordinator.assertOwner(s);if(s.commands[command.id].phase==='stopped')return;s.commands[command.id].phase='blocked';s.commands[command.id].reason='operation-unavailable-or-unconfirmed';});
       }

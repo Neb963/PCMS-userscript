@@ -10,7 +10,7 @@ async function fixture(){
   await store.transact(s=>{s.settings.account.accountId='alpha';s.settings.github={repository,pat:'synthetic-pat'};s.inventory=[{id:'123',slug:'existing-folder',verified:true,listing:'listed'},{id:'456',slug:'native-listed',verified:true,listing:'listed'},{id:'789',slug:'native-unlisted',verified:true,listing:'unlisted'}];s.commands.run1={id:'run1',kind:'bulk-import',results:{}};});
   const commits=[];let lost=false;const github={snapshot:async()=>({repository,commit:'a'.repeat(40),treeSha:'b'.repeat(40),entries:{'existing-folder/status.md':{path:'existing-folder/status.md',type:'blob',mode:'100644',sha:'f'.repeat(40)}}})};
   const reader={inventory:async()=>(await store.read()).inventory,saved:async(slug,id)=>({id,slug,listing:id==='789'?'unlisted':'listed',source:structuredClone(source)})};
-  const writer={write:async input=>{commits.push(input);await store.prepareAction({id:input.id,kind:'github'});if(lost){lost=false;throw Error('lost');}return {verified:true,commit:'c'.repeat(40)};},reconcile:async()=>({verified:true,commit:'c'.repeat(40)})};
+  const writer={write:async input=>{commits.push(input);await store.prepareAction({id:input.id,kind:'github'});await store.markDispatched(input.id);if(lost){lost=false;throw Error('lost');}return {verified:true,commit:'c'.repeat(40)};},reconcile:async()=>({verified:true,commit:'c'.repeat(40)})};
   const workflow=new BulkImport({store,reader,github,writer,gate:{requireOwner:async()=>true}});
   return {store,reader,workflow,commits,source,lose:()=>{lost=true;},command:{id:'run1',account:'alpha',repository,ids:['123','456','789']}};
 }
@@ -43,4 +43,8 @@ test('Import crash between source retention and first GitHub job resumes without
 test('Import recovery cannot publish its retained snapshot after native source changed',async()=>{
   const f=await fixture();f.command.ids=['456'];f.workflow.writer.write=async()=>{throw Error('crash before action preparation');};await f.workflow.run(f.command);const original=f.reader.saved;f.reader.saved=async(...args)=>{const live=await original(...args);live.source.html='new native content';return live;};
   assert.equal((await f.workflow.run(f.command))[0].outcome,'held');assert.equal(f.commits.length,0);assert.ok((await f.store.read()).pending['run1-456'].source);
+});
+test('a prepared Import job resumes its never-dispatched write after native source revalidation',async()=>{
+  const f=await fixture();f.command.ids=['456'];let started=false;f.workflow.writer.reconcile=async()=>{throw Error('prepared must not become Unknown');};f.workflow.writer.write=async input=>{if(!started){started=true;await f.store.prepareAction({id:input.id,kind:'github'});throw Error('before dispatch');}await f.store.markDispatched(input.id);f.commits.push(input);return {verified:true,commit:'c'.repeat(40)};};
+  assert.equal((await f.workflow.run(f.command))[0].outcome,'unknown');assert.equal((await f.workflow.run(f.command))[0].outcome,'imported');assert.equal(f.commits.length,1);
 });

@@ -4,8 +4,8 @@
 
 ## Next action
 
-- Verify both-browser sync Jobs/Details, fixed footer, private-source visibility and cancel/focus regressions.
-- Review late native receipts when a Stop intent arrives, prepared Import GitHub jobs, unresolved raw write visibility and source-choice interruption boundaries. Fix any discovered gap before accepting P18.
+- UI/checks passed at 5849dad2fa1ba524447c6a868edc23aad9f24d5b: runs 44977336333 / 44977336373. Verify final follow-up regression after credential pruning, prepared Import resume and late receipt preservation.
+- Final interruption review is implemented with 141 passing Node tests: late native creation ID stays in effect evidence after Stop without reviving management; prepared Import revalidates before first dispatch; unknown writes project Unknown; old credentials are pruned after the final pending work.
 - Accept P18 only after remaining focused checks/CI; then plan P19 FIFO scheduler. Keep all live capability flags false.
 
 ## Evidence
@@ -22,4 +22,4 @@ P00–P17 synthetic implementation evidence is in docs/verification.md. Build/sy
 
 DEFERRED — P01–P18 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft Save and real GitHub synchronization — no disposable profile/targets/PAT supplied. Static capability flags remain false.
 
-**Last pushed commit:** ae390e05ad6da341aa584b67def349c6f1be6632.
+**Last pushed commit:** 5849dad2fa1ba524447c6a868edc23aad9f24d5b.

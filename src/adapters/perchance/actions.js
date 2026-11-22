@@ -32,7 +32,11 @@ export async function nativeReceipt(page,{path,invoke,matches=()=>true,exporter,
 
 export class NativeActions {
   constructor({page,native,gate,reader,doc,exporter,store=null,workerId=null,documentId=null,actionId=null,guard=async()=>{},capability=requireLiveCapability}) {Object.assign(this,{page,native,gate,reader,doc,exporter,store,workerId,documentId,actionId,guard,capability});}
-  receipt(path,invoke,matches){return nativeReceipt(this.page,{path,invoke,matches,exporter:this.exporter});}
+  async receipt(path,invoke,matches){
+    const observed=await nativeReceipt(this.page,{path,invoke,matches,exporter:this.exporter});
+    if(this.store&&this.actionId)await this.store.transact(s=>{const job=s.jobs[this.actionId];requireThat(job?.workerId===this.workerId&&job.documentId===this.documentId,'receipt-job-changed');job.observedReceipt=observed;const parent=job.parentId&&s.jobs[job.parentId];if(parent)parent.observedReceipt=observed;});
+    return observed;
+  }
   selected(){requireThat(this.doc.visibilityState!=='visible','operator-selected-tab');}
   async create(actionId){
     this.capability('create');this.selected();await this.guard();const state=await this.gate.store.read();await this.gate.requireSession(state.settings.account.accountId);
@@ -44,11 +48,12 @@ export class NativeActions {
     await this.guard();this.selected();const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name==='minimal');
     requireThat(receipt.status==='created'&&typeof receipt.name==='string','creation-receipt-unconfirmed');
     slug(receipt.name);
-    if(this.store&&actionId){await this.guard();await this.store.transact(s=>{s.jobs[actionId].creationReceipt=receipt;});}
+    if(this.store&&actionId)await this.store.transact(s=>{requireThat(s.jobs[actionId]?.kind==='native-create','creation-action-unavailable');s.jobs[actionId].creationReceipt=receipt;});
     const saved=await this.reader.metadata(receipt.name);
-    if(this.store&&actionId){await this.guard();await this.store.transact(s=>{
-      const parent=s.jobs[actionId],r=s.utility?.[parent.requestId];parent.createdIdentity=structuredClone(saved);
-      if(r){requireThat(!s.generators[saved.id],'creation-identity-already-managed');r.generatorId=saved.id;r.nativeSlug=saved.slug;r.created=true;r.originalListing=saved.listing;s.generators[saved.id]={...generatorRecord({id:saved.id,slug:saved.slug,listing:saved.listing,status:r.request.status,holds:[{id:r.id,kind:'native-unknown'}]}),repository:r.request.repository,reservationId:r.id,ownerVerified:false};}
+    if(this.store&&actionId){await this.store.transact(s=>{
+      const parent=s.jobs[actionId],r=s.utility?.[parent.requestId];parent.createdIdentity={id:saved.id,slug:saved.slug,listing:saved.listing};
+      const child=this.actionId&&s.jobs[this.actionId],currentDocument=!child||(child.term===s.coordinator.term&&child.owner===s.coordinator.owner&&child.documentId===this.documentId);
+      if(r&&!r.stopped&&!r.stopRequested&&currentDocument){requireThat(!s.generators[saved.id],'creation-identity-already-managed');r.generatorId=saved.id;r.nativeSlug=saved.slug;r.created=true;r.originalListing=saved.listing;s.generators[saved.id]={...generatorRecord({id:saved.id,slug:saved.slug,listing:saved.listing,status:r.request.status,holds:[{id:r.id,kind:'native-unknown'}]}),repository:r.request.repository,reservationId:r.id,ownerVerified:false};}
     });}
     await this.gate.requireOwner(saved);return saved;
   }

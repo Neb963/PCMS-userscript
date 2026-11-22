@@ -15,6 +15,11 @@ export function pendingWork(state) {
   return work.sort((a,b)=>a.id.localeCompare(b.id));
 }
 
+export function pruneRepositoryCredentials(state){
+  const needed=new Set(pendingWork(state).filter(w=>w.repository).map(w=>repositoryKey(w.repository)));
+  for(const key of Object.keys(state.settings.repositoryCredentials||{}))if(!needed.has(key))delete state.settings.repositoryCredentials[key];
+}
+
 export class SettingsController {
   constructor({ store, request }) { Object.assign(this, { store, request }); this.draft = { repositoryURL: '', pat: '' }; this.revision = 0; this.tested = null; this.initialized = false; }
 
