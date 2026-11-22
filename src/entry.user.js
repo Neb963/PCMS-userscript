@@ -131,7 +131,7 @@ async function startAssignedWorker() {
     const gate = new SessionGate(store, native);
     const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
     if(command.kind==='navigate'){await cleanNavigation();return {outcome:'verified'};}
-    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,guard:async()=>{const state=await store.read();if(state.coordinator.term!==command.term||state.coordinator.owner!==command.owner||state.workers[id]?.documentId!==command.documentId)throw Error('stale-native-command');},exporter:typeof exportFunction==='function'?exportFunction:null});
+    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,workerId:id,documentId:command.documentId,actionId:command.id,guard:async()=>{const state=await store.read();if(state.coordinator.term!==command.term||state.coordinator.owner!==command.owner||state.workers[id]?.documentId!==command.documentId)throw Error('stale-native-command');},exporter:typeof exportFunction==='function'?exportFunction:null});
     if(command.kind==='native-deploy')return {outcome:'verified',data:await actions.deploy(command.target,command.payload.pendingId)};
     if(command.kind==='native-create')return {outcome:'verified',data:await actions.create(command.payload.actionId)};
     if(command.kind==='native-listing')return {outcome:'verified',data:await actions.listing(command.target,command.payload.intent)};

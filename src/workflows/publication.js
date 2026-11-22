@@ -32,8 +32,7 @@ export class Publication {
           if(!priorSave)await this.requestCurrent(request,id);await this.gate.requireOwner(target);
           let live=await this.reader.saved(target.slug,target.id);let pending=(await this.store.read()).pending[pendingId];
           if(!pending){
-            await this.store.retainSource({id:pendingId,generatorId:target.id,slug:target.slug,repository:request.repository,baseCommit:r.statusCommit||request.commit,kind:'source',source,status:{...request.status,state:'done'},listingIntent:r.created?'listed':r.originalListing,draftId:null,retainedTab:null},s=>{this.assertCurrent(s);});
-            await this.reservation.update(id,(_r,s)=>{s.pending[pendingId].previousSource=live.source;s.pending[pendingId].requestId=id;});
+            await this.store.retainSource({id:pendingId,generatorId:target.id,slug:target.slug,repository:request.repository,baseCommit:r.statusCommit||request.commit,kind:'source',source,previousSource:live.source,requestId:id,status:{...request.status,state:'done'},listingIntent:r.created?'listed':r.originalListing,draftId:null,retainedTab:null},s=>{this.assertCurrent(s);});
             pending=(await this.store.read()).pending[pendingId];
           }
           requireThat(sourceEqual(pending.source,source),'publication-snapshot-changed');
@@ -62,7 +61,7 @@ export class Publication {
           });
         }
         const synced=await this.reservation.status(id,'done');
-        await this.reservation.update(id,(record,s)=>{record.phase=synced?'done':'sync-pending';const p=s.pending[pendingId];if(p){p.phase=synced?'synced':'local-done';if(synced){p.kind='status';delete p.source;delete p.previousSource;}}if(synced){record.steps.push('GitHub done committed');s.generators[target.id].githubCommit=record.statusCommit;}});
+        await this.reservation.update(id,(record,s)=>{record.phase=synced?'done':'sync-pending';const p=s.pending[pendingId];if(p){p.phase=synced?'synced':'local-done';if(synced){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}if(synced){record.steps.push('GitHub done committed');s.generators[target.id].githubCommit=record.statusCommit;}});
         return this.reservation.current(id);
       }catch(error){
         const jobs=Object.values((await this.store.read()).jobs).filter(j=>j.requestId===id&&['dispatched','unknown'].includes(j.phase));

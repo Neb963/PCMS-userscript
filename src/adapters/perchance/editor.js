@@ -17,7 +17,7 @@ export class EditorSource {
     for(const path of Object.keys(list).sort()){sourcePath(path);files[path]=await bytes(await p.srcState.readFile(path));}
     const after=await this.native.ready(target),next=await p.srcState.list();
     requireThat(before.draftId===after.draftId&&pjs===p.modelTextEditor.getValue()&&html===p.outputTemplateEditor.getValue()&&JSON.stringify(list)===JSON.stringify(next),'draft-changed-during-read');
-    return {source:completeSource({pjs,html,files}),draftId:before.draftId,clean:p.perchanceSaveState==='saved'&&p.modelTextEditor.isClean?.()===true&&p.outputTemplateEditor.isClean?.()===true&&p.srcState.isDirty?.()===false&&p.srcState.hasPending?.()===false};
+    return {id:before.id,slug:before.slug,source:completeSource({pjs,html,files}),draftId:before.draftId,clean:p.perchanceSaveState==='saved'&&p.modelTextEditor.isClean?.()===true&&p.outputTemplateEditor.isClean?.()===true&&p.srcState.isDirty?.()===false&&p.srcState.hasPending?.()===false};
   }
   async stage(target,source,previous){
     const intended=completeSource(source),current=await this.capture(target);

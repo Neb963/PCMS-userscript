@@ -1,3 +1,4 @@
+import { bindApprovedDraft, beforeApprovedSave } from '../../state/approved-source.js';
 import { EditorSource } from './editor.js';
 import { requireThat, slug, sourceEqual, generatorRecord } from '../../shared/domain.js';
 import { requireLiveCapability } from './session.js';
@@ -30,7 +31,7 @@ export async function nativeReceipt(page,{path,invoke,matches=()=>true,exporter,
 }
 
 export class NativeActions {
-  constructor({page,native,gate,reader,doc,exporter,store=null,guard=async()=>{},capability=requireLiveCapability}) {Object.assign(this,{page,native,gate,reader,doc,exporter,store,guard,capability});}
+  constructor({page,native,gate,reader,doc,exporter,store=null,workerId=null,documentId=null,actionId=null,guard=async()=>{},capability=requireLiveCapability}) {Object.assign(this,{page,native,gate,reader,doc,exporter,store,workerId,documentId,actionId,guard,capability});}
   receipt(path,invoke,matches){return nativeReceipt(this.page,{path,invoke,matches,exporter:this.exporter});}
   selected(){requireThat(this.doc.visibilityState!=='visible','operator-selected-tab');}
   async create(actionId){
@@ -67,10 +68,10 @@ export class NativeActions {
     const editor=new EditorSource({page:this.page,native:this.native,guard:async()=>{this.selected();await this.guard();}});
     const staged=await editor.stage(target,pending.source,pending.previousSource);
     await this.store.transact(s=>{requireThat(sourceEqual(s.pending[pendingId].source,staged.source),'snapshot-changed');s.pending[pendingId].draftId=staged.draftId;s.pending[pendingId].phase='staged';const r=s.utility?.[s.pending[pendingId].requestId];if(r&&!r.steps.includes('complete source staged'))r.steps.push('complete source staged');});
-    const confirmed=(await this.store.read()).pending[pendingId];
-    requireThat(confirmed.draftId===staged.draftId&&sourceEqual(confirmed.source,staged.source),'snapshot-readback-mismatch');
+    const proof={id:this.actionId,kind:'github',draftId:staged.draftId,workerId:this.workerId,documentId:this.documentId,confirmedAt:Date.now()};
+    const confirmed=await bindApprovedDraft(this.store,pendingId,proof,{...staged,workerId:this.workerId,documentId:this.documentId});
     await this.guard();this.selected();await this.gate.requireOwner(target);
-    const current=await editor.capture(target);requireThat(current.draftId===confirmed.draftId&&sourceEqual(current.source,confirmed.source),'approved-draft-changed');
+    await beforeApprovedSave(this.store,pendingId,{...await editor.capture(target),workerId:this.workerId,documentId:this.documentId},proof.id,confirmed);
     const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name===target.slug);
     requireThat(receipt.status==='saved'&&receipt.name===target.slug,'save-receipt-unconfirmed');
     await this.guard();await this.store.transact(s=>{const r=s.utility?.[pending.requestId];if(r&&!r.steps.includes('native Save'))r.steps.push('native Save');});return receipt;

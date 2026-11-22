@@ -1,3 +1,4 @@
+import { approvedRecord } from './approved-source.js';
 import { requireThat, completeSource, sourceEqual, pendingUpdate } from '../shared/domain.js';
 
 export const STORE_KEY = 'PCMS_STORE_V1';
@@ -20,7 +21,7 @@ export function validateState(value) {
   requireThat(Number.isSafeInteger(value.coordinator.term) && value.coordinator.term >= 0, 'invalid-coordinator-term');
   for (const p of Object.values(value.pending)) {
     pendingUpdate(p);
-    if (p.kind === 'source') completeSource(p.source);
+    if (p.kind === 'source') {completeSource(p.source);if(p.approval)approvedRecord(p);}
   }
   for (const [key, job] of Object.entries(value.jobs)) requireThat(job && job.id === key && ['prepared', 'dispatched', 'unknown', 'verified', 'rejected', 'cancelled'].includes(job.phase), 'invalid-job');
   return value;
@@ -71,15 +72,16 @@ export class ProtectedStore {
   }
 
   async retainSource(update, prepare = () => {}) {
-    const canonical = pendingUpdate(update);
+    const canonical = update.approval ? approvedRecord(update) : pendingUpdate(update);
     requireThat(canonical.kind === 'source', 'snapshot-required');
     await this.transact(state => {
       requireThat(!Object.hasOwn(state.pending, canonical.id), 'snapshot-already-exists');
-      prepare(state);
-      state.pending[canonical.id] = { ...canonical, phase: 'prepared', listingIntent: update.listingIntent, draftId: update.draftId, retainedTab: update.retainedTab };
+      const prepared=prepare(state);requireThat(!prepared?.then,'async-snapshot-preparation');
+      state.pending[canonical.id] = { ...canonical, phase: 'prepared', listingIntent: update.listingIntent, draftId: update.draftId, retainedTab: update.retainedTab, ...(update.previousSource?{previousSource:completeSource(update.previousSource)}:{}), ...(typeof update.requestId==='string'?{requestId:update.requestId}:{}) };
     });
     const saved = (await this.read()).pending[canonical.id];
     requireThat(saved && sourceEqual(saved.source, canonical.source) && JSON.stringify(saved.repository) === JSON.stringify(canonical.repository), 'snapshot-readback-mismatch');
+    if(update.approval)requireThat(JSON.stringify(approvedRecord(saved))===JSON.stringify(approvedRecord(update)),'approved-snapshot-readback-mismatch');
     return saved;
   }
 
