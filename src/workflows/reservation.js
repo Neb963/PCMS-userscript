@@ -59,7 +59,7 @@ export class Reservation {
     slug(request.slug);requireThat(request.valid&&['ready','reserved'].includes(request.status.state),'reservation-request-invalid');
     requireThat(/^[A-Za-z0-9_-]{1,90}$/.test(id),'invalid-reservation-id');
     await this.guard();
-    await this.store.transact(s=>{this.assertCurrent(s);requireThat(s.settings.account.accountId===request.status.account,'account-assignment-mismatch');s.utility||={};if(!s.utility[id])s.utility[id]={id,request:structuredClone(request),phase:'checking',generatorId:null,created:false,steps:['request checked']};else requireThat(JSON.stringify(s.utility[id].request)===JSON.stringify(request),'reservation-request-changed');});
+    await this.store.transact(s=>{this.assertCurrent(s);requireThat(s.settings.account.accountId===request.status.account,'account-assignment-mismatch');s.utility||={};requireThat(!Object.values(s.utility).some(other=>other.id!==id&&other.request.slug===request.slug&&JSON.stringify(other.request.repository)===JSON.stringify(request.repository)&&!other.closed),'reservation-already-active');if(!s.utility[id])s.utility[id]={id,request:structuredClone(request),phase:'checking',generatorId:null,created:false,steps:['request checked']};else requireThat(JSON.stringify(s.utility[id].request)===JSON.stringify(request),'reservation-request-changed');});
     let r=await this.current(id);
     if(['reserved','blocked'].includes(r.phase))return r;
     try{

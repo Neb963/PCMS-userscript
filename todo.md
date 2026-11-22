@@ -1,19 +1,21 @@
 # Active work — handoff
 
-**Current phase:** P15 — Slug reservation in Utility. **Status:** Implemented; regression checks pending.
+**Current phase:** P16 — Publish from GitHub. **Status:** Planned.
 
 ## Next action
 
-- Confirm CI regression after the native receipt/Utility worker handoff changes.
-- Accept P15 synthetic evidence and plan P16 source publication; automatic GitHub request dispatch belongs to the P16 integration.
+- Build exact native draft reader/stager and observed Save receipt adapter; never overwrite an unrelated dirty draft.
+- Implement Utility publication from one request revision, persisted full source before Save, exact independent readback, existing Listing preservation and new-only Listing after source verification.
+- Checkpoint partial Save → Listing → status; unknown effects recheck without replay. Original-repository status-only done can remain pending offline.
+- Integrate automatic durable request claims with serial Utility/import scheduling and truthful Utility job/step screen. Unverified runtime capabilities keep requests waiting before opening workers.
+- Verify source deletions, stale/mixed source, offline status, unknown Save/Listing, existing Unlisted, and crash recovery with synthetic adapters.
 
 ## Evidence
 
-- P00–P14 implemented with synthetic evidence in docs/verification.md; P01 live installation acceptance remains deferred.
-- Build/syntax and 81 Node tests pass. Exact slug messages, owned reuse, create → Unlist → Rename, temporary ID, uncertain creation/rename, storage/session failure, protected command deduplication and clean hidden navigation are covered. P14 browser run 44973566403 and checks 44973566397 PASS.
+P00–P15 synthetic implementation evidence is in docs/verification.md. P15 build/syntax, 81 full Node tests plus one new focused guard test pass (82 total). Checks 44974115654 and both-browser UI 44974115645 PASS. P01 installation acceptance remains deferred.
 
 ## Blockers / deferred checks
 
-DEFERRED — P01–P15 live Firefox/Violentmonkey isolated injection, storage/session, real inventory/source, GitHub-write and disposable native reservation checks — no disposable profile/targets/PAT supplied. No UI toggle enables unverified writes.
+DEFERRED — P01–P16 live Firefox/Violentmonkey injection/cache persistence, native receipt interception, session, inventory, reservation/Save/Listing and GitHub writes — no disposable profile/targets/PAT supplied. Static capability flags remain false.
 
-**Last pushed commit:** a0f248b4d706a1e62fc9a3349eaaa392dbf5ea46.
+**Last pushed commit:** 9866bf1f75fce06c4a7057f1acd217f4ace60106.

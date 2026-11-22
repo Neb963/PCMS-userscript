@@ -63,3 +63,7 @@ test('storage failure prevents create and session is required before reading ava
   const g=await fixture();g.store.markDispatched=async()=>{throw Error('quota');};
   assert.equal((await g.reservation.run(g.request,'quota')).phase,'blocked');assert.equal(g.calls.filter(c=>c==='create').length,0);
 });
+test('a new request cannot bypass an unresolved creation for the same repository and slug',async()=>{
+  const f=await fixture();f.native.create=async()=>{f.calls.push('create');throw Error('lost');};await f.reservation.run(f.request,'old');
+  await assert.rejects(f.reservation.run({...f.request,requestCommit:'c'.repeat(40)},'new'),/already-active/);assert.deepEqual(f.calls,['create']);
+});

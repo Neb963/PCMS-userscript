@@ -119,10 +119,10 @@
 
 ### P15 — Slug reservation in Utility
 
-- [ ] Classify Available/Taken/Reserved/Unknown; reuse owned generator.
-- [ ] Create when appropriate, set Unlisted, rename exact slug, verify same ID and owner.
-- [ ] Persist temporary generator and `reserved`/`blocked` outcomes without silent retry.
-- [ ] **Accept:** Failures stop only the affected request; no duplicate generator creation on unknown result.
+- [x] Classify Available/Taken/Reserved/Unknown; reuse owned generator.
+- [x] Create when appropriate, set Unlisted, rename exact slug, verify same ID and owner.
+- [x] Persist temporary generator and `reserved`/`blocked` outcomes without silent retry.
+- [x] **Accept:** Failures stop only the affected request; no duplicate generator creation on unknown result.
 
 ### P16 — Publish from GitHub workflow
 
