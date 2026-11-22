@@ -1,3 +1,4 @@
+import {listingLabel,operationLabel} from './labels.js';
 import {el,button,dialog} from './dom.js';
 export function reviewsRenderer({action,activate,publish=null}){
   return ({doc,root,body,snapshot})=>{
@@ -19,7 +20,7 @@ export function reviewsRenderer({action,activate,publish=null}){
         let row=[...list.children].find(n=>n.dataset.id===job.id);const signature=JSON.stringify([job.phase,job.canResume,job.canDiscard,job.actionBusy,job.canPublish,job.retainedTab]);
         if(!row||row.dataset.signature!==signature){
           const hadFocus=row?.contains(root.activeElement),focus=hadFocus?root.activeElement?.getAttribute('aria-label'):null;
-          const next=el(doc,'div',{role:'listitem',className:'development-row','data-id':job.id,tabindex:-1,'data-signature':signature},el(doc,'div',{className:'development-identity'},el(doc,'strong',{},job.slug),el(doc,'span',{className:'tag'},job.listing||'Unknown'),el(doc,'span',{className:'tag'},job.phase)),el(doc,'p',{className:'statusline','data-message':''},job.message||'')),tools=el(doc,'div',{className:'toolbar development-tools'});
+          const next=el(doc,'div',{role:'listitem',className:'development-row','data-id':job.id,tabindex:-1,'data-signature':signature},el(doc,'div',{className:'development-identity'},el(doc,'strong',{},job.slug),el(doc,'span',{className:'tag'},listingLabel(job.listing)),el(doc,'span',{className:'tag'},operationLabel(job.phase))),el(doc,'p',{className:'statusline','data-message':''},job.message||'')),tools=el(doc,'div',{className:'toolbar development-tools'});
           const add=(label,run,attrs={})=>{const b=button(doc,label,()=>run(b),{'aria-label':label+' '+job.slug,disabled:job.actionBusy,...attrs});tools.append(b);};
           if(job.retainedTab)add(job.phase==='review'?'Review':'Open retained draft',()=>open(job));
           if(job.phase==='review')add('Approve & Publish',b=>publish?.(job,{doc,root,trigger:b}),{disabled:!job.canPublish||!publish||job.actionBusy,title:job.canPublish?'Confirm this exact settled draft':'Native publication requires live qualification'});

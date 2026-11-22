@@ -1,3 +1,4 @@
+import {tagTone} from './labels.js';
 export function el(doc, tag, attrs = {}, ...children) {
   const node = doc.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
@@ -7,6 +8,7 @@ export function el(doc, tag, attrs = {}, ...children) {
     else if (value !== false && value !== null && value !== undefined) node.setAttribute(key, value === true ? '' : String(value));
   }
   for (const child of children.flat()) if (child !== undefined && child !== null) node.append(typeof child === 'string' ? doc.createTextNode(child) : child);
+  if(node.classList.contains('tag'))node.dataset.tone=tagTone(node.textContent);
   return node;
 }
 
@@ -80,3 +82,5 @@ export function picker(doc, root, label, options, value, onChange) {
   wrapper.append(trigger);
   return wrapper;
 }
+
+export function setTag(node,text){node.textContent=text;node.dataset.tone=tagTone(text);}

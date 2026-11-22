@@ -1,4 +1,5 @@
-import { el, button, dialog, picker } from './dom.js';
+import {holdLabel} from './labels.js';
+import { el, button, dialog, picker, setTag } from './dom.js';
 import { filterInventory, manageActions } from '../state/inventory.js';
 
 export function inventoryRenderer({controller,project,actions={}}) {
@@ -45,7 +46,7 @@ export function inventoryRenderer({controller,project,actions={}}) {
         const name=row.querySelector('strong');if(name.textContent!==g.slug)name.textContent=g.slug;
         row.querySelector('input').setAttribute('aria-label','Select '+g.slug);
         row.querySelector('.inventory-manage button').setAttribute('aria-label','Manage '+g.slug);
-        for(const tag of row.querySelectorAll('[data-state]')){const text=g.states?.[tag.dataset.state]||'Unknown';if(tag.textContent!==text)tag.textContent=text;}
+        for(const tag of row.querySelectorAll('[data-state]')){const text=g.states?.[tag.dataset.state]||'Unknown';if(tag.textContent!==text)setTag(tag,text);}
         if(rows.children[index]!==row)rows.insertBefore(row,rows.children[index]||null);
       }
       selection();rows.scrollTop=reset?0:top;
@@ -70,7 +71,7 @@ export function inventoryRenderer({controller,project,actions={}}) {
         const editFocus=[...editControls.values(),...controls.values()].includes(root.activeElement)?root.activeElement:null;
         const restoreEligibility=content.contains(root.activeElement)&&root.activeElement?.hasAttribute('data-eligibility');
         content.replaceChildren(el(doc,'p',{},'Native ID '+g.id),el(doc,'div',{className:'manage-states'},Object.entries(g.states||{}).map(([key,value])=>el(doc,'div',{},el(doc,'strong',{},key==='github'?'GitHub':key[0].toUpperCase()+key.slice(1)),el(doc,'span',{className:'tag'},value)))));
-        if(g.holds?.length)content.append(el(doc,'p',{className:'notice'},g.holds.map(h=>h.kind).join(' · ')));
+        if(g.holds?.length)content.append(el(doc,'p',{className:'notice'},g.holds.map(h=>holdLabel(h.kind)).join(' · ')));
         const available=manageActions(g,model.nativeSessionConfirmed?Object.keys(actions):[]);
         const tools=el(doc,'div',{className:'toolbar'});
         for(const action of available){

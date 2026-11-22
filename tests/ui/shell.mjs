@@ -163,11 +163,11 @@ try {
     await app.getByRole('button', { name: 'Set PAT', exact: true }).click();
     assert.equal((await app.textContent()).includes('synthetic-secret-never-in-dom'), false);
     if (width <= 760) await app.getByRole('button', { name: 'Controls & system', exact: true }).click();
+    if(width>=1024){assert.equal(await app.locator('.settings-layout').evaluate(n=>n.scrollHeight>n.clientHeight+1),false);const account=await app.locator('.account-card').boundingBox(),checks=await app.locator('.checks-card').boundingBox(),github=await app.locator('.github-card').boundingBox(),system=await app.locator('.system-card').boundingBox();assert.ok(Math.abs(account.y-checks.y)<=2&&Math.abs(github.y+github.height-system.y-system.height)<=2);}
     await app.getByLabel('Polling interval (minutes)', { exact: true }).fill('0');
     await app.locator('.checks-card').getByRole('button', { name: 'Apply', exact: true }).click();
     await app.getByRole('status').filter({ hasText: 'Use an integer from 1 to 1440.' }).waitFor();
     assert.equal(await page.evaluate(async () => JSON.parse(await window.GM.getValue('PCMS_STORE_V1')).settings.pollMinutes), 10);
-    if(width>=1024){assert.equal(await app.locator('.settings-layout').evaluate(n=>n.scrollHeight>n.clientHeight+1),false);const account=await app.locator('.account-card').boundingBox(),checks=await app.locator('.checks-card').boundingBox(),github=await app.locator('.github-card').boundingBox(),system=await app.locator('.system-card').boundingBox();assert.ok(Math.abs(account.y-checks.y)<=2&&Math.abs(github.y+github.height-system.y-system.height)<=2);}
     await app.getByRole('button', { name: 'Toggle theme' }).click();
     await page.waitForFunction(() => document.querySelector('#pcms-root').dataset.theme === 'dark');
     assert.equal(await app.locator('h1').evaluate(n => getComputedStyle(n).color), 'rgb(238, 242, 250)');

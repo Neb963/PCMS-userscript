@@ -1,3 +1,4 @@
+import {operationLabel} from './labels.js';
 import {el,button} from './dom.js';
 
 export function utilityRenderer(){
@@ -14,13 +15,13 @@ export function utilityRenderer(){
       const scroll=list.scrollTop,focus=list.contains(list.getRootNode().activeElement)?list.getRootNode().activeElement.dataset.job:null;
       list.replaceChildren();
       if(!jobs.length)list.append(el(doc,'p',{className:'empty'},model.restored?'No Utility jobs':'Checking saved jobs…'));
-      for(const job of jobs){const row=button(doc,'',()=>{selected=job.id;detail();for(const n of list.children)n.setAttribute('aria-pressed',String(n.dataset.job===selected));},{className:'journal-row','data-job':job.id,'aria-pressed':job.id===selected,role:'listitem'});row.append(el(doc,'div',{},el(doc,'strong',{},job.slug),el(doc,'p',{},job.action==='develop'?'Reservation':job.action==='rename'?'Rename':job.action==='rollback'?'Rollback':'Publish from GitHub')),el(doc,'span',{className:'tag'},job.phase));list.append(row);}
+      for(const job of jobs){const row=button(doc,'',()=>{selected=job.id;detail();for(const n of list.children)n.setAttribute('aria-pressed',String(n.dataset.job===selected));},{className:'journal-row','data-job':job.id,'aria-pressed':job.id===selected,role:'listitem'});row.append(el(doc,'div',{},el(doc,'strong',{},job.slug),el(doc,'p',{},job.action==='develop'?'Reservation':job.action==='rename'?'Rename':job.action==='rollback'?'Rollback':'Publish from GitHub')),el(doc,'span',{className:'tag'},operationLabel(job.phase)));list.append(row);}
       list.scrollTop=scroll;if(focus)list.querySelector('[data-job="'+focus+'"]')?.focus({preventScroll:true});detail();
     }
     function detail(){
       const job=(model.utility||[]).find(j=>j.id===selected);steps.replaceChildren();
       if(!job){steps.append(el(doc,'p',{},'Select a job to inspect its verified steps.'));return;}
-      steps.append(el(doc,'strong',{},job.slug),el(doc,'p',{className:'statusline'},job.phase));
+      steps.append(el(doc,'strong',{},job.slug),el(doc,'p',{className:'statusline'},operationLabel(job.phase)));
       if(job.reason)steps.append(el(doc,'p',{className:'notice'},job.reason==='live-verification-required'?'Native writes await disposable Firefox/Violentmonkey verification.':job.reason.replaceAll('-',' ')));
       if(job.steps.length){const ordered=el(doc,'ol',{});for(const step of job.steps)ordered.append(el(doc,'li',{},step+' · Verified'));steps.append(ordered);}
       if(job.generatorId&&['unknown','blocked'].includes(job.phase))steps.append(button(doc,'Manage',()=>navigate('generators',{manageId:job.generatorId})));
