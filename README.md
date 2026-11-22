@@ -4,7 +4,7 @@
 
 PCMS manages one Perchance account per Firefox profile through a Violentmonkey userscript. It imports generators, manages GitHub source, runs approved AI Helper workflows and pure-FIFO refreshing. The accepted product contract is [references/PCMS-authoritative-specification-v1.4.md](references/PCMS-authoritative-specification-v1.4.md).
 
-**Current status: implemented candidate; live qualification pending.** P00–P30 synthetic contracts and browser checks pass. P01 real installation and P31 fresh-profile/native acceptance remain deferred. Native operations and application GitHub writes are disabled. See `todo.md` and `docs/verification.md` for actual evidence and deferred checks. The v2.0.0 UI file under `references/ui/` is an **isolated simulation**, not production code or a ready-to-install release.
+**Current status: implemented candidate; live qualification pending.** P00–P30 synthetic contracts and browser checks pass. P01 real installation and P31 fresh-profile/native acceptance remain unverified; the operator has resumed testing. The default inspection artifact disables native operations and application GitHub writes. The separately labelled **operator-test** artifact enables all workflows for the operator's requested live testing; see [install/test steps](docs/operator-qualification.md). See `todo.md` and `docs/verification.md` for actual evidence and deferred checks. The v2.0.0 UI file under `references/ui/` is an **isolated simulation**, not production code or a ready-to-install release.
 
 ## Start here
 

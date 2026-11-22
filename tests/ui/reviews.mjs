@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-export async function checkReviews({page,app}){
+export async function checkReviews({page,app,operatorTest=false}){
   await app.getByRole('navigation').getByRole('button',{name:'Reviews',exact:true}).click();
   const review=app.getByRole('list',{name:'Awaiting review jobs',exact:true}),running=app.getByRole('list',{name:'Running Development jobs',exact:true}),queue=app.getByRole('list',{name:'Queued Development jobs',exact:true});
   assert.equal(await review.getByRole('listitem').count(),34);assert.equal(await running.getByRole('listitem').count(),2);assert.equal(await queue.getByRole('listitem').count(),35);
   assert.ok(await review.evaluate(n=>{n.scrollTop=200;return n.scrollTop;})>0);assert.ok(await queue.evaluate(n=>{n.scrollTop=n.scrollHeight;return n.scrollTop;})>0);
-  assert.equal(await review.getByRole('button',{name:'Approve & Publish synthetic-review-00',exact:true}).isDisabled(),true);
+  assert.equal(await review.getByRole('button',{name:'Approve & Publish synthetic-review-00',exact:true}).isDisabled(),!operatorTest);
   await review.getByRole('button',{name:'Review synthetic-review-00',exact:true}).click();await app.getByRole('status').filter({hasText:'Switch to synthetic-review-00'}).waitFor();
   const cancel=review.getByRole('button',{name:'Cancel synthetic-review-00',exact:true});await cancel.click();
   await app.getByRole('dialog',{name:'Cancel synthetic-review-00',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();

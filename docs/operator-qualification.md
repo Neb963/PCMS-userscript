@@ -1,18 +1,27 @@
 # Operator installation and live qualification
 
-## Current candidate
+## Enabled testing build — 0.1.2
 
-The candidate implements the workflows but **cannot perform native mutations or application GitHub writes**. All `LIVE_CAPABILITIES` and `INTEGRATION_PROOF.githubWrite` remain false. A synthetic test is not a reason to change them. There is no normal-use unlock switch.
+The operator explicitly requested full testing after the disabled inspection candidate. Use the **operator-test** artifact for that request. Its five native capability gates and GitHub write gate are enabled; it can create, Save, Rename, change Listing, send Helper prompts and commit GitHub changes. It shows **TEST** next to PCMS. This is authorization for operator testing, not a claim of live qualification.
 
-The package contains `PCMS.user.txt`. For an explicitly designated disposable test profile, rename a copy to `PCMS.user.js` and open it through Violentmonkey's installer. Inspect the metadata: PCMS, version 0.1.1, only `https://perchance.org/*`, content injection, and the three documented connect hosts. Keep the previous installed version and protected local state available when updating. Do not install the simulated reference.
+The normal `npm run build` inspection artifact retains disabled gates. `npm run build:operator-test` produces the separately named enabled artifact. No URL, page variable or stored preference can flip the build mode. Session/ownership/account checks, approvals, snapshots, draft protection, coordinator locks and unknown-write reconciliation remain unchanged.
 
-Read-only inspection is useful, but its success does not qualify Save, Listing, Rename, Helper or authenticated GitHub writes.
+### Install and start
+
+1. Use Firefox + Violentmonkey and a testing profile/account/repository with owned disposable generators. Initialize GitHub `main` (for example with README) and use a token with repository Contents read/write access. Matching `ready`/`reserved` requests can start automatically after setup. Updating an already configured profile can resume its waiting work; use a fresh testing profile if that work should not run.
+2. Open `PCMS-operator-test.user.txt`. In Violentmonkey, edit the existing **PCMS** script, replace its entire contents, and save. The name/namespace and store keys are unchanged so this updates the same script and preserves manager storage. In a fresh profile, create one PCMS script from the file. Keep only one PCMS installation enabled.
+3. Close/reopen the PCMS page and reload only clean, idle worker tabs so they execute the new code. Do not reload an unsaved native draft; retain/resolve it first. Keep the previous script and protected saved work available.
+4. Open `https://perchance.org/welcome#pcms`. Confirm the **TEST** badge and version **0.1.2** in Violentmonkey. No source edits or extra unlock switch are needed.
+5. Settings: enter a manual account label → Apply; sign in to Perchance normally → Confirm session. The label is your chosen ID, not a detected Perchance account identifier. Use it verbatim in `status.md`.
+6. Enter the testing GitHub repository URL and PAT through **Set PAT** → **Test** → **Apply**. PAT entry stays outside page-visible inputs/exports. Do not put credentials in chat, source or logs.
+7. Generators → Bulk Import: uncheck **Select visible** first if all candidates are selected, then choose only your intended test generators → Import selected. Import should preserve native source/Listing and create complete GitHub folders.
+8. Refresher starts paused in a fresh profile. Set the intended hourly limit and click Resume only when ready. Existing profiles retain their prior pause preference.
+
+See `operator-test-guide.md` for a concrete full-workflow test sequence. The remaining evidence below is still unrun; enabling the build does not mark it passed.
 
 ## Needed environment and scope
 
-The remaining live checks require a dedicated disposable Firefox profile with Violentmonkey, a manually chosen account label and signed-in Perchance session, explicitly designated owned disposable Listed and Unlisted generators, a free disposable slug, and a disposable GitHub repository. Enter its narrowly scoped credential only through PCMS's isolated credential entry; never put it in source, fixtures, screenshots, logs, reports or chat.
-
-Record the profile/browser/manager versions, candidate source commit/tree and artifact SHA-256, designated targets and allowed effects privately. A developer must prepare and review a qualification build constrained to those designated targets and only the capability currently being checked. Do not enable every capability globally or use production generators to discover whether an adapter works.
+Record browser/manager versions, candidate source commit/tree and artifact SHA-256 and the intended owned test targets privately. For this user-authorized full testing build all capabilities are available together. Test disposable targets before using production generators. Keep failed/Unknown operations protected and reconcile before retrying.
 
 ## Exact pending checks
 
@@ -39,4 +48,4 @@ Record each outcome as PASS, FAIL or DEFERRED with exact observed evidence. Do n
 
 ## Qualification completion
 
-Only after the relevant live effects pass, commit the evidence-safe qualification result and intentionally update its matching gate. Rebuild, recheck clean-profile upgrade/restart and rerun affected synthetic regressions. P01 installation and P31 acceptance can then be completed. Until then this is a disabled candidate, not a qualified operational release.
+Record each live outcome as PASS, FAIL or DEFERRED with observed evidence, without publishing secrets/private source. After live effects pass, record the evidence-safe result and intentionally decide the normal-use capability policy. Rebuild and recheck upgrade/restart. P01 installation and P31 release acceptance remain open until their actual live checks pass. The operator-test artifact stays labelled as a test build until then.

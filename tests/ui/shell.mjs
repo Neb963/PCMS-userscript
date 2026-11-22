@@ -17,7 +17,8 @@ catch {
 }
 const browserType = process.env.PCMS_UI_BROWSER || 'chromium';
 const browser = await playwright[browserType].launch({ headless: true, ...(process.env.PCMS_UI_EXECUTABLE ? { executablePath: process.env.PCMS_UI_EXECUTABLE } : {}) });
-const script = await readFile(resolve('dist/PCMS.user.js'), 'utf8');
+const operatorTest=process.env.PCMS_UI_PROFILE==='operator-test';
+const script = await readFile(resolve(operatorTest?'dist/PCMS-operator-test.user.js':'dist/PCMS.user.js'), 'utf8');
 const errors = [];
 const initialState=emptyState();
 initialState.settings.refreshPaused=false;
@@ -72,6 +73,7 @@ try {
     await page.goto('https://perchance.org/welcome#pcms');
     await page.addScriptTag({ content: script });
     const app = page.locator('#pcms-root');
+    await app.locator('.brand').waitFor();assert.equal(await app.locator('.build-badge').count(),operatorTest?1:0);
     await app.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
     try { await app.getByText('Coordinator Verified', { exact: true }).waitFor(); }
     catch(error) {
@@ -110,7 +112,7 @@ try {
     await app.getByRole('button',{name:'Bulk Import',exact:true}).focus();await page.keyboard.press('/');assert.equal(await app.getByRole('searchbox',{name:'Search generators'}).evaluate(n=>n.getRootNode().activeElement===n),true);await page.keyboard.type('/');assert.equal(await app.getByRole('searchbox',{name:'Search generators'}).inputValue(),'/');await app.getByRole('searchbox',{name:'Search generators'}).fill('');
     await app.getByRole('navigation').getByRole('button',{name:'Refresher',exact:true}).click();
     await checkRefresher({page,app,width});
-    await checkReviews({page,app});
+    await checkReviews({page,app,operatorTest});
     await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();
     await app.getByRole('button',{name:'Manage synthetic-manual-editor',exact:true}).click();
     const manualDrawer=app.getByRole('dialog',{name:'Manage synthetic-manual-editor',exact:true});
@@ -215,5 +217,5 @@ try {
   await checkApprovalComponent(browser);
   await checkInteractionComponent(browser);
   assert.deepEqual(errors, []);
-  console.log(`UI shell PASS: ${browserType}, six widths, navigation, keyboard, Refresher queue/rates/history, theme, header stability and native page preservation`);
+  console.log(`UI shell PASS: ${browserType}, ${operatorTest?'operator-test':'inspection'}, six widths, navigation, keyboard, Refresher queue/rates/history, theme, header stability and native page preservation`);
 } finally { await browser.close(); }

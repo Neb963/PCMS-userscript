@@ -6,7 +6,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Deliberately small ES-module subset: local named imports and named declarations.
 // Reject unsupported module syntax rather than producing a partly bundled script.
-export async function bundle(entry, sourceRoot = resolve(root, 'src')) {
+export async function bundle(entry, sourceRoot = resolve(root, 'src'), { profile = 'inspection' } = {}) {
+  if (!['inspection', 'operator-test'].includes(profile)) throw new Error('Unknown build profile: ' + profile);
   const modules = new Map();
   const visiting = new Set();
   let metadata = '';
@@ -18,10 +19,16 @@ export async function bundle(entry, sourceRoot = resolve(root, 'src')) {
     if (modules.has(id)) return id;
     visiting.add(id);
     let source = await readFile(file, 'utf8');
+    if (id === 'runtime/build-mode.js') {
+      const declaration = "export const BUILD_MODE = 'inspection';";
+      if (source.split(declaration).length !== 2) throw new Error('Build policy declaration changed');
+      source = source.replace(declaration, `export const BUILD_MODE = ${JSON.stringify(profile)};`);
+    }
     if (file === resolve(entry)) {
       const match = source.match(/^\/\/ ==UserScript==[\s\S]*?^\/\/ ==\/UserScript==/m);
       if (!match) throw new Error('Userscript metadata missing');
       metadata = match[0];
+      if (profile === 'operator-test') metadata = metadata.replace(/^\/\/ @description\s+.*$/m, '// @description  Operator testing build: real writes enabled; live qualification pending.');
       source = source.replace(match[0], '');
     }
     const imports = [...source.matchAll(/^import\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"];?\s*$/gm)];
@@ -40,12 +47,17 @@ export async function bundle(entry, sourceRoot = resolve(root, 'src')) {
     return id;
   }
   await visit(entry);
-  return `${metadata}\n\n(() => {\n'use strict';\nconst modules = Object.create(null);\n${[...modules.values()].join('\n\n')}\n})();\n`;
+  if (profile === 'operator-test' && !modules.has('runtime/build-mode.js')) throw new Error('Operator-test build has no policy module');
+  return `${metadata}\n\n// PCMS build profile: ${profile}\n(() => {\n'use strict';\nconst modules = Object.create(null);\n${[...modules.values()].join('\n\n')}\n})();\n`;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const output = await bundle(resolve(root, 'src/entry.user.js'));
+  const args = process.argv.slice(2);
+  if (args.some(arg => !arg.startsWith('--profile=')) || args.length > 1) throw new Error('Usage: build.mjs [--profile=inspection|operator-test]');
+  const profile = args[0]?.slice('--profile='.length) || 'inspection';
+  const output = await bundle(resolve(root, 'src/entry.user.js'), resolve(root, 'src'), { profile });
   await mkdir(resolve(root, 'dist'), { recursive: true });
-  await writeFile(resolve(root, 'dist/PCMS.user.js'), output);
-  console.log('Built dist/PCMS.user.js');
+  const name = profile === 'operator-test' ? 'PCMS-operator-test.user.js' : 'PCMS.user.js';
+  await writeFile(resolve(root, 'dist', name), output);
+  console.log('Built dist/' + name + ' (' + profile + ')');
 }

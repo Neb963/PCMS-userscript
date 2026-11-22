@@ -20,3 +20,9 @@ test('changed unfinished request retains local work and holds incoming request w
 test('coordinator restart records an uncertain request without automatically re-dispatching it',async()=>{
   let calls=0;const {store,runner}=await fixture(async()=>({run:async()=>{calls++;throw Error('lost');}}));await runner.tick();await runner.tick();assert.equal(calls,1);assert.equal((await store.read()).requestQueue['1'].phase,'unknown');
 });
+
+test('a qualification-waiting request proceeds once when testing becomes authorized',async()=>{
+  let enabled=false,calls=0;const {store,runner}=await fixture(async()=>{if(!enabled)throw Error('native-capability-not-live-verified');return {run:async()=>{calls++;return {phase:'done',closed:true};}};});
+  await runner.tick();assert.equal((await store.read()).requestQueue['1'].reason,'live-verification-required');assert.equal(calls,0);
+  enabled=true;await runner.tick();await runner.tick();const state=await store.read();assert.equal(calls,1);assert.equal(state.requestQueue['1'].phase,'done');assert.equal(state.requestQueue['1'].reason,null);assert.equal(Object.keys(state.requestQueue).length,1);
+});

@@ -9,6 +9,6 @@ Read-only public-source inspection, 2026-11-22. `https://perchance.org/minimal` 
 - Native `events` EventSource frames use `done` with the attempt ID; errors and reconnection are distinct. Native `interrupt` is observed as Stop, never successful completion.
 - `srcState.getDraftChatSid()` binds a chat to a draft. Existing chats and composer input are preserved: automatic startup requires a fresh unbound chat. Native New Chat is an operator action for an existing retained conversation.
 
-All native Helper writes remain statically disabled pending a disposable operator-controlled Firefox/Violentmonkey test. The accepted v1.4 specification overrides older discovery prose suggesting instruction-file Saves into native src.
+Native Helper writes remain disabled in the default inspection build. The user-authorized operator-test build enables them for Firefox/Violentmonkey testing, with live qualification still unverified. The accepted v1.4 specification overrides older discovery prose suggesting instruction-file Saves into native src.
 
 The same public `appExtras.js` sets the native menu state to `saving` before awaiting `/api/save`. A matched-request source guard must permit its own in-flight Save while still checking target identity, settled draft, exact source and uploaded bytes. General editor readiness continues rejecting Saving. This source finding is covered synthetically; native qualification remains deferred.

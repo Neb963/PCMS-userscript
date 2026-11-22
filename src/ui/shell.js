@@ -1,4 +1,5 @@
 import {LIVE_CAPABILITIES} from '../adapters/perchance/session.js';
+import {OPERATOR_TEST} from '../runtime/build-mode.js';
 import {refresherView} from '../refresher/view.js';
 import { syncRecords, approvedLocal } from '../workflows/sync.js';
 import { el, button } from './dom.js';
@@ -95,7 +96,9 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
     finally { theme.disabled = false; }
   }, { className: 'icon', 'aria-label': 'Toggle theme' });
   tools.append(status, settings, theme);
-  shell.append(el(doc, 'header', { className: 'topbar' }, el(doc, 'div', { className: 'brand' }, el(doc, 'span', { className: 'brand-mark', 'aria-hidden': 'true' }, '◇'), 'PCMS'), nav, tools), main);
+  const brand = el(doc, 'div', { className: 'brand' }, el(doc, 'span', { className: 'brand-mark', 'aria-hidden': 'true' }, '◇'), 'PCMS');
+  if (OPERATOR_TEST) brand.append(el(doc, 'span', { className: 'build-badge', title: 'Operator test build: real writes enabled; live qualification pending.' }, 'TEST'));
+  shell.append(el(doc, 'header', { className: 'topbar' }, brand, nav, tools), main);
   root.append(style, shell);
   root.addEventListener('keydown',event=>{if(event.key!=='/'||event.ctrlKey||event.altKey||event.metaKey||event.defaultPrevented)return;const active=root.activeElement;if(active?.matches('input,textarea,select,[contenteditable]')||active?.closest('[contenteditable]')||root.querySelector('dialog[open],[aria-expanded=true]'))return;const search=[...root.querySelectorAll('input[type=search]')].find(n=>n.getClientRects().length&&!n.disabled);if(search){event.preventDefault();search.focus({preventScroll:true});}});
   host.dataset.theme = model.theme || 'light';

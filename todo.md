@@ -1,10 +1,13 @@
 # Active work — handoff
 
-**Current phase:** P29 — Operator-requested full visual audit and remediation COMPLETE for the synthetic UI surface. P31 and further native/operator testing remain PAUSED at the user's request.
+**Current phase:** P31 — User resumed full testing and requested an operational testing build. P29 visual audit remains accepted; native qualification remains unverified.
 
 ## Next action
 
-The requested visual audit is complete. Deliver the corrected 0.1.1 candidate and report. Do not advance P31 until the operator resumes testing. When resumed, follow docs/operator-qualification.md; synthetic success does not qualify native effects.
+- Provide an explicit operator-test build enabling Save/create/Rename/Listing/Helper and GitHub writes, while the ordinary inspection build retains false qualification gates.
+- Keep the same userscript identity/storage, visibly mark TEST, preserve session/owner/source/draft/concurrency/unknown-result checks and default paused Refresher.
+- Verify build separation, no page/storage toggle, positive capability paths and negative safety guards. Exercise the enabled artifact in synthetic browsers without live effects.
+- Build/package with installation and full-workflow testing steps, push verified checkpoints, and deliver the enabled .txt. Do not claim P01/P31 live acceptance.
 
 ## Verified evidence
 

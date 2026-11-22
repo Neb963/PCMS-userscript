@@ -11,7 +11,7 @@ The repository has an implemented candidate with synthetic tests. A successful d
 | Adapter | Controlled Perchance/GitHub fixtures | Readiness, request/response branches, complete source and pending-commit transitions |
 | Live | Explicit operator-controlled disposable Perchance generators and Firefox + Violentmonkey | Actual native Save, Listing, Helper, tab, session and restart behavior |
 
-Use synthetic/CI checks first. If live access is unavailable and the current phase permits deferral, record the exact pending scenario and continue coding without claiming a pass. When a phase explicitly demands live proof for enabling real writes, keep that specific write capability disabled until checked. This is not a blanket project-wide implementation stop.
+Use synthetic/CI checks first. If live access is unavailable and the current phase permits deferral, record the exact pending scenario and continue coding without claiming a pass. When a phase explicitly demands live proof for enabling real writes, keep that specific write capability disabled in the normal inspection build until checked. A separately labelled operator-test artifact may enable capabilities for explicitly authorized operator testing; it must retain all ordinary guards and cannot be called live-qualified. This is not a blanket project-wide implementation stop.
 
 ## Test ownership
 
@@ -29,7 +29,8 @@ Use synthetic/CI checks first. If live access is unavailable and the current pha
 - `npm run build` / `npm run check:syntax` — deterministic production bundle and syntax.
 - `npm run test:ui` — Chromium; `PCMS_UI_BROWSER=firefox npm run test:ui` — Firefox. Both route to synthetic fixtures.
 - `npm run check:candidate` — exact artifact/source match, metadata, version, no fixture/private-key/token payload, disabled qualification gates and SHA-256.
-- Real native effects require the separate live qualification described in `docs/operator-qualification.md`.
+- `npm run build:operator-test` / `npm run check:operator-test` — explicitly enabled testing artifact. CI still uses only synthetic origins/services.
+- Real native effects are tested by the operator as described in `docs/operator-qualification.md`; passing synthetic checks does not complete qualification.
 
 ## Recording a deferral
 

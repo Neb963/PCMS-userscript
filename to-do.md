@@ -222,7 +222,7 @@
 - [x] Validate light/dark, reduced motion, contrast and no duplicate navigation.
 - [x] **Accept:** No regression in accepted UI routes, spacing, no outer desktop scroll and actionable states.
 
-Operator-requested P29 re-audit accepted after repairs: 216 captures/browser, strict geometry and complete built-script regressions pass in Firefox/Chromium at 0e8747cf562f2500a5bcddf12f4301ce1f039401 (UI run 45057498921). See docs/visual-audit.md. P31 testing remains paused.
+Operator-requested P29 re-audit accepted after repairs: 216 captures/browser, strict geometry and complete built-script regressions pass in Firefox/Chromium at 0e8747cf562f2500a5bcddf12f4301ce1f039401 (UI run 45057498921). See docs/visual-audit.md. P31 was paused during the visual audit; the operator subsequently requested an enabled full-testing build. Live acceptance remains unverified.
 
 ### P30 — Integration and failure regression
 
@@ -232,6 +232,8 @@ Operator-requested P29 re-audit accepted after repairs: 216 captures/browser, st
 - [x] **Accept:** All simulated contracts pass; any unverified native effect is labeled as such and cannot be silently enabled.
 
 ### P31 — Release and fresh-profile verification
+
+- [ ] Supply an explicitly enabled operator-test build with retained guards and verified build separation (operator request, 2026-11-22).
 
 - [x] Build/inspect one production userscript; confirm metadata and no mockup/demo payload.
 - [ ] Smoke-test install, reload, saved state and focused workflows on a clean disposable Firefox profile.

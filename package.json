@@ -1,7 +1,7 @@
 {
   "name": "pcms-userscript",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "PCMS Perchance management userscript",
   "type": "module",
   "engines": {
@@ -13,7 +13,9 @@
     "build": "node scripts/build.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
     "test:ui": "node tests/ui/shell.mjs",
-    "check:candidate": "node scripts/check-candidate.mjs"
+    "check:candidate": "node scripts/check-candidate.mjs",
+    "build:operator-test": "node scripts/build.mjs --profile=operator-test",
+    "check:operator-test": "node scripts/check-candidate.mjs --profile=operator-test"
   },
   "devDependencies": {
     "playwright": "1.62.1"

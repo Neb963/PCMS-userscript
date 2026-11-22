@@ -1,6 +1,7 @@
 import { requireThat, accountId, nativeId, slug } from '../../shared/domain.js';
+import { OPERATOR_TEST } from '../../runtime/build-mode.js';
 
-export const LIVE_CAPABILITIES = Object.freeze({ save: false, create: false, rename: false, listing: false, helper: false });
+export const LIVE_CAPABILITIES = Object.freeze({ save: OPERATOR_TEST, create: OPERATOR_TEST, rename: OPERATOR_TEST, listing: OPERATOR_TEST, helper: OPERATOR_TEST });
 
 export function requireLiveCapability(name) {
   requireThat(LIVE_CAPABILITIES[name] === true, 'native-capability-not-live-verified');
