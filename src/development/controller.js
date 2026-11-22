@@ -32,8 +32,8 @@ export class Development {
     if(this.busy)return;this.busy=true;
     try{
       await this.guard();await completeDevelopments(this.store,this.assertCurrent);this.allowed();const state=await this.store.read();if(!state.settings.account.confirmed)return;
-      const record=Object.values(state.development||{}).find(r=>r.phase==='queued'&&!state.requestQueue?.[r.id]?.incoming);if(!record)return;
-      if(Object.values(state.workers).filter(w=>w.role==='development'&&!['retained','released'].includes(w.phase)).length>=2)return;
+      const record=Object.values(state.development||{}).find(r=>r.phase==='queued'&&!r.stopRequested&&!state.requestQueue?.[r.id]?.incoming);if(!record)return;
+      if(Object.values(state.workers).filter(w=>w.role==='development'&&w.slotReleased!==true&&!['retained','released'].includes(w.phase)).length>=2)return;
       await this.store.transact(s=>{this.assertCurrent(s);const r=s.development[record.id];requireThat(r.phase==='queued'&&!s.requestQueue?.[r.id]?.incoming,'request-changed');r.phase='starting';});
       let native;
       try{

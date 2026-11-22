@@ -23,7 +23,7 @@ export class WorkerPool {
     slug(targetSlug);
     const id = this.uuid();
     const result = await this.store.transact(state => {
-      const active = Object.values(state.workers).filter(w => w.role === role && !['retained', 'released'].includes(w.phase) && (role === 'development' || w.phase !== 'lost'));
+      const active = Object.values(state.workers).filter(w => w.role === role && w.slotReleased!==true && !['retained', 'released'].includes(w.phase) && (role === 'development' || w.phase !== 'lost'));
       requireThat(active.length < (role === 'development' ? 2 : 1), 'worker-capacity');
       state.workers[id] = { id, role, generatorId, fork, slug: targetSlug, phase: 'opening', documentId: null, selected: false, observedAt: this.now() };
       return structuredClone(state.workers[id]);
@@ -57,7 +57,7 @@ export class WorkerPool {
   async send(command) {
     await this.store.transact(state => {
       const worker = state.workers[command.workerId];
-      requireThat(worker && worker.phase === 'idle' && worker.documentId === command.documentId && (!worker.selected || command.operatorAction === true), 'worker-unavailable');
+      requireThat(worker && (worker.phase === 'idle'||worker.phase==='retained'&&command.operatorAction===true) && worker.documentId === command.documentId && (!worker.selected || command.operatorAction === true), 'worker-unavailable');
       requireThat(!worker.inbox, 'worker-busy');
       worker.inbox = command.id;
       worker.phase = 'busy';
@@ -81,7 +81,7 @@ export class WorkerPool {
         if(command.kind.startsWith('refresh-')){own.nativeVerified=reply.outcome==='verified'&&['prepared','confirmed','restored'].includes(own.outbox?.data?.kind)||reply.outcome==='verified'&&own.outbox?.data?.kind==='failed'&&own.outbox.data.reusable===true;if(own.nativeVerified)own.nativeProofId=command.id;}
         if(command.kind==='navigate')own.nativeVerified=false;
         delete own.outbox;
-        own.phase = reply.outcome === 'unknown' ? (own.role === 'development' ? 'busy' : 'retained') : 'idle';
+        own.phase = reply.outcome === 'unknown' ? (own.role === 'development' ? 'busy' : 'retained') : own.slotReleased===true?'retained':'idle';
       });
     }
   }

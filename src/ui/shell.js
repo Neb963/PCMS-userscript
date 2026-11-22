@@ -4,7 +4,7 @@ import { el, button } from './dom.js';
 import { inventoryRows, generatorStates } from '../state/inventory.js';
 import { actionCases, operationRows } from './overview-model.js';
 import { exportJournal } from '../state/journal.js';
-import { CSS, SETTINGS_CSS, OVERVIEW_CSS, INVENTORY_CSS, IMPORT_CSS, SYNC_CSS, REFRESHER_CSS } from './styles.js';
+import { CSS, SETTINGS_CSS, OVERVIEW_CSS, INVENTORY_CSS, IMPORT_CSS, SYNC_CSS, REFRESHER_CSS, REVIEWS_CSS } from './styles.js';
 
 export const MAIN_ROUTES = Object.freeze(['overview', 'generators', 'reviews', 'refresher']);
 export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generators', reviews: 'Reviews', refresher: 'Refresher', settings: 'Settings', utility: 'Utility', sync: 'GitHub sync', import: 'Bulk Import' });
@@ -22,6 +22,7 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
     utility: Object.values(state.requestQueue||{}).map(job=>{const r=state.utility?.[job.id];return {id:job.id,slug:job.request.slug,action:job.request.status.action,phase:r?.phase||job.phase,reason:job.reason||r?.reason||null,generatorId:r?.generatorId||null,steps:r?.steps||[]};}),
     utilityWorker: Object.values(state.workers).find(w=>w.role==='utility'&&!['released','lost','retained'].includes(w.phase))?.phase||'Unknown',
     refresher:refresherView(state,{coordinator}),
+    development:[...Object.values(state.development||{}).filter(r=>r.phase!=='resolved').map(r=>{const w=state.workers[r.workerId],c=Object.values(state.commands||{}).filter(c=>c.kind==='development-action'&&c.developmentId===r.id).at(-1);return {id:r.id,generatorId:r.generatorId,slug:r.slug,phase:r.phase,listing:state.generators[r.generatorId]?.listing||'unknown',retainedTab:r.workerId,slotReleased:!w||w.slotReleased===true||['retained','released'].includes(w.phase),canResume:r.phase==='cancelled'&&!!r.workerId&&!!r.baselineSource&&!r.created&&r.originalListing==='listed',canDiscard:r.phase==='cancelled'&&!!r.workerId&&!!r.baselineSource&&r.created&&r.originalListing==='unlisted',canPublish:false,actionBusy:['queued','running'].includes(c?.phase),message:c?.phase==='held'?c.reason:r.phase==='unknown'?'Result unverified. Keep this generator held until reconciled.':''};}),...Object.values(state.requestQueue||{}).filter(q=>q.request.status.action==='develop'&&!state.development?.[q.id]&&!q.closed).map(q=>({id:q.id,slug:q.request.slug,phase:'queued',listing:'Unknown',slotReleased:true,actionBusy:q.stopRequested===true,message:q.incoming?'Incoming request changed; current work retained.':q.reason==='live-verification-required'?'Native Helper awaits live qualification.':''}))],
     journalCount: state.journal.length,
     coordinator,
     casesKnown: coordinator === 'Verified',
@@ -33,7 +34,7 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
 
 export function mountShell(doc, host, { snapshot = { restored: false }, onTheme = async () => {}, renderers = {} } = {}) {
   const root = host.attachShadow({ mode: 'closed' });
-  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS + INVENTORY_CSS + IMPORT_CSS + SYNC_CSS + REFRESHER_CSS);
+  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS + INVENTORY_CSS + IMPORT_CSS + SYNC_CSS + REFRESHER_CSS + REVIEWS_CSS);
   let route = 'overview';
   let model = snapshot;
   let view = null;

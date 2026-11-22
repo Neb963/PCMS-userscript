@@ -20,7 +20,7 @@ export class RequestRunner {
   async tick(){
     if(this.busy||!this.coordinator.active)return;this.busy=true;
     try{
-      await this.reconcile();const command=Object.values((await this.store.read()).requestQueue||{}).find(r=>['queued','waiting'].includes(r.phase)&&!r.incoming);if(!command)return;
+      await this.reconcile();const command=Object.values((await this.store.read()).requestQueue||{}).find(r=>['queued','waiting'].includes(r.phase)&&!r.stopRequested&&!r.incoming);if(!command)return;
       let workflow;
       try{workflow=await this.factory(command.request);}catch(error){
         const reason=error.message==='native-capability-not-live-verified'||error.message==='github-write-not-live-verified'?'live-verification-required':'session-or-integration-unavailable';

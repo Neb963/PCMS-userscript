@@ -80,3 +80,8 @@ test('native readiness proof cannot survive a worker document replacement',async
   const runtime=new WorkerRuntime({store:f.store,id:worker.id,documentId:'new-document',doc:{visibilityState:'hidden'},execute:()=>{}});await runtime.register();await runtime.observe();
   const actual=(await f.store.read()).workers[worker.id];assert.equal(actual.nativeVerified,false);assert.equal(actual.nativeProofId,undefined);assert.equal(actual.documentId,'new-document');assert.equal(actual.pulse,2);
 });
+test('an explicit retained-tab command does not reclaim an automatic Development slot',async()=>{
+  const f=fixture(),retained=await f.pool.open('development','retained-target');await f.store.transact(s=>{Object.assign(s.workers[retained.id],{phase:'retained',slotReleased:true,documentId:'doc',selected:true});});
+  await f.pool.send({id:'inspect',workerId:retained.id,documentId:'doc',operatorAction:true});assert.equal((await f.store.read()).workers[retained.id].phase,'busy');
+  await f.pool.open('development','active-one');await f.pool.open('development','active-two');await assert.rejects(f.pool.open('development','active-three'),/capacity/);
+});

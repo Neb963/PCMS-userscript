@@ -1,8 +1,10 @@
 # Active work — handoff
 
-**Current phase:** P24 — Reviews and cancellation UI. **Status:** Planned; P23 synthetic acceptance verified.
+**Current phase:** P24 — Reviews and cancellation UI. **Status:** Implemented; browser verification pending.
 
 ## Next action
+
+- Inspect P24 browser CI for long review/development lists, 530/320px layout, focus and cancellation. Fix failures before accepting P24, then implement P25 approved publication in the retained original tab.
 
 - Implement Reviews and Development panels: all review/queued rows, two running slots, retained-tab Review, confirmed queued/running/review cancellation and recovery. Stop is native and send-once; Unknown never frees a slot automatically. Explicit Abandon preserves its generator hold. No PCMS follow-up prompts.
 - Test focus, draft retention, slot release, long lists/internal scrolling and both themes/widths. Continue subsequent phases sequentially under end-to-end authorization.

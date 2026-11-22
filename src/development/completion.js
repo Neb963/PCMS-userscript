@@ -7,7 +7,8 @@ export function canReview(record,worker){
     !!o&&o.settled===true&&o.terminalAttempt===record.nativeAttemptId&&o.nativeAttemptId===record.nativeAttemptId&&o.documentId===record.documentId&&o.draftId===record.draftId&&worker?.documentId===record.documentId&&['idle','busy'].includes(worker.phase)&&o.workerPulse===(worker.pulse??null);
 }
 export function developmentStatus(state,record,value){
-  const id=record.id+'-status-'+value;record.statusPending=id;
+  const utility=state.utility?.[record.id];if(utility?.pendingStatus&&utility.pendingStatus.status.state!==value){utility.pendingStatus.phase='superseded';utility.pendingStatus.stopRequested=true;}
+  record.statusVersion=(record.statusVersion||0)+1;const id=record.id+'-status-'+record.statusVersion+'-'+value;record.statusPending=id;
   state.pending[id]||={id,generatorId:record.generatorId,slug:record.slug,repository:record.request.repository,baseCommit:record.statusCommit||record.request.commit,kind:'status',status:{...record.request.status,state:value},phase:'prepared',nativeVerified:true,requestId:record.id,developmentId:record.id};
 }
 export async function completeDevelopments(store,assertCurrent=()=>{}){
@@ -16,7 +17,7 @@ export async function completeDevelopments(store,assertCurrent=()=>{}){
     const worker=state.workers[r.workerId];
     if(canReview(r,worker))await store.transact(s=>{
       assertCurrent(s);const own=s.development[r.id],w=s.workers[own.workerId];if(!canReview(own,w))return;
-      own.phase='review';w.phase='retained';const g=s.generators[own.generatorId];s.generators[g.id]=addHold({...releaseHold(g,own.id),retainedTab:w.id,status:{...own.request.status,state:'review'}},{id:own.id,kind:'review'});
+      own.phase='review';w.phase='retained';w.slotReleased=true;const g=s.generators[own.generatorId];s.generators[g.id]=addHold({...releaseHold(g,own.id),retainedTab:w.id,status:{...own.request.status,state:'review'}},{id:own.id,kind:'review'});
       if(s.requestQueue?.[own.id])s.requestQueue[own.id].phase='review';developmentStatus(s,own,'review');appendEvent(s,{component:'helper',outcome:'review',nativeId:g.id});
     });
     else if(['starting','submitting','running'].includes(r.phase)&&worker&&(worker.phase==='lost'||worker.documentId&&r.documentId&&worker.documentId!==r.documentId||r.streamError||r.streamGap||r.foreignTurn||r.stopObserved||r.terminal?.errored||r.terminal?.stopped))await store.transact(s=>{
@@ -28,7 +29,7 @@ export async function abandonDevelopment(store,id,confirmed,assertCurrent=()=>{}
   requireThat(confirmed===true,'confirmation-required');
   return store.transact(s=>{
     assertCurrent(s);const r=s.development?.[id];requireThat(r&&(r.phase==='unknown'||r.stopRequested)&&!['review','cancelled'].includes(r.phase),'development-not-abandonable');
-    r.phase='cancelled';r.abandoned=true;const worker=s.workers[r.workerId];if(worker)worker.phase='retained';
+    r.phase='cancelled';r.abandoned=true;const worker=s.workers[r.workerId];if(worker){worker.phase='retained';worker.slotReleased=true;}
     for(const job of Object.values(s.jobs))if(job.workerId===r.workerId&&['prepared','dispatched','unknown'].includes(job.phase))job.locallyStopped=true;
     const g=s.generators[r.generatorId];s.generators[g.id]=addHold({...g,retainedTab:r.workerId},{id:r.id,kind:'helper-unknown'});developmentStatus(s,r,'blocked');
     if(s.requestQueue?.[id]){s.requestQueue[id].closed=true;s.requestQueue[id].phase='cancelled';}

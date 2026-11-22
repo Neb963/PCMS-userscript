@@ -47,7 +47,7 @@ export function operationRows(state, coordinator, session) {
   const workers=Object.values(state.workers),utilityCommands=Object.values(state.commands||{}).filter(c=>c.kind==='bulk-import'),pending=syncRecords(state).filter(p=>!['synced','stopped','reassigned','superseded'].includes(p.phase));
   return [
     {title:'Refresher',route:'refresher',status:!known?'Unknown':!session?.confirmed||state.settings.refreshPaused?'Paused':workers.some(w=>w.role==='refresher'&&w.phase==='busy')?'Running':'Unavailable',detail:`${state.fifo.length} in queue · ${state.settings.refreshCap} attempts/h`},
-    {title:'AI Helper',route:'reviews',status:!known?'Unknown':`${workers.filter(w=>w.role==='development'&&w.phase==='busy').length} / 2 active`,detail:'Two running Development slots'},
+    {title:'AI Helper',route:'reviews',status:!known?'Unknown':`${Object.values(state.development||{}).filter(r=>['starting','submitting','running','unknown'].includes(r.phase)&&state.workers[r.workerId]?.slotReleased!==true&&!['retained','released'].includes(state.workers[r.workerId]?.phase)).length} / 2 active`,detail:'Two running Development slots'},
     {title:'Publication',route:'utility',status:!known?'Unknown':utilityCommands.some(c=>c.phase==='running')||Object.values(state.requestQueue||{}).some(r=>r.phase==='running')||workers.some(w=>w.role==='utility'&&w.phase==='busy')?'Active':'Idle',detail:'One sequential Utility worker'},
     {title:'GitHub sync',route:'sync',status:!known?'Unknown':state.githubCheck?.status==='offline'?'Offline':state.githubCheck?.status==='verified'?'Connected':state.settings.github?'Checking':'Setup required',detail:`${pending.length} pending`},
   ];

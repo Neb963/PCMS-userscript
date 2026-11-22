@@ -21,6 +21,8 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { reviewsRenderer } from './ui/reviews.js';
+import { DevelopmentActions,enqueueDevelopmentAction } from './development/actions.js';
 import { Development } from './development/controller.js';
 import { NativeHelper } from './development/native.js';
 import { RefresherSettings } from './refresher/view.js';
@@ -109,6 +111,7 @@ function coordinate(store, ui = null) {
       if (performance.now()-lastPulse>=5000||performance.now()<lastPulse||!lastPulse) { await store.transact(state => { coordinator.assertOwner(state);state.coordinator.observedAt=Date.now();state.coordinator.pulse=(state.coordinator.pulse||0)+1;const input=scheduler.project(state),worker=Object.values(state.workers).find(w=>w.role==='refresher'&&!['retained','released','lost'].includes(w.phase));const workerFresh=worker&&health.observe('worker-'+worker.id,JSON.stringify([worker.documentId,worker.pulse||0,worker.nativeProofId||null]));state.refreshView={owner:coordinator.owner,term:coordinator.term,logicalAt:input.clock.logical,restartAt:input.clock.restartAt,observedAt:Date.now(),workerId:worker?.id||null,documentId:worker?.documentId||null,workerKnown:workerFresh&&worker.nativeVerified===true};}); lastPulse = performance.now(); }
       scheduler.reconcile().catch(()=>{});await pool.consume(coordinator);
       if(!requests.busy&&!commands.busy)commands.tick().then(()=>requests.tick()).catch(()=>{});
+      developmentActions.tick().catch(()=>{});
       development.tick().catch(()=>{});
       refresher.tick().catch(()=>{});synchronizer.tickCommands().catch(()=>{});synchronizer.tick().catch(()=>{});await poller.check(true);
     } catch { /* Durable state retains the unresolved command. */ }
@@ -130,9 +133,10 @@ function coordinate(store, ui = null) {
   };
   const requests=new RequestRunner({store,coordinator,factory:async request=>{const reservation=await reservationWorkflow(request);if(request.status.action==='develop')return {run:async(request,id)=>{const reserved=await reservation.run(request,id);if(reserved.phase!=='reserved')return reserved;await development.enqueue(request,id,reserved);return {phase:'development',closed:false};}};return new Publication({reservation,store,github:reservation.github,native:reservation.native,reader:reservation.reader,gate,locks:navigator.locks,guard:reservation.guard,assertCurrent:current=>coordinator.assertOwner(current)});}});
   const development=new Development({store,services:async repository=>importWorkflow({repository}),nativeFactory:async record=>new NativeClient({store,pool,coordinator,role:'development',workerId:record.workerId}),guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
+  const developmentActions=new DevelopmentActions({store,nativeFactory:async record=>new NativeClient({store,pool,coordinator,role:'development',workerId:record.workerId}),guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
   const synchronizer=new Synchronizer({store,services:async repo=>{const service=await importWorkflow({repository:repo});return {github:service.github,writer:service.writer,reader:service.reader};},guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current),importWorkflow});
   const refresher=new RefresherController({store,scheduler,nativeFactory:async()=>new NativeClient({store,pool,coordinator,role:'refresher'}),locks:navigator.locks,guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
-  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests, synchronizer, scheduler, refresher, development };
+  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests, synchronizer, scheduler, refresher, development, developmentActions };
 }
 
 async function startAssignedWorker() {
@@ -149,6 +153,7 @@ async function startAssignedWorker() {
     const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
     if(command.kind==='navigate'){await cleanNavigation();return {outcome:'verified'};}
     const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,workerId:id,documentId:command.documentId,actionId:command.id,guard:async()=>guardNativeCommand(await store.read(),command,id),exporter:typeof exportFunction==='function'?exportFunction:null});
+    if(command.kind==='helper-stop'||command.kind==='helper-resolve'){const observed=new NativeHelper({actions,store,native,reader,gate});return {outcome:'verified',data:command.kind==='helper-stop'?await observed.stop(command.payload.developmentId):await observed.resolve(command.payload.developmentId)};}
     if(command.kind==='helper-start'){helper?.dispose();helper=new NativeHelper({actions,store,native,reader,gate});try{return {outcome:'verified',data:await helper.start(command.target,command.payload.developmentId)};}catch(error){helper.dispose();throw error;}}
     if(command.kind==='refresh-prepare'||command.kind==='refresh-save'||command.kind==='refresh-restore'){const refresher=new NativeRefresher({actions,store,native,gate,reader});return {outcome:'verified',data:command.kind==='refresh-prepare'?await refresher.prepare(command.target,command.payload.markerId):command.kind==='refresh-restore'?await refresher.abort(command.target,command.payload.markerId):await refresher.save(command.target,command.payload.markerId)};}
     if(command.kind==='native-deploy')return {outcome:'verified',data:await actions.deploy(command.target,command.payload.pendingId)};
@@ -202,7 +207,7 @@ if (isAppPage(location)) {
   let runtime;
   const ui = mountShell(document, host, {
     onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
-    renderers: { refresher:refresherRenderer({controller:new RefresherSettings(store),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), sync: syncRenderer({store,service:()=>({compare:id=>runtime.synchronizer.compare(id),syncOne:id=>enqueueSyncAction(store,'recheck',id),decide:(token,choice,confirmed)=>runtime.synchronizer.enqueueDecision(token,choice,confirmed),reassign:(id,confirmed)=>enqueueSyncAction(store,'reassign',id,{confirmed}),stop:(id,confirmed)=>enqueueSyncAction(store,'stop',id,{confirmed})}),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), utility: utilityRenderer(), import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
+    renderers: { reviews:reviewsRenderer({action:(id,action,confirmed)=>enqueueDevelopmentAction(store,id,action,confirmed),activate:id=>runtime.pool.activate(id,true)}), refresher:refresherRenderer({controller:new RefresherSettings(store),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), sync: syncRenderer({store,service:()=>({compare:id=>runtime.synchronizer.compare(id),syncOne:id=>enqueueSyncAction(store,'recheck',id),decide:(token,choice,confirmed)=>runtime.synchronizer.enqueueDecision(token,choice,confirmed),reassign:(id,confirmed)=>enqueueSyncAction(store,'reassign',id,{confirmed}),stop:(id,confirmed)=>enqueueSyncAction(store,'stop',id,{confirmed})}),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), utility: utilityRenderer(), import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
       requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
       signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
     }) },

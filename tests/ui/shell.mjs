@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { emptyState } from '../../src/state/store.js';
+import { checkReviews } from './reviews.mjs';
 import { checkRefresher } from './refresher.mjs';
 
 // Standard local/CI dependency; Work Mode can reuse its provided runtime copy.
@@ -28,6 +29,9 @@ initialState.requestQueue={};initialState.utility={};
 for(let i=0;i<35;i++){const id='utility-'+i,request={valid:true,slug:'synthetic-utility-'+String(i).padStart(2,'0'),repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),requestCommit:'a'.repeat(40),instructions:[],status:{account:'synthetic-account',action:'publish_from_github',state:'ready'}};initialState.requestQueue[id]={id,request,phase:i===1?'reserved':'waiting',closed:false,reason:'live-verification-required'};if(i===1)initialState.utility[id]={id,request,phase:'reserved',steps:['request checked','slug checked','identity checked']};}
 initialState.generators['101'].localDone=true;initialState.generators['101'].localApproved=true;initialState.generators['101'].holds=[{id:'sync-conflict-source',kind:'source-conflict'}];
 for(let i=0;i<32;i++){const id=i===0?'conflict-source':'synced-'+i;initialState.pending[id]={id,generatorId:'101',slug:'synthetic-generator-01',repository:{owner:'synthetic',name:'original-repository'},baseCommit:'a'.repeat(40),kind:i===0?'source':'status',status:{account:'synthetic-account',action:'develop',state:'done'},phase:i===0?'source-conflict':'synced',nativeVerified:true,...(i===0?{source:{pjs:'synthetic-private-sync-source',html:'<p>protected</p>',files:{}},previousSource:{pjs:'previous',html:'previous',files:{}},listingIntent:'listed',approval:{id:'synthetic-approval',kind:'review',draftId:'draft',workerId:'retained',documentId:'doc',confirmedAt:1},draftId:'draft',retainedTab:'retained'}:{})};}
+initialState.development={};
+for(let i=0;i<36;i++){const id='review-'+i,generatorId=String(300+i),workerId='review-worker-'+i,slug='synthetic-review-'+String(i).padStart(2,'0'),phase=i<34?'review':'running';initialState.generators[generatorId]={id:generatorId,slug,listing:'listed',status:{account:'synthetic-account',action:'develop',state:phase==='review'?'review':'reserved'},holds:[{id,kind:phase==='review'?'review':'development'}],savedVerified:true,ownerVerified:true};initialState.workers[workerId]={id:workerId,role:'development',slug,generatorId,phase:phase==='review'?'retained':'idle',slotReleased:phase==='review',documentId:'synthetic-doc-'+i};initialState.development[id]={id,generatorId,slug,phase,created:false,originalListing:'listed',workerId,documentId:'synthetic-doc-'+i,request:{repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),status:{account:'synthetic-account',action:'develop',state:'reserved'}},baselineSource:{pjs:'synthetic-review-private-source',html:'private',files:{}}};}
+for(let i=0;i<35;i++){const id='develop-queued-'+i;initialState.requestQueue[id]={id,phase:'waiting',closed:false,reason:'live-verification-required',request:{valid:true,slug:'synthetic-queued-'+i,repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),requestCommit:'a'.repeat(40),instructions:[],status:{account:'synthetic-account',action:'develop',state:'ready'}}};}
 try {
   for (const scenario of [...[1440,1024,800,531,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
     const {width}=scenario;
@@ -95,6 +99,7 @@ try {
       assert.ok(Math.abs(box.x - baseline.x) <= 2 && Math.abs(box.y - baseline.y) <= 2 && Math.abs(box.height - baseline.height) <= 2);
     }
     await checkRefresher({page,app,width});
+    await checkReviews({page,app});
     await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();
     const inventoryList=app.getByRole('rowgroup');
     const inventoryTop=await inventoryList.evaluate(n=>{n.scrollTop=n.querySelector('[role=row][data-id="108"]').offsetTop-60;return n.scrollTop;});
@@ -150,7 +155,7 @@ try {
     await app.getByRole('button', { name: 'Open Publication' }).focus();
     await page.keyboard.press('Enter');
     await app.getByRole('heading', { name: 'Utility', exact: true }).first().waitFor();
-    const utilityList=app.getByRole('list',{name:'Utility jobs',exact:true});assert.equal(await utilityList.getByRole('listitem').count(),35);
+    const utilityList=app.getByRole('list',{name:'Utility jobs',exact:true});assert.equal(await utilityList.getByRole('listitem').count(),70);
     await utilityList.getByRole('listitem').filter({hasText:'synthetic-utility-01'}).click();
     assert.equal(await app.getByText('identity checked · Verified',{exact:true}).count(),1);
     assert.equal(await app.getByRole('navigation').getByRole('button').count(),4);

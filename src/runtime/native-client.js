@@ -13,7 +13,7 @@ export class NativeClient {
       if(!worker)worker=await this.pool.open(this.role,target.slug,target.id||null,kind==='native-create');
       this.workerId=worker.id;
     }
-    worker=await this.until(s=>{const w=s.workers[this.workerId];requireThat(w&&!['lost','released'].includes(w.phase),'native-worker-lost');return w.phase==='idle'&&w.documentId?w:null;});
+    worker=await this.until(s=>{const w=s.workers[this.workerId];requireThat(w&&!['lost','released'].includes(w.phase),'native-worker-lost');return (w.phase==='idle'||operatorAction&&w.phase==='retained')&&w.documentId?w:null;});
     if(worker.slug!==target.slug||!!worker.fork!==(kind==='native-create')){
       requireThat(!operatorAction,'retained-draft-target-mismatch');
       const navigationId=id+'-nav';
@@ -28,6 +28,8 @@ export class NativeClient {
     await this.coordinator.claim({id,kind,target,payload,parentId:payload.actionId||null,generatorId:target.id||null,workerId:worker.id,documentId:worker.documentId,operatorAction});
     await this.coordinator.dispatch(id,c=>this.pool.send(c));return this.result(id);
   }
+  stopDevelopment(target,id){return this.command('helper-stop',target,{developmentId:id},id+'-helper-stop',true);}
+  resolveDevelopment(target,id){return this.command('helper-resolve',target,{developmentId:id},id+'-helper-resolve',true);}
   startDevelopment(target,id){return this.command('helper-start',target,{developmentId:id},id+'-helper-start');}
   prepareRefresh(target,id){return this.command('refresh-prepare',target,{markerId:id},id+'-prepare');}
   restoreRefresh(target,id){return this.command('refresh-restore',target,{markerId:id},id+'-restore');}

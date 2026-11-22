@@ -69,6 +69,19 @@ export class NativeHelper {
     return async()=>this.until(()=>ack);
   }
   dispose(){for(const fn of this.restore.splice(0))fn();for(const fn of this.listeners.splice(0))fn();}
+  async stop(id,actions=this.actions){
+    actions.capability('helper');await actions.guard();const r=(await this.store.read()).development?.[id];requireThat(r?.nativeAttemptId&&r.documentId===actions.documentId,'helper-attempt-unavailable');
+    const p=actions.page,stop=p.document.querySelector('#aiAgentStopBtn');requireThat(stop&&!stop.disabled,'helper-stop-unavailable');stop.click();
+    return this.until(async()=>{const a=this.activity(),d=await p.__aiAgentDeliveryState?.();return !a.active&&!a.unknown&&d?.id===r.nativeAttemptId&&d.checked&&d.terminal&&!d.busy?{kind:'stopped'}:null;});
+  }
+  async resolve(id){
+    await this.actions.guard();const r=(await this.store.read()).development?.[id];requireThat(r?.phase==='cancelled'&&r.documentId===this.actions.documentId,'cancelled-draft-unavailable');
+    const a=this.activity();requireThat(!a.active&&!a.unknown,'helper-not-settled');
+    if(r.sendInvoked){const d=await this.actions.page.__aiAgentDeliveryState?.();requireThat(d?.id===r.nativeAttemptId&&d.checked&&d.terminal&&!d.busy,'helper-result-unconfirmed');}
+    const target={id:r.generatorId,slug:r.slug};await this.gate.requireOwner(target);const saved=await this.reader.saved(r.slug,r.generatorId),current=await this.editor.capture(target);
+    requireThat(current.clean&&current.draftId===r.draftId&&sourceEqual(current.source,saved.source)&&sourceEqual(saved.source,r.baselineSource)&&saved.listing===r.originalListing,'draft-resolution-unconfirmed');
+    return {kind:'resolved',draftId:current.draftId,listing:saved.listing,source:saved.source};
+  }
   async inspect(id){
     await this.tail;const r=(await this.store.read()).development?.[id];if(!r||!['running','submitting'].includes(r.phase))return;
     const target={id:r.generatorId,slug:r.slug};
