@@ -74,3 +74,20 @@ test('unknown source-choice commit reconciles without a second ready commit',asy
   const f=await fixture();f.conflict();await f.sync.syncOne('pending');const comparison=await f.sync.compare('pending');f.unknown();await f.sync.decide(comparison.token,'github',true);assert.equal((await f.store.read()).pending.pending.phase,'publication-unknown');
   await f.sync.syncOne('pending');assert.equal((await f.store.read()).pending.pending.phase,'publication-queued');assert.equal(f.calls.length,1);
 });
+test('explicit repository reassignment creates a single successor and preserves the original source record',async()=>{
+  const f=await fixture(),target={owner:'synthetic',name:'new-repo'},targetSnapshot={repository:target,commit:'d'.repeat(40),entries:{}};
+  await f.store.transact(s=>{s.settings.github={repository:target,pat:'synthetic-new-pat'};s.settings.repositoryCredentials={'synthetic/original':'synthetic-old-pat'};});
+  f.sync.services=async repo=>{assert.deepEqual(repo,target);return {github:{snapshot:async()=>targetSnapshot}};};
+  await assert.rejects(f.sync.reassign('pending',false),/confirmation-required/);const next=await f.sync.reassign('pending',true),s=await f.store.read();assert.equal(s.pending.pending.phase,'reassigned');assert.deepEqual(s.pending.pending.source,f.source);assert.equal(s.pending[next].predecessorId,'pending');assert.deepEqual(s.pending[next].repository,target);assert.deepEqual(s.pending[next].source,f.source);assert.equal(s.pending[next].writeId,null);assert.equal(s.settings.repositoryCredentials['synthetic/original'],undefined);assert.equal(f.calls.length,0);
+});
+test('repository reassignment refuses unresolved original writes and incompatible target requests',async()=>{
+  const f=await fixture();await f.store.transact(s=>{s.settings.github.repository={owner:'synthetic',name:'new-repo'};s.jobs.old={id:'old',kind:'github',slug:'target-slug',repository:s.pending.pending.repository,phase:'unknown'};});await assert.rejects(f.sync.reassign('pending',true),/recheck-original-write-first/);
+  await f.store.transact(s=>{s.jobs.old.phase='verified';});f.sync.services=async()=>({github:{snapshot:async()=>({repository:{owner:'synthetic',name:'new-repo'},commit:'d'.repeat(40),entries:{'target-slug/status.md':{}}}),text:async()=>`account: another\naction: develop\nstate: ready\n`}});await assert.rejects(f.sync.reassign('pending',true),/target-request-conflict/);assert.equal((await f.store.read()).pending.pending.repository.name,'original');
+});
+test('Stop managing preserves source and uncertain evidence without deleting the native generator',async()=>{
+  const f=await fixture();await f.store.transact(s=>{s.jobs.inflight={id:'inflight',kind:'save',generatorId:'123',phase:'dispatched'};s.workers.utility={id:'utility',role:'utility',generatorId:'123',phase:'busy'};});
+  await assert.rejects(f.sync.stop('pending',false),/confirmation-required/);await f.sync.stop('pending',true);const s=await f.store.read();assert.equal(s.generators['123'],undefined);assert.equal(s.pending.pending.phase,'stopped');assert.deepEqual(s.pending.pending.source,f.source);assert.equal(s.jobs.inflight.phase,'unknown');assert.equal(s.jobs.inflight.locallyStopped,true);assert.equal(s.workers.utility.phase,'retained');assert.equal(f.calls.length,0);assert.equal((await f.sync.syncOne('pending')).phase,'stopped');
+});
+test('active or lost Development slots must be resolved before Stop managing',async()=>{
+  const f=await fixture();await f.store.transact(s=>{s.workers.dev={id:'dev',generatorId:'123',role:'development',phase:'lost'};});await assert.rejects(f.sync.stop('pending',true),/resolve-development-before-stop/);assert.ok((await f.store.read()).generators['123']);
+});

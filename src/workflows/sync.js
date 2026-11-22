@@ -1,5 +1,6 @@
 import {requireThat,sourceEqual,parseStatus,addHold,releaseHold,completeSource} from '../shared/domain.js';
 import {sourceChanges,statusChanges} from '../adapters/github/writer.js';
+import {pendingWork,repositoryKey} from '../state/settings.js';
 import {appendEvent} from '../state/journal.js';
 
 const TERMINAL=['synced','stopped','reassigned','superseded'];
@@ -161,6 +162,63 @@ export class Synchronizer {
       const job=(await this.store.read()).jobs[decision.writeId];
       await this.update(p.id,row=>{if(!TERMINAL.includes(row.phase)){row.phase=job?.phase==='unknown'?'publication-unknown':error.message==='github-write-not-live-verified'?'live-verification-required':'request-conflict';row.reason=error.message==='account-assignment-mismatch'?'account-conflict':row.phase;row.decision.phase=job?.phase==='unknown'?'unknown':'held';}});return this.record(p.id);
     }
+  }
+  cleanupCredentials(state){
+    const needed=new Set(pendingWork(state).filter(w=>w.repository).map(w=>repositoryKey(w.repository)));
+    for(const key of Object.keys(state.settings.repositoryCredentials||{}))if(!needed.has(key))delete state.settings.repositoryCredentials[key];
+  }
+  unresolvedWrites(state,p){
+    return Object.values(state.jobs).some(j=>j.kind==='github'&&JSON.stringify(j.repository)===JSON.stringify(p.repository)&&j.slug===p.slug&&(['dispatched','unknown'].includes(j.phase)||j.remoteOutcome==='unknown'));
+  }
+  async reassign(id,confirmed){
+    requireThat(confirmed===true,'reassignment-confirmation-required');await this.guard();const state=await this.store.read(),p=await this.record(id),target=state.settings.github?.repository;
+    requireThat(target&&JSON.stringify(target)!==JSON.stringify(p.repository),'different-tested-repository-required');
+    requireThat(!TERMINAL.includes(p.phase)&&!p.decision&&!this.unresolvedWrites(state,p),'recheck-original-write-first');
+    if(p.kind==='source')requireThat(p.nativeVerified===true&&state.generators[p.generatorId]?.localDone&&state.generators[p.generatorId]?.savedVerified,'verified-local-source-required');
+    const client=await this.services(target),snapshot=await client.github.snapshot();
+    if(hasFolder(snapshot,p.slug)){
+      const status=parseStatus(await client.github.text(snapshot,p.slug+'/status.md'));
+      requireThat(sameStatus(status,p.status),'reassignment-target-request-conflict');
+      if(p.kind==='source')requireThat(sourceEqual(await client.github.source(snapshot,p.slug),p.source),'reassignment-target-source-conflict');
+    }else requireThat(p.kind==='source','reassignment-target-source-required');
+    const nextId='reassigned-'+this.uuid();
+    await this.update(id,(row,s)=>{
+      requireThat(JSON.stringify(s.settings.github?.repository)===JSON.stringify(target)&&!this.unresolvedWrites(s,row)&&!TERMINAL.includes(row.phase),'reassignment-state-changed');
+      const {scope:_,...copy}=structuredClone(row);
+      if(row.scope==='utility'){
+        const old=s.utility[row.requestId];s.utility[nextId]={id:nextId,request:{...old.request,repository:target,commit:snapshot.commit},generatorId:row.generatorId,phase:'blocked',closed:true,steps:[],pendingStatus:{...copy,id:'utility-status-'+nextId,requestId:nextId,repository:target,baseCommit:snapshot.commit,phase:'prepared',writeId:null,reason:null,predecessorId:row.id}};
+        row.successorId='utility-status-'+nextId;
+      }else{
+        s.pending[nextId]={...copy,id:nextId,repository:target,baseCommit:snapshot.commit,originRepository:row.repository,predecessorId:row.id,phase:row.kind==='source'?'local-done':'prepared',writeId:null,reason:null,syncKind:row.kind};row.successorId=nextId;
+      }
+      row.phase='reassigned';row.reason='operator-reassigned';
+      const oldUtility=row.requestId&&s.utility?.[row.requestId];if(row.scope==='pending'&&oldUtility?.pendingStatus){oldUtility.pendingStatus.phase='reassigned';oldUtility.pendingStatus.successorId=nextId;}
+      if(row.requestId&&s.requestQueue?.[row.requestId]){s.requestQueue[row.requestId].closed=true;s.requestQueue[row.requestId].phase='reassigned';}
+      const g=s.generators[row.generatorId];if(g)s.generators[row.generatorId]=releaseHold(g,'sync-'+row.id);
+      // Persisted source remains in the original record; only the explicit successor can write.
+    });
+    await this.store.transact(s=>{this.assertCurrent(s);this.cleanupCredentials(s);});return nextId;
+  }
+  async stop(id,confirmed){
+    requireThat(confirmed===true,'stop-management-confirmation-required');await this.guard();const p=await this.record(id);
+    await this.store.transact(s=>{
+      this.assertCurrent(s);
+      requireThat(!Object.values(s.workers).some(w=>w.generatorId===p.generatorId&&p.generatorId&&w.role==='development'&&['opening','busy','lost'].includes(w.phase)),'resolve-development-before-stop');
+      const affected=syncRecords(s).filter(row=>row.id===id||(p.generatorId&&row.generatorId===p.generatorId));
+      const requestIds=new Set(affected.map(row=>row.requestId).filter(Boolean));
+      for(const row of affected){
+        if(row.scope==='pending'){s.pending[row.id].phase='stopped';s.pending[row.id].reason='operator-stopped';}
+        else {s.utility[row.requestId].pendingStatus.phase='stopped';s.utility[row.requestId].pendingStatus.reason='operator-stopped';}
+      }
+      for(const r of Object.values(s.utility||{}))if(requestIds.has(r.id)||p.generatorId&&r.generatorId===p.generatorId){r.stopped=true;r.closed=true;r.phase='stopped';if(r.pendingStatus)r.pendingStatus.phase='stopped';requestIds.add(r.id);}
+      for(const q of Object.values(s.requestQueue||{}))if(requestIds.has(q.id)){q.closed=true;q.phase='stopped';}
+      if(p.generatorId){const g=s.generators[p.generatorId];if(g?.importCommand&&s.commands[g.importCommand])s.commands[g.importCommand].phase='stopped';delete s.generators[p.generatorId];}
+      for(const job of Object.values(s.jobs))if(p.generatorId&&job.generatorId===p.generatorId||requestIds.has(job.requestId)||job.id===p.writeId||job.kind==='github'&&job.slug===p.slug&&JSON.stringify(job.repository)===JSON.stringify(p.repository)){
+        job.locallyStopped=true;if(['dispatched','unknown'].includes(job.phase)){job.phase='unknown';job.remoteOutcome='unknown';}else if(job.phase==='prepared'){job.phase='cancelled';job.resolution='known-not-dispatched';}
+      }
+      for(const w of Object.values(s.workers))if(p.generatorId&&w.generatorId===p.generatorId)w.phase='retained';
+      appendEvent(s,{component:'recovery',outcome:'cancelled',nativeId:p.generatorId||null});this.cleanupCredentials(s);
+    });return this.record(id);
   }
   async decide(token,choice,confirmed){
     requireThat(confirmed===true&&['local','github'].includes(choice),'source-confirmation-required');

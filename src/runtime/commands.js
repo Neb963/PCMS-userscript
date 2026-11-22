@@ -22,9 +22,9 @@ export class CommandRunner {
       try{
         requireThat(command.kind==='bulk-import','unsupported-command');
         const workflow=await this.importWorkflow(command);const results=await workflow.run(command);
-        await this.store.transact(s=>{this.coordinator.assertOwner(s);s.commands[command.id].phase=results.some(r=>r.outcome==='unknown')?'unknown':'done';});
+        await this.store.transact(s=>{this.coordinator.assertOwner(s);if(s.commands[command.id].phase==='stopped')return;s.commands[command.id].phase=results.some(r=>r.outcome==='unknown')?'unknown':'done';});
       }catch{
-        await this.store.transact(s=>{this.coordinator.assertOwner(s);s.commands[command.id].phase='blocked';s.commands[command.id].reason='operation-unavailable-or-unconfirmed';});
+        await this.store.transact(s=>{this.coordinator.assertOwner(s);if(s.commands[command.id].phase==='stopped')return;s.commands[command.id].phase='blocked';s.commands[command.id].reason='operation-unavailable-or-unconfirmed';});
       }
     }finally{this.busy=false;}
   }

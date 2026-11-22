@@ -3,7 +3,7 @@ import { folderVersion, statusChanges } from '../adapters/github/writer.js';
 
 export class Reservation {
   constructor({store,slugs,reader,native,gate,github,writer,guard=async()=>{},assertCurrent=()=>{}}) {Object.assign(this,{store,slugs,reader,native,gate,github,writer,guard,assertCurrent});}
-  async update(id,change){await this.guard();return this.store.transact(s=>{this.assertCurrent(s);const r=s.utility?.[id];requireThat(r,'reservation-not-found');return change(r,s);});}
+  async update(id,change){await this.guard();return this.store.transact(s=>{this.assertCurrent(s);const r=s.utility?.[id];requireThat(r,'reservation-not-found');requireThat(!r.stopped,'request-stopped');return change(r,s);});}
   async current(id){return (await this.store.read()).utility[id];}
 
   async verify(target) {
@@ -14,6 +14,7 @@ export class Reservation {
   }
 
   async effect(id,step,perform,recheck) {
+    requireThat(!(await this.current(id)).stopped,'request-stopped');
     const actionId=id+'-'+step;const job=(await this.store.read()).jobs[actionId];
     if(job){
       if(job.phase==='verified')return job.data;

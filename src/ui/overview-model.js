@@ -30,7 +30,7 @@ export function actionCases(state, { session = null, storageAvailable = true } =
     rows.push({key:'generator-'+gen.id,nativeId:gen.id,slug:gen.slug,priority,title,destination,action,causes:causes.map(c=>c.kind),retainedTab:gen.retainedTab||null});
   }
   for(const request of state.requests||[])if(!request.valid&&!Object.values(state.generators).some(g=>g.slug===request.slug))rows.push({key:JSON.stringify([request.repository,request.slug]),slug:request.slug,priority:4,title:'Invalid request',destination:'utility',action:'Open Utility',causes:['invalid-request']});
-  for(const job of Object.values(state.jobs))if(job.kind==='github'&&job.phase==='unknown'){
+  for(const job of Object.values(state.jobs))if(job.kind==='github'&&job.phase==='unknown'&&!job.locallyStopped){
     const pending=Object.values(state.pending).find(p=>p.slug===job.slug&&JSON.stringify(p.repository)===JSON.stringify(job.repository));
     const gen=pending&&state.generators[pending.generatorId];
     const key=gen?'generator-'+gen.id:JSON.stringify([job.repository,job.slug]);

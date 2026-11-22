@@ -29,8 +29,8 @@ export class RequestRunner {
       await this.store.transact(s=>{this.coordinator.assertOwner(s);s.requestQueue[command.id].phase='running';s.requestQueue[command.id].term=this.coordinator.term;delete s.requestQueue[command.id].reason;});
       try{
         const result=await workflow.run(command.request,command.id);
-        await this.store.transact(s=>{this.coordinator.assertOwner(s);const own=s.requestQueue[command.id];own.phase=result.phase;own.closed=result.closed===true;own.reason=result.reason||null;});
-      }catch{await this.store.transact(s=>{this.coordinator.assertOwner(s);s.requestQueue[command.id].phase='unknown';s.requestQueue[command.id].reason='request-result-unconfirmed';});}
+        await this.store.transact(s=>{this.coordinator.assertOwner(s);const own=s.requestQueue[command.id];if(own.phase==='stopped')return;own.phase=result.phase;own.closed=result.closed===true;own.reason=result.reason||null;});
+      }catch{await this.store.transact(s=>{this.coordinator.assertOwner(s);if(s.requestQueue[command.id].phase==='stopped')return;s.requestQueue[command.id].phase='unknown';s.requestQueue[command.id].reason='request-result-unconfirmed';});}
     }finally{this.busy=false;}
   }
 }

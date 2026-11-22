@@ -35,13 +35,13 @@ export class NativeActions {
   receipt(path,invoke,matches){return nativeReceipt(this.page,{path,invoke,matches,exporter:this.exporter});}
   selected(){requireThat(this.doc.visibilityState!=='visible','operator-selected-tab');}
   async create(actionId){
-    this.capability('create');this.selected();const state=await this.gate.store.read();await this.gate.requireSession(state.settings.account.accountId);
+    this.capability('create');this.selected();await this.guard();const state=await this.gate.store.read();await this.gate.requireSession(state.settings.account.accountId);
     requireThat(this.page.location.pathname==='/minimal'&&['#edit:new','#edit'].includes(this.page.location.hash),'creation-template-unconfirmed');
     requireThat(this.page.currentInterfaceMode==='edit'&&this.page.perchanceSaveState!=='saving'&&this.page.__draftChoiceSettled!==false,'editor-not-settled');
     await this.native.ready(this.native.identity());
     requireThat(this.page.modelTextEditor.isClean?.()===true&&this.page.outputTemplateEditor.isClean?.()===true&&this.page.srcState.isDirty?.()===false,'dirty-template');
     requireThat(!await this.native.ownership('minimal'),'creation-template-owned');
-    const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name==='minimal');
+    await this.guard();this.selected();const receipt=await this.receipt('/api/save',()=>this.page.app.saveGenerator(),body=>body?.generator?.name==='minimal');
     requireThat(receipt.status==='created'&&typeof receipt.name==='string','creation-receipt-unconfirmed');
     slug(receipt.name);
     if(this.store&&actionId){await this.guard();await this.store.transact(s=>{s.jobs[actionId].creationReceipt=receipt;});}
@@ -53,12 +53,12 @@ export class NativeActions {
     await this.gate.requireOwner(saved);return saved;
   }
   async listing(target,intent){
-    this.capability('listing');this.selected();requireThat(['listed','unlisted'].includes(intent),'invalid-listing');
+    this.capability('listing');this.selected();await this.guard();requireThat(['listed','unlisted'].includes(intent),'invalid-listing');
     await this.gate.requireOwner(target);await this.native.ready(target);
     this.page.app.openListingMenu();
     const control=this.page.document.querySelector('#listingMenuEl button[data-value="'+intent+'"]');
     requireThat(control&&!control.disabled&&control.getClientRects().length,'listing-control-unavailable');
-    const receipt=await this.receipt('/api/changeGeneratorPrivacy',()=>control.click(),body=>body?.generatorName===target.slug&&body.isPrivate===(intent==='unlisted'));
+    await this.guard();this.selected();const receipt=await this.receipt('/api/changeGeneratorPrivacy',()=>control.click(),body=>body?.generatorName===target.slug&&body.isPrivate===(intent==='unlisted'));
     requireThat(receipt.status==='success','listing-receipt-unconfirmed');return receipt;
   }
   async deploy(target,pendingId){
@@ -77,12 +77,12 @@ export class NativeActions {
     await this.guard();await this.store.transact(s=>{const r=s.utility?.[pending.requestId];if(r&&!r.steps.includes('native Save'))r.steps.push('native Save');});return receipt;
   }
   async rename(target,targetSlug){
-    this.capability('rename');this.selected();slug(targetSlug);await this.gate.requireOwner(target);await this.native.ready(target);
+    this.capability('rename');this.selected();await this.guard();slug(targetSlug);await this.gate.requireOwner(target);await this.native.ready(target);
     this.page.app.openSettingsModal();const modal=this.page.settingsModal;
     requireThat(modal?.refs?.newGeneratorName&&typeof modal.changeGeneratorName==='function','rename-control-unavailable');
     modal.refs.newGeneratorName.value=targetSlug;
     modal.refs.newGeneratorName.dispatchEvent(new this.page.Event('input',{bubbles:true}));
-    const receipt=await this.receipt('/api/changeGeneratorName',()=>modal.changeGeneratorName(),body=>body?.currentName===target.slug&&body.newName===targetSlug);
+    await this.guard();this.selected();const receipt=await this.receipt('/api/changeGeneratorName',()=>modal.changeGeneratorName(),body=>body?.currentName===target.slug&&body.newName===targetSlug);
     requireThat(receipt.status==='success','rename-receipt-unconfirmed');return receipt;
   }
 }

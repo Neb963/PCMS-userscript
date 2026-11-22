@@ -6,12 +6,12 @@ export function repositoryKey(repo) { return `${repo.owner}/${repo.name}`.toLowe
 
 export function pendingWork(state) {
   const work = [];
-  for (const p of Object.values(state.pending)) if (p.phase !== 'synced' || (p.source && state.generators[p.generatorId]?.holds?.length)) work.push({ id: p.id, generatorId: p.generatorId, slug: p.slug, repository: p.repository, kind: 'sync' });
-  for (const j of Object.values(state.jobs)) if (['prepared','dispatched','unknown'].includes(j.phase)) work.push({ id: j.id, generatorId: j.generatorId || null, slug: j.slug || null, repository: j.repository || state.settings.github?.repository || null, kind: j.kind });
+  for (const p of Object.values(state.pending)) if (!['synced','stopped','reassigned','superseded'].includes(p.phase) || (p.phase==='synced'&&p.source && state.generators[p.generatorId]?.holds?.length)) work.push({ id: p.id, generatorId: p.generatorId, slug: p.slug, repository: p.repository, kind: 'sync' });
+  for (const j of Object.values(state.jobs)) if (!j.locallyStopped&&['prepared','dispatched','unknown'].includes(j.phase)) work.push({ id: j.id, generatorId: j.generatorId || null, slug: j.slug || null, repository: j.repository || state.settings.github?.repository || null, kind: j.kind });
   for (const g of Object.values(state.generators)) if (g.holds?.some(h => ['edit','development','review','cancelled-draft'].includes(h.kind))) work.push({ id: 'draft-' + g.id, generatorId: g.id, slug: g.slug, repository: g.repository || state.settings.github?.repository || null, kind: 'draft' });
   for (const command of Object.values(state.commands || {})) if (['queued','running','unknown','blocked'].includes(command.phase)) work.push({ id:command.id,generatorId:null,slug:null,repository:command.repository,kind:command.kind });
   for(const request of Object.values(state.requestQueue||{}))if(!request.closed)work.push({id:request.id,generatorId:state.utility?.[request.id]?.generatorId||null,slug:request.request.slug,repository:request.request.repository,kind:'utility'});
-  for(const record of Object.values(state.utility||{}))if(record.pendingStatus)work.push({id:record.id+'-status',generatorId:record.generatorId||null,slug:record.request.slug,repository:record.request.repository,kind:'sync'});
+  for(const record of Object.values(state.utility||{}))if(record.pendingStatus&&!['synced','stopped','reassigned','superseded'].includes(record.pendingStatus.phase))work.push({id:record.id+'-status',generatorId:record.generatorId||null,slug:record.request.slug,repository:record.request.repository,kind:'sync'});
   return work.sort((a,b)=>a.id.localeCompare(b.id));
 }
 
