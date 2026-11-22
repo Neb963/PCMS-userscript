@@ -48,3 +48,15 @@ test('native refresh request cannot change panel content, src path set, key or b
 test('an operator draft changed during a rejected Save is retained and held instead of being restored over',async()=>{
   const f=await fixture();await f.prepared();f.mode('failed');const send=f.actions.receipt;f.actions.receipt=async(...args)=>{const reply=await send(...args);f.dirty();return reply;};const result=await f.worker.save(f.target,'attempt-one');assert.equal(result.kind,'failed');assert.equal(result.hold,'edit');assert.equal(result.reusable,false);assert.equal(f.actions.page.modelTextEditor.getValue(),'operator draft');assert.equal(f.saves(),1);
 });
+test('Pause cleanup restores its own staged markers without a Save or an attempt',async()=>{
+  const f=await fixture();assert.equal((await f.worker.prepare(f.target,'attempt-one')).kind,'prepared');
+  assert.deepEqual(await f.worker.abort(f.target,'attempt-one'),{kind:'restored',reusable:true});
+  assert.equal(f.actions.page.modelTextEditor.getValue(),f.previous.pjs);assert.equal(f.actions.page.outputTemplateEditor.getValue(),f.previous.html);assert.equal(f.saves(),0);
+  const s=await f.store.read();assert.equal(s.attempts.length,0);assert.equal(s.refreshDrafts['attempt-one'].phase,'resolved');assert.equal(s.refreshDrafts['attempt-one'].source,undefined);
+});
+test('Pause cleanup keeps an operator draft changed during saved-source readback',async()=>{
+  const f=await fixture();await f.worker.prepare(f.target,'attempt-one');const read=f.reader.saved;
+  f.reader.saved=async(...args)=>{const result=await read(...args);f.dirty();return result;};
+  assert.deepEqual(await f.worker.abort(f.target,'attempt-one'),{kind:'held',reusable:false});
+  assert.equal(f.actions.page.modelTextEditor.getValue(),'operator draft');assert.equal(f.saves(),0);assert.equal((await f.store.read()).refreshDrafts['attempt-one'].phase,'staged');
+});

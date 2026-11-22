@@ -39,3 +39,12 @@ test('a dirty retained editor cannot be reused as another generator worker',asyn
 test('known native result survives a one-time atomic outcome storage failure without another Save',async()=>{
   const f=await fixture(),set=f.store.set;let failed=false;f.store.set=async(k,v)=>{if(!failed&&v.includes('"recorded":true')){failed=true;throw Error('quota');}return set(k,v);};await f.controller.tick();const s=await f.store.read();assert.equal(f.calls.filter(c=>c.startsWith('save-')).length,1);assert.equal(s.attempts[0].outcome,'confirmed');assert.equal(s.generators.a.holds.length,0);assert.equal(s.journal.filter(e=>e.outcome==='confirmed').length,1);assert.equal(s.workers.worker.phase,'idle');
 });
+test('Pause during preparation restores only its own marker draft without an attempt or FIFO rotation',async()=>{
+  const f=await fixture();const prepare=f.native.prepareRefresh;let restores=0;f.native.prepareRefresh=async(...args)=>{const result=await prepare(...args);await f.store.transact(s=>{s.settings.refreshPaused=true;});return result;};f.native.restoreRefresh=async()=>{restores++;return {kind:'restored',reusable:true};};await f.controller.tick();const s=await f.store.read();assert.equal(restores,1);assert.equal(s.attempts.length,0);assert.deepEqual(s.fifo,['a','b','c']);assert.equal(s.generators.a.holds.length,0);assert.equal(s.workers.worker.phase,'idle');assert.equal(f.calls.some(c=>c.startsWith('save-')),false);
+});
+test('unconfirmed Pause cleanup retains only its affected generator and preserves FIFO/history',async()=>{
+  const f=await fixture(),prepare=f.native.prepareRefresh;
+  f.native.prepareRefresh=async(target,id)=>{await prepare(target,id);await f.store.prepareAction({id:id+'-prepare',kind:'refresh-prepare',generatorId:target.id,workerId:'worker'});await f.store.transact(s=>{s.jobs[id+'-prepare'].phase='verified';s.settings.refreshPaused=true;});return {kind:'prepared'};};
+  f.native.restoreRefresh=async()=>({kind:'held',reusable:false});await f.controller.tick();
+  const s=await f.store.read();assert.equal(s.attempts.length,0);assert.deepEqual(s.fifo,['a','b','c']);assert.equal(s.generators.a.holds[0].kind,'edit');assert.equal(s.generators.b.holds.length,0);assert.equal(s.workers.worker.phase,'retained');assert.equal(f.calls.some(c=>c.startsWith('save-')),false);
+});

@@ -41,9 +41,16 @@ export class NativeRefresher {
     try{
       this.actions.selected();await this.actions.guard();await this.context(target,record);
       const live=await this.reader.saved(target.slug,target.id);requireThat(sourceEqual(live.source,record.previousSource),'source-drift');
-      this.actions.selected();await this.actions.guard();this.actions.page.modelTextEditor.setValue(record.previousSource.pjs);this.actions.page.outputTemplateEditor.setValue(record.previousSource.html);this.actions.page.recomputeSaveState?.();
+      await this.context(target,record);this.actions.selected();await this.actions.guard();
+      requireThat(this.actions.page.modelTextEditor.getValue()===record.source.pjs&&this.actions.page.outputTemplateEditor.getValue()===record.source.html,'dirty-or-stale-editor');
+      this.actions.page.modelTextEditor.setValue(record.previousSource.pjs);this.actions.page.outputTemplateEditor.setValue(record.previousSource.html);this.actions.page.recomputeSaveState?.();
       const current=await this.editor.capture(target);return current.clean&&sourceEqual(current.source,record.previousSource);
     }catch{return false;}
+  }
+  async abort(target,id){
+    this.actions.capability('save');const record=await this.snapshot(id);requireThat(record.phase==='staged','refresh-context-changed');const reusable=await this.restore(target,record);
+    if(reusable)await this.store.transact(s=>{s.refreshDrafts[id].phase='resolved';s.refreshDrafts[id].outcome='not-sent';delete s.refreshDrafts[id].source;delete s.refreshDrafts[id].previousSource;});
+    return {kind:reusable?'restored':'held',reusable};
   }
   async save(target,id){
     let sent=false,receipt=null,record;

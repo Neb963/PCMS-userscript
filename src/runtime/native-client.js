@@ -29,6 +29,7 @@ export class NativeClient {
     await this.coordinator.dispatch(id,c=>this.pool.send(c));return this.result(id);
   }
   prepareRefresh(target,id){return this.command('refresh-prepare',target,{markerId:id},id+'-prepare');}
+  restoreRefresh(target,id){return this.command('refresh-restore',target,{markerId:id},id+'-restore');}
   saveRefresh(target,id){return this.command('refresh-save',target,{markerId:id},id+'-save');}
   deploy(target,pendingId,actionId){return this.command('native-deploy',target,{pendingId,actionId},actionId+'-worker');}
   create(actionId){return this.command('native-create',{slug:'minimal'},{actionId},actionId+'-worker');}

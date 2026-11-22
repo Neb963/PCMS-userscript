@@ -78,6 +78,8 @@ export class WorkerPool {
         requireThat(own?.documentId === reply.documentId, 'stale-worker-reply');
         if (own.outbox?.data !== undefined) current.jobs[command.id].data = structuredClone(own.outbox.data);
         if(command.kind==='navigate'&&reply.outcome==='verified')own.navigation={slug:command.target.slug,generatorId:command.target.id||null,fork:command.fork===true,term:command.term,expiresAt:this.now()+15000};
+        if(command.kind.startsWith('refresh-')){own.nativeVerified=reply.outcome==='verified'&&['prepared','confirmed','restored'].includes(own.outbox?.data?.kind)||reply.outcome==='verified'&&own.outbox?.data?.kind==='failed'&&own.outbox.data.reusable===true;if(own.nativeVerified)own.nativeProofId=command.id;}
+        if(command.kind==='navigate')own.nativeVerified=false;
         delete own.outbox;
         own.phase = reply.outcome === 'unknown' ? (own.role === 'development' ? 'busy' : 'retained') : 'idle';
       });
@@ -115,9 +117,11 @@ export class WorkerRuntime {
       const worker = state.workers[this.id];
       requireThat(worker && worker.phase === 'opening', 'unassigned-worker');
       worker.documentId = this.documentId;
+      worker.nativeVerified = false;
+      delete worker.nativeProofId;
       worker.phase = 'idle';
       worker.selected = this.doc.visibilityState === 'visible';
-      worker.observedAt = this.now();
+      worker.observedAt = this.now();worker.pulse=(worker.pulse||0)+1;
     });
   }
 
@@ -138,7 +142,7 @@ export class WorkerRuntime {
       const worker = state.workers[this.id];
       requireThat(worker && worker.documentId === this.documentId, 'stale-worker');
       worker.selected = this.doc.visibilityState === 'visible';
-      worker.observedAt = this.now();
+      worker.observedAt = this.now();worker.pulse=(worker.pulse||0)+1;
     });
   }
 

@@ -57,7 +57,8 @@ export class RefresherController {
           const outcome=await native.saveRefresh(target,id);
           await this.result(generatorId,id,id+'-save',outcome);
           if(!outcome.reusable)await this.retainWorker(native.workerId);
-        }catch{
+        }catch(error){
+          if(!counted&&error.message==='refresh-slot-unavailable'&&native.restoreRefresh){try{const restored=await native.restoreRefresh(target,id);if(restored.reusable)return;}catch{ /* Keep the protected draft and apply its hold below. */ }}
           const jobId=id+(counted?'-save':'-prepare');let retire=true;
           if(counted){
             const known=(await this.store.read()).jobs[jobId]?.data;

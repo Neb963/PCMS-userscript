@@ -21,6 +21,9 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { RefresherSettings } from './refresher/view.js';
+import { refresherRenderer } from './ui/refresher.js';
+import { PulseMonitor } from './runtime/health.js';
 import { NativeRefresher } from './refresher/native.js';
 import { RefresherController } from './refresher/controller.js';
 import { guardNativeCommand } from './runtime/coordinator.js';
@@ -72,9 +75,9 @@ function coordinate(store, ui = null) {
   const pool = new WorkerPool({ store, openTab: GM_openInTab });
   const poller = new GitHubPoller({ store, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
   const scheduler=new RefreshScheduler({store,bootId:coordinator.owner,available:state=>state.settings.account.confirmed&&Object.values(state.workers).some(w=>w.role==='refresher'&&w.phase==='idle'&&w.documentId&&!w.selected),guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
+  const health=new PulseMonitor();
   let consuming = false;
   let lastPulse = 0;
-  const mountedAt = Date.now();
   const gate = new SessionGate(store, new NativePage(unsafeWindow));
   const importWorkflow = async command => {
     const state = await store.read();
@@ -93,7 +96,7 @@ function coordinate(store, ui = null) {
   const refresh = async () => {
     if (!ui || updating) return;
     updating = true;
-    try { const session = await gate.observe(); const state = await store.read(); const verified = coordinator.active || (state.coordinator.observedAt >= mountedAt && Date.now() - state.coordinator.observedAt < 15000); ui.update(publicSnapshot(state, { session, coordinator: verified ? 'Verified' : 'Unverified' })); }
+    try { const session = await gate.observe(); const state = await store.read(); const pulse=health.observe('coordinator',JSON.stringify([state.coordinator.owner,state.coordinator.term,state.coordinator.pulse||0]));const verified = coordinator.active || pulse&&state.coordinator.pulse>0; ui.update(publicSnapshot(state, { session, coordinator: verified ? 'Verified' : 'Unverified' })); }
     catch { ui.update({ restored: true, storageAvailable: false, coordinator: 'Unverified' }); }
     finally { updating = false; }
   };
@@ -101,7 +104,7 @@ function coordinate(store, ui = null) {
     if (consuming || !coordinator.active) return;
     consuming = true;
     try {
-      if (Date.now() - lastPulse >= 5000) { await store.transact(state => { coordinator.assertOwner(state); state.coordinator.observedAt = Date.now(); }); lastPulse = Date.now(); }
+      if (performance.now()-lastPulse>=5000||performance.now()<lastPulse||!lastPulse) { await store.transact(state => { coordinator.assertOwner(state);state.coordinator.observedAt=Date.now();state.coordinator.pulse=(state.coordinator.pulse||0)+1;const input=scheduler.project(state),worker=Object.values(state.workers).find(w=>w.role==='refresher'&&!['retained','released','lost'].includes(w.phase));const workerFresh=worker&&health.observe('worker-'+worker.id,JSON.stringify([worker.documentId,worker.pulse||0,worker.nativeProofId||null]));state.refreshView={owner:coordinator.owner,term:coordinator.term,logicalAt:input.clock.logical,restartAt:input.clock.restartAt,observedAt:Date.now(),workerId:worker?.id||null,documentId:worker?.documentId||null,workerKnown:workerFresh&&worker.nativeVerified===true};}); lastPulse = performance.now(); }
       scheduler.reconcile().catch(()=>{});await pool.consume(coordinator);
       if(!requests.busy&&!commands.busy)commands.tick().then(()=>requests.tick()).catch(()=>{});
       refresher.tick().catch(()=>{});synchronizer.tickCommands().catch(()=>{});synchronizer.tick().catch(()=>{});await poller.check(true);
@@ -141,7 +144,7 @@ async function startAssignedWorker() {
     const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
     if(command.kind==='navigate'){await cleanNavigation();return {outcome:'verified'};}
     const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,workerId:id,documentId:command.documentId,actionId:command.id,guard:async()=>guardNativeCommand(await store.read(),command,id),exporter:typeof exportFunction==='function'?exportFunction:null});
-    if(command.kind==='refresh-prepare'||command.kind==='refresh-save'){const refresher=new NativeRefresher({actions,store,native,gate,reader});return {outcome:'verified',data:command.kind==='refresh-prepare'?await refresher.prepare(command.target,command.payload.markerId):await refresher.save(command.target,command.payload.markerId)};}
+    if(command.kind==='refresh-prepare'||command.kind==='refresh-save'||command.kind==='refresh-restore'){const refresher=new NativeRefresher({actions,store,native,gate,reader});return {outcome:'verified',data:command.kind==='refresh-prepare'?await refresher.prepare(command.target,command.payload.markerId):command.kind==='refresh-restore'?await refresher.abort(command.target,command.payload.markerId):await refresher.save(command.target,command.payload.markerId)};}
     if(command.kind==='native-deploy')return {outcome:'verified',data:await actions.deploy(command.target,command.payload.pendingId)};
     if(command.kind==='native-create')return {outcome:'verified',data:await actions.create(command.payload.actionId)};
     if(command.kind==='native-listing')return {outcome:'verified',data:await actions.listing(command.target,command.payload.intent)};
@@ -192,7 +195,7 @@ if (isAppPage(location)) {
   let runtime;
   const ui = mountShell(document, host, {
     onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
-    renderers: { sync: syncRenderer({store,service:()=>({compare:id=>runtime.synchronizer.compare(id),syncOne:id=>enqueueSyncAction(store,'recheck',id),decide:(token,choice,confirmed)=>runtime.synchronizer.enqueueDecision(token,choice,confirmed),reassign:(id,confirmed)=>enqueueSyncAction(store,'reassign',id,{confirmed}),stop:(id,confirmed)=>enqueueSyncAction(store,'stop',id,{confirmed})}),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), utility: utilityRenderer(), import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
+    renderers: { refresher:refresherRenderer({controller:new RefresherSettings(store),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), sync: syncRenderer({store,service:()=>({compare:id=>runtime.synchronizer.compare(id),syncOne:id=>enqueueSyncAction(store,'recheck',id),decide:(token,choice,confirmed)=>runtime.synchronizer.enqueueDecision(token,choice,confirmed),reassign:(id,confirmed)=>enqueueSyncAction(store,'reassign',id,{confirmed}),stop:(id,confirmed)=>enqueueSyncAction(store,'stop',id,{confirmed})}),project:state=>publicSnapshot(state,{coordinator:runtime?.coordinator.active?'Verified':'Unverified'})}), utility: utilityRenderer(), import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
       requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
       signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
     }) },

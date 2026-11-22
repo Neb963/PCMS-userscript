@@ -74,3 +74,9 @@ test('hidden worker executes canonical inbox once and coordinator accepts its re
   assert.equal((await f.store.read()).workers[worker.id].phase,'idle');
   assert.equal((await f.store.read()).jobs.roundtrip.phase,'verified');
 });
+test('native readiness proof cannot survive a worker document replacement',async()=>{
+  const f=fixture(),worker=await f.pool.open('refresher','synthetic-refresh');
+  await f.store.transact(s=>{s.workers[worker.id].nativeVerified=true;s.workers[worker.id].nativeProofId='old-proof';});
+  const runtime=new WorkerRuntime({store:f.store,id:worker.id,documentId:'new-document',doc:{visibilityState:'hidden'},execute:()=>{}});await runtime.register();await runtime.observe();
+  const actual=(await f.store.read()).workers[worker.id];assert.equal(actual.nativeVerified,false);assert.equal(actual.nativeProofId,undefined);assert.equal(actual.documentId,'new-document');assert.equal(actual.pulse,2);
+});

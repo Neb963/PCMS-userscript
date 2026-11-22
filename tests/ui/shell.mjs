@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { emptyState } from '../../src/state/store.js';
+import { checkRefresher } from './refresher.mjs';
 
 // Standard local/CI dependency; Work Mode can reuse its provided runtime copy.
 let playwright;
@@ -16,10 +17,13 @@ const browser = await playwright[browserType].launch({ headless: true, ...(proce
 const script = await readFile(resolve('dist/PCMS.user.js'), 'utf8');
 const errors = [];
 const initialState=emptyState();
+initialState.settings.refreshPaused=false;
 initialState.settings.account={accountId:'synthetic-account',locked:true,confirmed:false};
 for(let i=0;i<48;i++){
   const id=String(100+i);initialState.generators[id]={id,slug:'synthetic-generator-'+String(i).padStart(2,'0'),listing:i%3===0?'unlisted':'listed',status:{account:'synthetic-account',action:'publish_from_github',state:'done'},holds:i===8?[{id:'edit-108',kind:'edit'},{id:'unknown-108',kind:'native-unknown'}]:[],savedVerified:true,ownerVerified:true,excluded:false,githubCommit:'a'.repeat(40)};
 }
+initialState.fifo=Object.values(initialState.generators).filter(g=>g.listing==='listed'&&!g.holds.length).map(g=>g.id).reverse();
+for(let i=0;i<42;i++){const skipped=i%3===2;initialState.attempts.push({id:'synthetic-attempt-'+i,generatorId:'101',at:Date.now()-(42-i)*60000,logicalAt:Date.now()-(42-i)*60000,outcome:['failed','unknown','skipped'][i%3],counted:!skipped,recorded:true,...(skipped?{notSent:true}:{})});}
 initialState.requestQueue={};initialState.utility={};
 for(let i=0;i<35;i++){const id='utility-'+i,request={valid:true,slug:'synthetic-utility-'+String(i).padStart(2,'0'),repository:{owner:'synthetic',name:'repo'},commit:'a'.repeat(40),requestCommit:'a'.repeat(40),instructions:[],status:{account:'synthetic-account',action:'publish_from_github',state:'ready'}};initialState.requestQueue[id]={id,request,phase:i===1?'reserved':'waiting',closed:false,reason:'live-verification-required'};if(i===1)initialState.utility[id]={id,request,phase:'reserved',steps:['request checked','slug checked','identity checked']};}
 initialState.generators['101'].localDone=true;initialState.generators['101'].localApproved=true;initialState.generators['101'].holds=[{id:'sync-conflict-source',kind:'source-conflict'}];
@@ -74,6 +78,8 @@ try {
     }
 
     if(scenario.setupOnly){
+      await app.getByRole('navigation').getByRole('button',{name:'Refresher',exact:true}).click();
+      await checkRefresher({page,app,width,empty:true});
       await app.getByLabel('Settings',{exact:true}).click();
       await app.getByLabel('Account ID',{exact:true}).fill('staged-account');
       await app.getByRole('navigation').getByRole('button',{name:'Generators',exact:true}).click();
@@ -88,6 +94,7 @@ try {
       const box = await app.locator('.pagehead').boundingBox();
       assert.ok(Math.abs(box.x - baseline.x) <= 2 && Math.abs(box.y - baseline.y) <= 2 && Math.abs(box.height - baseline.height) <= 2);
     }
+    await checkRefresher({page,app,width});
     await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();
     const inventoryList=app.getByRole('rowgroup');
     const inventoryTop=await inventoryList.evaluate(n=>{n.scrollTop=n.querySelector('[role=row][data-id="108"]').offsetTop-60;return n.scrollTop;});
@@ -180,5 +187,5 @@ try {
     await page.close();
   }
   assert.deepEqual(errors, []);
-  console.log(`UI shell PASS: ${browserType}, four widths, navigation, keyboard, theme, header stability and native page preservation`);
+  console.log(`UI shell PASS: ${browserType}, four widths, navigation, keyboard, Refresher queue/rates/history, theme, header stability and native page preservation`);
 } finally { await browser.close(); }
