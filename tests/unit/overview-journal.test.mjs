@@ -24,3 +24,8 @@ test('only confirmed refresh saves aggregate; journal export allowlists all fiel
   const unsafe={...s.journal[0],pat:'synthetic-secret',slug:'private-slug',source:'private-source',repository:'private-repository',reason:'arbitrary raw secret'};
   const output=JSON.stringify(exportJournal([unsafe]));for(const secret of ['synthetic-secret','private-slug','private-source','private-repository','arbitrary raw secret'])assert.equal(output.includes(secret),false);
 });
+
+test('uncertain GitHub commits become one canonical sync case without clearing other causes',()=>{
+  const s=emptyState();s.settings.account.accountId='alpha';s.generators['123']={id:'123',slug:'synthetic-generator',status:null,holds:[{kind:'publication'}]};s.pending.p={generatorId:'123',slug:'synthetic-generator',repository:{owner:'synthetic',name:'repo'}};s.jobs.write={kind:'github',phase:'unknown',slug:'synthetic-generator',repository:{owner:'synthetic',name:'repo'}};
+  const cases=actionCases(s,{session:{confirmed:true}});assert.equal(cases.length,1);assert.equal(cases[0].destination,'sync');assert.equal(cases[0].nativeId,'123');
+});

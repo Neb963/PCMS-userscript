@@ -1,21 +1,22 @@
 # Active work — handoff
 
-**Current phase:** P14 — Bulk Import end-to-end. **Status:** Planned.
+**Current phase:** P14 — Bulk Import end-to-end. **Status:** Implemented; browser regression pending.
 
 ## Next action
 
-- Verify/discover complete native saved source and target-folder absence; preselect only Ready candidates.
-- Process explicit selections sequentially, persist full source/repository before GitHub dispatch, lock manual account at first management and commit source/status atomically.
-- Skip conflicts independently, preserve native Listing/drafts and reconcile unknown GitHub results without replay.
-- Add fixed preview/results UI and protected coordinator intent queue; keep unverified live write capability disabled.
+- Verify Bulk Import footer/header/Unavailable states and existing settings/inventory/history tests in both browsers.
+- Review import restart checkpoints and original-repository access, then accept synthetic P14 evidence and implement P15 reservation.
 
 ## Evidence
 
-- P13 UI 44971751107 and synthetic checks 44971751136 PASS; 58 tests. See `docs/verification.md`.
+- Build/syntax and 66 Node tests pass.
+- Complete-source Import skips folder conflicts, preserves native Listing and never invokes native Save; source is retained/read back before GitHub dispatch and account locks at first management.
+- Unknown commit reconciliation is send-once; native drift and late result recovery preserve holds/snapshots. Coordinator claims explicit import intents; native work remains independent.
+- Runtime verifies isolated VM execution before loading credentials. Unverified GitHub/native write flags remain false; preview and configuration remain available.
 
 ## Blockers / deferred checks
 
-- Real Firefox/Violentmonkey provider/injection/persistence/session/inventory/source/tab and GitHub-write checks are DEFERRED; no disposable live targets/profile/PAT supplied.
-- Native write capability flags remain false; normal-use integration effects require their live proof.
+- Live Firefox/Violentmonkey provider/injection/persistence/session/inventory/source/tab and GitHub-write checks are DEFERRED; no disposable targets/profile/PAT supplied.
+- Normal-use write paths cannot be enabled by a UI toggle or simulated success.
 
-**Last pushed commit:** 63d176452ddd73612f690cfa4541583a4e24fda1.
+**Last pushed commit:** 794ee31e853c8364d41f90528c41e3b5176f62b7.

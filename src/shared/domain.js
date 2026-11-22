@@ -2,7 +2,7 @@ export const WORKFLOW_STATES = Object.freeze(['ready', 'reserved', 'review', 'do
 export const ACTIONS = Object.freeze(['develop', 'publish_from_github']);
 export const LISTINGS = Object.freeze(['listed', 'unlisted', 'unknown']);
 export const HOLD_KINDS = Object.freeze([
-  'edit', 'development', 'review', 'cancelled-draft', 'native-unknown', 'helper-unknown',
+  'publication', 'edit', 'development', 'review', 'cancelled-draft', 'native-unknown', 'helper-unknown',
   'worker-lost', 'identity-mismatch', 'session', 'listing-mismatch', 'snapshot-failure',
   'source-drift', 'source-conflict', 'request-conflict', 'account-conflict', 'slug', 'rename',
 ]);

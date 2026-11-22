@@ -36,6 +36,7 @@ try {
       const data = gm.data;
       if(window===window.top)data.set('PCMS_STORE_V1',JSON.stringify(initialState));
       window.GM_registerMenuCommand = () => {};
+      window.GM_info = { scriptHandler: 'Violentmonkey', injectInto: 'content' };
       window.GM_openInTab = () => { throw new Error('UI smoke must not open workers'); };
       window.GM_addValueChangeListener = (key, callback) => { const id = ++gm.sequence; gm.listeners.set(id, { key, callback }); return id; };
       window.GM_removeValueChangeListener = id => gm.listeners.delete(id);
@@ -107,6 +108,13 @@ try {
     assert.equal(await app.getByRole('dialog').count(),0);
     await app.getByRole('button',{name:'Clear selection',exact:true}).click();
     assert.equal(await selected.isChecked(),false);
+    await app.getByRole('button',{name:'Bulk Import',exact:true}).click();
+    await app.locator('.pagehead h1').filter({hasText:'Bulk Import'}).waitFor();
+    const importHeader=await app.locator('.pagehead').boundingBox();assert.ok(Math.abs(importHeader.y-baseline.y)<=2);
+    const importAction=app.getByRole('button',{name:'Import selected',exact:true});assert.equal(await importAction.isDisabled(),true);
+    const importFooter=await importAction.boundingBox();assert.ok(importFooter.y+importFooter.height<=768);
+    await app.getByRole('button',{name:'Back',exact:true}).click();
+
     await app.getByLabel('Settings', { exact: true }).click();
     assert.equal(await app.getByLabel('Account ID', { exact: true }).isDisabled(),true);
     await app.getByLabel('Repository URL', { exact: true }).fill('https://github.com/synthetic/staged-repository');

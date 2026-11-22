@@ -30,16 +30,24 @@ export function actionCases(state, { session = null, storageAvailable = true } =
     rows.push({key:'generator-'+gen.id,nativeId:gen.id,slug:gen.slug,priority,title,destination,action,causes:causes.map(c=>c.kind),retainedTab:gen.retainedTab||null});
   }
   for(const request of state.requests||[])if(!request.valid&&!Object.values(state.generators).some(g=>g.slug===request.slug))rows.push({key:JSON.stringify([request.repository,request.slug]),slug:request.slug,priority:4,title:'Invalid request',destination:'utility',action:'Open Utility',causes:['invalid-request']});
+  for(const job of Object.values(state.jobs))if(job.kind==='github'&&job.phase==='unknown'){
+    const pending=Object.values(state.pending).find(p=>p.slug===job.slug&&JSON.stringify(p.repository)===JSON.stringify(job.repository));
+    const gen=pending&&state.generators[pending.generatorId];
+    const key=gen?'generator-'+gen.id:JSON.stringify([job.repository,job.slug]);
+    const existing=rows.find(r=>r.key===key);
+    if(existing){if(!existing.causes.includes('github-unknown'))existing.causes.push('github-unknown');if(existing.priority>3)Object.assign(existing,{priority:3,title:'GitHub result unknown',destination:'sync',action:'Recheck result'});}
+    else rows.push({key,nativeId:gen?.id,slug:job.slug,priority:3,title:'GitHub result unknown',destination:'sync',action:'Recheck result',causes:['github-unknown']});
+  }
   return rows.sort((a,b)=>a.priority-b.priority||a.key.localeCompare(b.key));
 }
 
 export function operationRows(state, coordinator, session) {
   const known=coordinator==='Verified';
-  const workers=Object.values(state.workers),pending=Object.values(state.pending).filter(p=>p.phase!=='synced');
+  const workers=Object.values(state.workers),utilityCommands=Object.values(state.commands||{}).filter(c=>c.kind==='bulk-import'),pending=Object.values(state.pending).filter(p=>p.phase!=='synced');
   return [
     {title:'Refresher',route:'refresher',status:!known?'Unknown':!session?.confirmed||state.settings.refreshPaused?'Paused':workers.some(w=>w.role==='refresher'&&w.phase==='busy')?'Running':'Unavailable',detail:`${state.fifo.length} in queue · ${state.settings.refreshCap} attempts/h`},
     {title:'AI Helper',route:'reviews',status:!known?'Unknown':`${workers.filter(w=>w.role==='development'&&w.phase==='busy').length} / 2 active`,detail:'Two running Development slots'},
-    {title:'Publication',route:'utility',status:!known?'Unknown':workers.some(w=>w.role==='utility'&&w.phase==='busy')?'Active':'Idle',detail:'One sequential Utility worker'},
+    {title:'Publication',route:'utility',status:!known?'Unknown':utilityCommands.some(c=>c.phase==='running')||workers.some(w=>w.role==='utility'&&w.phase==='busy')?'Active':'Idle',detail:'One sequential Utility worker'},
     {title:'GitHub sync',route:'sync',status:!known?'Unknown':state.githubCheck?.status==='offline'?'Offline':state.githubCheck?.status==='verified'?'Connected':state.settings.github?'Checking':'Setup required',detail:`${pending.length} pending`},
   ];
 }

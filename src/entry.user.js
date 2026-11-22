@@ -6,6 +6,7 @@
 // @match        https://perchance.org/*
 // @run-at       document-end
 // @inject-into  content
+// @grant        GM_info
 // @grant        GM_registerMenuCommand
 // @connect      perchance.org
 // @connect      user.uploads.dev
@@ -20,6 +21,12 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { CommandRunner } from './runtime/commands.js';
+import { BulkImport } from './workflows/import.js';
+import { GitHubReader } from './adapters/github/reader.js';
+import { GitHubWriter } from './adapters/github/writer.js';
+import { isolatedManager, requireGitHubWriteProof } from './runtime/context.js';
+import { importRenderer } from './ui/import.js';
 import { InventoryController } from './state/inventory.js';
 import { inventoryRenderer } from './ui/inventory.js';
 import { overviewRenderer } from './ui/overview.js';
@@ -54,6 +61,19 @@ function coordinate(store, ui = null) {
   let lastPulse = 0;
   const mountedAt = Date.now();
   const gate = new SessionGate(store, new NativePage(unsafeWindow));
+  const importWorkflow = async command => {
+    const state = await store.read();
+    const repo = command?.repository || state.settings.github?.repository;
+    if (!repo) throw new Error('github-setup-required');
+    const credentials = new SettingsController({ store, request: null });
+    const request = async (url, options) => privilegedRequest(GM_xmlhttpRequest, url, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + await credentials.credentialFor(repo) } });
+    const github = new GitHubReader({ repository: repo, pat: await credentials.credentialFor(repo), request });
+    const native = new NativePage(unsafeWindow);
+    const guard = async () => coordinator.assertOwner(await store.read());
+    const writer = new GitHubWriter({ reader: github, store, locks: navigator.locks, guard: async () => { await guard(); requireGitHubWriteProof(); } });
+    return new BulkImport({ store, reader: new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) }), github, writer, gate, guard, assertCurrent: current => coordinator.assertOwner(current), writeAllowed: requireGitHubWriteProof });
+  };
+  const commands = new CommandRunner({ store, coordinator, importWorkflow });
   let updating = false;
   const refresh = async () => {
     if (!ui || updating) return;
@@ -67,7 +87,7 @@ function coordinate(store, ui = null) {
     consuming = true;
     try {
       if (Date.now() - lastPulse >= 5000) { await store.transact(state => { coordinator.assertOwner(state); state.coordinator.observedAt = Date.now(); }); lastPulse = Date.now(); }
-      await pool.consume(coordinator); await poller.check(true);
+      await pool.consume(coordinator); commands.tick().catch(() => {}); await poller.check(true);
     } catch { /* Durable state retains the unresolved command. */ }
     finally { consuming = false; }
   };
@@ -79,7 +99,7 @@ function coordinate(store, ui = null) {
   const timer = setInterval(tick, 1000);
   const viewTimer = ui ? setInterval(refresh, 5000) : null;
   window.addEventListener('pagehide', () => { clearInterval(timer); clearInterval(viewTimer); unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });
-  return { coordinator, pool, poller };
+  return { coordinator, pool, poller, importWorkflow };
 }
 
 async function startAssignedWorker() {
@@ -113,7 +133,9 @@ async function startAssignedWorker() {
   await runtime.pump();
 }
 
-if (window.top !== window.self) {
+if (!isolatedManager(typeof GM_info === 'undefined' ? null : GM_info)) {
+  if (window.top === window.self) GM_registerMenuCommand('Open PCMS', () => window.alert('PCMS requires Violentmonkey isolated content execution before it can access protected settings.'));
+} else if (window.top !== window.self) {
   const nonce = new URL(location.href).searchParams.get('pcms_store_probe');
   if (nonce) serveStoreProbe({ get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), nonce }).catch(() => {});
 } else {
@@ -136,7 +158,7 @@ if (isAppPage(location)) {
   let runtime;
   const ui = mountShell(document, host, {
     onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
-    renderers: { generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
+    renderers: { import: importRenderer({ store, workflow: () => runtime.importWorkflow() }), generators: inventoryRenderer({ controller: inventory, project: state => publicSnapshot(state, { coordinator: runtime?.coordinator.active ? 'Verified' : 'Unverified' }) }), overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
       requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
       signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
     }) },

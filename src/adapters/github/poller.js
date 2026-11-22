@@ -17,6 +17,9 @@ export class GitHubPoller {
     const config = state.settings.github;
     if (!config || !state.settings.account.accountId) return false;
     const now = this.now();
+    if(this.config!==null&&this.config!==JSON.stringify(config))this.nextAt=0;
+    if(this.interval!==undefined&&this.interval!==state.settings.pollMinutes)this.nextAt=now+state.settings.pollMinutes*60000;
+    this.interval=state.settings.pollMinutes;
     if (scheduled && now < this.nextAt) return false;
     if (scheduled) this.nextAt = now + state.settings.pollMinutes * 60000;
     this.busy = true;

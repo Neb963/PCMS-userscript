@@ -6,9 +6,10 @@ export function repositoryKey(repo) { return `${repo.owner}/${repo.name}`.toLowe
 
 export function pendingWork(state) {
   const work = [];
-  for (const p of Object.values(state.pending)) if (p.phase !== 'synced') work.push({ id: p.id, generatorId: p.generatorId, slug: p.slug, repository: p.repository, kind: 'sync' });
+  for (const p of Object.values(state.pending)) if (p.phase !== 'synced' || (p.source && state.generators[p.generatorId]?.holds?.length)) work.push({ id: p.id, generatorId: p.generatorId, slug: p.slug, repository: p.repository, kind: 'sync' });
   for (const j of Object.values(state.jobs)) if (['prepared','dispatched','unknown'].includes(j.phase)) work.push({ id: j.id, generatorId: j.generatorId || null, slug: j.slug || null, repository: j.repository || state.settings.github?.repository || null, kind: j.kind });
   for (const g of Object.values(state.generators)) if (g.holds?.some(h => ['edit','development','review','cancelled-draft'].includes(h.kind))) work.push({ id: 'draft-' + g.id, generatorId: g.id, slug: g.slug, repository: g.repository || state.settings.github?.repository || null, kind: 'draft' });
+  for (const command of Object.values(state.commands || {})) if (['queued','running','unknown','blocked'].includes(command.phase)) work.push({ id:command.id,generatorId:null,slug:null,repository:command.repository,kind:command.kind });
   return work.sort((a,b)=>a.id.localeCompare(b.id));
 }
 

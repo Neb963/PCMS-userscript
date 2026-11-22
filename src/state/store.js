@@ -8,7 +8,7 @@ export function emptyState() {
     schema: 1, revision: 0, writeId: '',
     settings: { account: { accountId: '', locked: false, confirmed: false }, github: null, pollMinutes: 10, theme: 'light', refreshCap: 30, refreshPaused: true },
     coordinator: { term: 0, owner: null },
-    generators: {}, jobs: {}, pending: {}, workers: {},
+    generators: {}, jobs: {}, pending: {}, workers: {}, commands: {},
     fifo: [], attempts: [], journal: [], journalSequence: 0,
   };
 }
@@ -70,11 +70,12 @@ export class ProtectedStore {
     });
   }
 
-  async retainSource(update) {
+  async retainSource(update, prepare = () => {}) {
     const canonical = pendingUpdate(update);
     requireThat(canonical.kind === 'source', 'snapshot-required');
     await this.transact(state => {
       requireThat(!Object.hasOwn(state.pending, canonical.id), 'snapshot-already-exists');
+      prepare(state);
       state.pending[canonical.id] = { ...canonical, phase: 'prepared', listingIntent: update.listingIntent, draftId: update.draftId, retainedTab: update.retainedTab };
     });
     const saved = (await this.read()).pending[canonical.id];

@@ -2,7 +2,7 @@ import { el, button } from './dom.js';
 import { inventoryRows, generatorStates } from '../state/inventory.js';
 import { actionCases, operationRows } from './overview-model.js';
 import { exportJournal } from '../state/journal.js';
-import { CSS, SETTINGS_CSS, OVERVIEW_CSS, INVENTORY_CSS } from './styles.js';
+import { CSS, SETTINGS_CSS, OVERVIEW_CSS, INVENTORY_CSS, IMPORT_CSS } from './styles.js';
 
 export const MAIN_ROUTES = Object.freeze(['overview', 'generators', 'reviews', 'refresher']);
 export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generators', reviews: 'Reviews', refresher: 'Refresher', settings: 'Settings', utility: 'Utility', sync: 'GitHub sync', import: 'Bulk Import' });
@@ -25,7 +25,7 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
 
 export function mountShell(doc, host, { snapshot = { restored: false }, onTheme = async () => {}, renderers = {} } = {}) {
   const root = host.attachShadow({ mode: 'closed' });
-  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS + INVENTORY_CSS);
+  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS + INVENTORY_CSS + IMPORT_CSS);
   let route = 'overview';
   let model = snapshot;
   let view = null;

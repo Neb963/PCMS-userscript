@@ -35,11 +35,13 @@ export class PerchanceReader {
     return { ...target, pjs: g.modelText, html: g.outputTemplate, manifest: manifest(g.srcManifest), revision: { lastEditTime: g.lastEditTime ?? null, saveCount: g.saveCount ?? null, editorPayloadRevision: g.editorPayloadRevision ?? null } };
   }
 
-  async saved(targetSlug, expectedId = null) {
+  async saved(targetSlug, expectedId = null, { cancelled = () => false } = {}) {
+    requireThat(!cancelled(), 'source-read-cancelled');
     const before = await this.metadata(targetSlug);
     if (expectedId !== null) requireThat(before.id === expectedId, 'saved-target-mismatch');
     const files = Object.create(null);
     for (const [path, entry] of Object.entries(before.manifest)) {
+      requireThat(!cancelled(), 'source-read-cancelled');
       const raw = await this.request('https://user.uploads.dev/file/' + entry.key, { type: 'bytes' });
       requireThat(raw instanceof Uint8Array || Array.isArray(raw), 'saved-file-unavailable');
       requireThat(entry.size === null || raw.length === entry.size, 'saved-file-size-mismatch');
@@ -50,13 +52,14 @@ export class PerchanceReader {
     return { id: before.id, slug: before.slug, listing: before.listing, publicId: before.publicId, revision: before.revision, source: completeSource({ pjs: before.pjs, html: before.html, files }) };
   }
 
-  async inventory() {
+  async inventory({ cancelled = () => false } = {}) {
     const session = await this.gate.observe();
     requireThat(session.signedIn && session.confirmed, 'confirm-session-required');
     const reply = await this.native.ownerRequest('/api/getGeneratorsByUser');
     requireThat(reply?.status === 'success' && Array.isArray(reply.generators), 'inventory-unavailable');
     const seen = new Set(), ids = new Set(), rows = [];
     for (const entry of reply.generators) {
+      requireThat(!cancelled(), 'inventory-read-cancelled');
       slug(entry.name);
       requireThat(!seen.has(entry.name), 'duplicate-inventory-slug');
       seen.add(entry.name);
