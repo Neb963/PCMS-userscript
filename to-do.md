@@ -133,10 +133,10 @@
 
 ### P17 — Complete approved-source snapshot
 
-- [ ] Capture approved PJS/HTML/exact `src/`, identity, intended Listing and original repository.
-- [ ] Persist and read back snapshot before invoking any approved Save.
-- [ ] Test quota/failure, restart, modified draft and missing file.
-- [ ] **Accept:** No approved Save begins without a confirmed recoverable snapshot.
+- [x] Capture approved PJS/HTML/exact `src/`, identity, intended Listing and original repository.
+- [x] Persist and read back snapshot before invoking any approved Save.
+- [x] Test quota/failure, restart, modified draft and missing file.
+- [x] **Accept:** No approved Save begins without a confirmed recoverable snapshot.
 
 ### P18 — Offline synchronization and conflicts
 
