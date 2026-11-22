@@ -56,10 +56,10 @@
 
 ### P06 — Worker tabs and communication
 
-- [ ] Implement coordinator messaging and worker roles: Refresher, Utility, Development.
-- [ ] Keep Refresher dedicated, Utility sequential and two active Development slots.
-- [ ] Test worker loss, operator-selected tab protection and explicit tab activation.
-- [ ] **Accept:** Synthetic tab events preserve task isolation; no automatic focus stealing.
+- [x] Implement coordinator messaging and worker roles: Refresher, Utility, Development.
+- [x] Keep Refresher dedicated, Utility sequential and two active Development slots.
+- [x] Test worker loss, operator-selected tab protection and explicit tab activation.
+- [x] **Accept:** Synthetic tab events preserve task isolation; no automatic focus stealing.
 
 ### P07 — Perchance session and ownership checks
 

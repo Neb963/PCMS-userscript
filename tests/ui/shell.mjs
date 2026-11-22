@@ -25,6 +25,9 @@ try {
       Element.prototype.attachShadow = function(options) { return attach.call(this, { ...options, mode: 'open' }); };
       const data = new Map();
       window.GM_registerMenuCommand = () => {};
+      window.GM_openInTab = () => { throw new Error('UI smoke must not open workers'); };
+      window.GM_addValueChangeListener = () => 1;
+      window.GM_removeValueChangeListener = () => {};
       window.GM_getValue = async (key, fallback) => data.get(key) ?? fallback;
       window.GM_setValue = async (key, value) => data.set(key, value);
     });

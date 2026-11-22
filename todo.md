@@ -1,20 +1,20 @@
 # Active work — handoff
 
-**Current phase:** P06 — Worker tabs and communication. **Status:** Planned.
+**Current phase:** P07 — Perchance session and ownership checks. **Status:** Planned.
 
 ## Next action
 
-- Implement privileged userscript messages and worker roles with dedicated Refresher, one Utility and two active Development slots.
-- Retain review tabs, protect operator-selected tabs and activate only on explicit action.
-- Test lost workers, duplicate/out-of-order communication and isolation.
+- Implement isolated native session observation, manual account binding/confirmation and owner/ID/slug/editor readiness checks.
+- Invalidate confirmation on sign-out/session change; gate owner operations without inferring account ID.
+- Test invalid session, wrong owner/target and unavailable editor.
 
 ## Evidence
 
-- P05: 17 tests/build/syntax pass. P04 follow-up Chromium/Firefox UI run 44966839223 green. Evidence in `docs/verification.md`.
+- P06: 22 tests/build/syntax pass; role capacity, inbox roundtrip, tab loss and selected-tab protection verified. See `docs/verification.md`.
 
 ## Blockers / deferred checks
 
-- DEFERRED — P01 — actual Firefox/Violentmonkey install/reload/launch — disposable profile unavailable.
-- Native provider effects remain unavailable pending live capability checks.
+- DEFERRED — P01/P06 — actual Firefox/Violentmonkey install and native tab activation — disposable profile unavailable.
+- Native provider effects remain disabled pending live verification.
 
-**Last pushed commit:** 3d0eb3965640da0d8606353aa0df01bf45cd7dd1.
+**Last pushed commit:** 66409d493df692f26ea9a3175d3cc73dd7a6e506.

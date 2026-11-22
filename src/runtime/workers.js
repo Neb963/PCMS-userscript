@@ -1,0 +1,156 @@
+import { requireThat, slug } from '../shared/domain.js';
+import { acceptCommand } from './coordinator.js';
+import { STORE_KEY } from '../state/store.js';
+
+export const WORKER_ROLES = Object.freeze(['refresher', 'utility', 'development']);
+
+export function workerURL(worker, targetSlug) {
+  slug(targetSlug);
+  return `https://perchance.org/${targetSlug}?pcms_worker=${encodeURIComponent(worker.id)}#edit`;
+}
+
+export class WorkerPool {
+  constructor({ store, openTab, uuid = () => crypto.randomUUID(), now = () => Date.now() }) {
+    this.store = store;
+    this.openTab = openTab;
+    this.uuid = uuid;
+    this.now = now;
+    this.handles = new Map();
+  }
+
+  async open(role, targetSlug, generatorId = null) {
+    requireThat(WORKER_ROLES.includes(role), 'invalid-worker-role');
+    slug(targetSlug);
+    const id = this.uuid();
+    const result = await this.store.transact(state => {
+      const active = Object.values(state.workers).filter(w => w.role === role && !['retained', 'released'].includes(w.phase) && (role === 'development' || w.phase !== 'lost'));
+      requireThat(active.length < (role === 'development' ? 2 : 1), 'worker-capacity');
+      state.workers[id] = { id, role, generatorId, slug: targetSlug, phase: 'opening', documentId: null, selected: false, observedAt: this.now() };
+      return structuredClone(state.workers[id]);
+    });
+    try {
+      const handle = await this.openTab(workerURL(result.result, targetSlug), { active: false, insert: true, setParent: true });
+      requireThat(handle, 'tab-open-unconfirmed');
+      this.handles.set(id, handle);
+      handle.onclose = () => this.lost(id).catch(() => {});
+    } catch {
+      await this.lost(id);
+      throw new Error('worker-open-unknown');
+    }
+    return result.result;
+  }
+
+  async lost(id) {
+    await this.store.transact(state => {
+      const worker = state.workers[id];
+      if (!worker) return;
+      worker.phase = 'lost';
+      for (const job of Object.values(state.jobs)) {
+        if (job.workerId !== id || !['prepared', 'dispatched'].includes(job.phase)) continue;
+        job.phase = 'unknown';
+        const gen = state.generators[job.generatorId];
+        if (gen && !gen.holds.some(h => h.id === job.id)) gen.holds.push({ id: job.id, kind: 'worker-lost' });
+      }
+    });
+  }
+
+  async send(command) {
+    await this.store.transact(state => {
+      const worker = state.workers[command.workerId];
+      requireThat(worker && worker.phase === 'idle' && worker.documentId === command.documentId && (!worker.selected || command.operatorAction === true), 'worker-unavailable');
+      requireThat(!worker.inbox, 'worker-busy');
+      worker.inbox = command.id;
+      worker.phase = 'busy';
+    });
+  }
+
+  async consume(coordinator) {
+    if (!coordinator.active) return;
+    const state = await this.store.read();
+    for (const worker of Object.values(state.workers)) {
+      const reply = worker.outbox;
+      const command = reply && state.jobs[reply.jobId];
+      if (!command || command.phase !== 'dispatched' || command.term !== coordinator.term || reply.term !== command.term) continue;
+      await coordinator.acceptResult(command, reply.outcome);
+      await this.store.transact(current => {
+        coordinator.assertOwner(current);
+        const own = current.workers[worker.id];
+        requireThat(own?.documentId === reply.documentId, 'stale-worker-reply');
+        delete own.outbox;
+        own.phase = reply.outcome === 'unknown' ? (own.role === 'development' ? 'busy' : 'retained') : 'idle';
+      });
+    }
+  }
+
+  // No new tab or navigation on Review/Open editor. VM handles normally cannot
+  // activate an existing tab; the UI must then tell the operator its retained name.
+  async activate(id, explicitlyRequested) {
+    requireThat(explicitlyRequested === true, 'activation-requires-operator');
+    const worker = (await this.store.read()).workers[id];
+    requireThat(worker && worker.phase !== 'released', 'retained-tab-unavailable');
+    const handle = this.handles.get(id);
+    if (handle && !handle.closed && typeof handle.focus === 'function') {
+      handle.focus();
+      return { activated: true };
+    }
+    return { activated: false, label: `${worker.slug} · ${worker.role}`, reason: worker.phase === 'lost' ? 'retained-tab-lost' : 'switch-to-retained-tab' };
+  }
+}
+
+export function watchProtectedStore(addListener, removeListener, callback) {
+  const id = addListener(STORE_KEY, () => callback());
+  return () => removeListener(id);
+}
+
+export class WorkerRuntime {
+  constructor({ store, id, documentId, doc, execute, now = () => Date.now() }) {
+    Object.assign(this, { store, id, documentId, doc, execute, now });
+    this.busy = false;
+  }
+
+  async register() {
+    await this.store.transact(state => {
+      const worker = state.workers[this.id];
+      requireThat(worker && worker.phase === 'opening', 'unassigned-worker');
+      worker.documentId = this.documentId;
+      worker.phase = 'idle';
+      worker.selected = this.doc.visibilityState === 'visible';
+      worker.observedAt = this.now();
+    });
+  }
+
+  async observe() {
+    await this.store.transact(state => {
+      const worker = state.workers[this.id];
+      requireThat(worker && worker.documentId === this.documentId, 'stale-worker');
+      worker.selected = this.doc.visibilityState === 'visible';
+      worker.observedAt = this.now();
+    });
+  }
+
+  async pump() {
+    if (this.busy) return;
+    this.busy = true;
+    try {
+      const state = await this.store.read();
+      const worker = state.workers[this.id];
+      if (!worker?.inbox || worker.documentId !== this.documentId) return;
+      const command = state.jobs[worker.inbox];
+      if (!command || command.accepted || command.phase !== 'dispatched') return;
+      const accepted = await acceptCommand(this.store, command, { id: this.id, documentId: this.documentId });
+      let result;
+      try {
+        requireThat(this.doc.visibilityState !== 'visible' || command.operatorAction === true, 'operator-selected-tab');
+        result = await this.execute(accepted.result);
+        requireThat(result && ['verified', 'rejected', 'unknown'].includes(result.outcome), 'unverified-worker-result');
+      } catch { result = { outcome: 'unknown', reason: 'worker-operation-unconfirmed' }; }
+      await this.store.transact(current => {
+        const own = current.workers[this.id];
+        requireThat(own?.documentId === this.documentId, 'worker-document-changed');
+        own.outbox = { jobId: command.id, term: command.term, documentId: this.documentId, outcome: result.outcome, reason: result.reason || null };
+        delete own.inbox;
+        // Coordinator accepts the result before this worker can run another job.
+      });
+    } finally { this.busy = false; }
+  }
+}

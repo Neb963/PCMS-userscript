@@ -42,3 +42,10 @@
 - Build/syntax and 17 Node tests PASS. P04 follow-up [UI run 44966839223](https://github.com/Neb963/PCMS-userscript/actions/runs/44966839223) PASS.
 - Runtime holds one coordinator Web Lock, increments protected terms and persists job claim/dispatch/acceptance before effects.
 - Tests exercise simultaneous candidates, owner loss, durable Unknown takeover, duplicate dispatch/delivery, wrong document and rejected late result. Same-generator unresolved work prevents another dispatch; unrelated jobs remain possible.
+
+## P06
+
+- Build/syntax and 22 Node tests PASS.
+- Privileged GM store/listener inbox/outbox, canonical saved commands and per-document acceptance. Managed workers are coordinator candidates.
+- Background-only tab creation, role capacity, retained-tab activation fallback, hidden-worker roundtrip, duplicate pump, selected-tab protection and lost-worker isolation tested.
+- Native capability handler intentionally rejects unavailable actions. Actual tab/window activation in Violentmonkey remains DEFERRED until the disposable-profile test; no draft is replaced to simulate activation.
