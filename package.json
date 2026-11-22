@@ -11,6 +11,10 @@
     "check:bootstrap": "node scripts/check-bootstrap.mjs",
     "test": "node --test tests/bootstrap.test.mjs tests/unit/*.test.mjs",
     "build": "node scripts/build.mjs",
-    "check:syntax": "node scripts/check-syntax.mjs"
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "test:ui": "node tests/ui/shell.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
   }
 }

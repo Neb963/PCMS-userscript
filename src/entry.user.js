@@ -8,8 +8,12 @@
 // @noframes
 // @inject-into  content
 // @grant        GM_registerMenuCommand
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
+import { ProtectedStore } from './state/store.js';
+import { mountShell, publicSnapshot } from './ui/shell.js';
 import { isAppPage, openPCMS, installLauncher, APP_NAME } from './runtime/launch.js';
 
 function launch() {
@@ -23,13 +27,12 @@ if (isAppPage(location)) {
   document.title = 'PCMS';
   const host = document.createElement('div');
   host.id = 'pcms-root';
-  host.style.cssText = 'position:fixed;inset:0;background:#f7f8fb;color:#202938;z-index:2147483647;padding:28px;font:14px system-ui';
-  const root = host.attachShadow({ mode: 'closed' });
-  const heading = document.createElement('h1');
-  heading.textContent = 'PCMS';
-  const message = document.createElement('p');
-  message.textContent = 'Setup required. Management capabilities are being implemented.';
-  root.append(heading, message);
+  host.style.cssText = 'position:fixed;inset:0;background:#f7f8fb;color:#202938;z-index:2147483647;overflow:hidden;display:block;isolation:isolate';
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  const store = new ProtectedStore({ get: GM_getValue, set: GM_setValue, locks: navigator.locks });
+  const ui = mountShell(document, host, { onTheme: theme => store.transact(state => { state.settings.theme = theme; }) });
+  store.read().then(state => ui.update(publicSnapshot(state))).catch(() => ui.update({ restored: true, storageAvailable: false }));
   document.body.append(host);
 } else {
   installLauncher(document, launch);
