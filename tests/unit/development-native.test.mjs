@@ -38,3 +38,11 @@ test('completion observation requires same chat/draft, native checked receipt, n
     f.page.aiAgentWorkspaceSnapshot=async()=>null;f.page.aiAgentActivityState=()=>({active:true,unknown:false});await f.helper.inspect('dev');assert.equal((await f.store.read()).development.dev.observation.settled,false);
   }finally{f.helper.dispose();}
 });
+
+test('a native manual Stop is observed as cancellation evidence instead of successful completion',async()=>{
+ const f=await helperFixture();try{await f.helper.start(f.target,'dev');await f.page.fetch('https://ai-agent.perchance.org/api/aiAgent/interrupt',{body:JSON.stringify({sessionId:'native-session'})});await f.helper.tail;assert.equal((await f.store.read()).development.dev.stopObserved,true);}finally{f.helper.dispose();}
+});
+
+test('cancelling an old automatic job cannot Stop a newer manual Helper turn',async()=>{
+ const f=await helperFixture();let stopped=0;try{await f.helper.start(f.target,'dev');f.controls['#aiAgentStopBtn']={disabled:false,click:()=>{stopped++;}};f.page.__aiAgentDeliveryState=async()=>({id:'new-manual-attempt',checked:true,terminal:false});await assert.rejects(f.helper.stop('dev'),/turn-changed/);assert.equal(stopped,0);}finally{f.helper.dispose();}
+});

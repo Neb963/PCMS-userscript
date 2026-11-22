@@ -9,7 +9,7 @@ export async function enqueueDevelopmentAction(store,id,action,confirmed,uuid=()
     const r=s.development?.[id],q=s.requestQueue?.[id];requireThat(r||q?.request.status.action==='develop','development-unavailable');
     const account=r?.request.status.account||q.request.status.account;requireThat(account===s.settings.account.accountId,'account-assignment-mismatch');
     s.commands||={};const duplicate=Object.values(s.commands).find(c=>c.kind==='development-action'&&c.developmentId===id&&c.action===action&&['queued','running'].includes(c.phase));if(duplicate)return duplicate.id;
-    if(action==='cancel'){if(r)r.stopRequested=true;if(q)q.stopRequested=true;}
+    if(action==='cancel'){if(r)r.stopRequested=true;if(q)q.stopRequested=true;if(s.utility?.[id])s.utility[id].stopRequested=true;}
     const commandId=uuid();s.commands[commandId]={id:commandId,kind:'development-action',developmentId:id,action,account,phase:'queued'};return commandId;
   });
 }

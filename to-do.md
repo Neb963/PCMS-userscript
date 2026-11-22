@@ -182,10 +182,10 @@
 
 ### P24 — Reviews and cancellation UI
 
-- [ ] Implement complete review list, two running slots and full queued list.
-- [ ] Review directly opens retained tab; Cancel queued/running/review preserves required state.
-- [ ] Test cancellation recoverability, empty state, focus and internal scrolling.
-- [ ] **Accept:** No PCMS Helper follow-up controls; no lost draft or leaked running slot.
+- [x] Implement complete review list, two running slots and full queued list.
+- [x] Review directly opens retained tab; Cancel queued/running/review preserves required state.
+- [x] Test cancellation recoverability, empty state, focus and internal scrolling.
+- [x] **Accept:** No PCMS Helper follow-up controls; no lost draft or leaked running slot.
 
 ### P25 — Approve & Publish workflow
 

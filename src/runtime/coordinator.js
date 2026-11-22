@@ -138,6 +138,6 @@ export function guardNativeCommand(state,command,workerId){
     const generator=state.generators[command.target.id],allowed=new Set([command.id,parent?.id,request?.id].filter(Boolean));
     if(development){allowed.add(development.id);if(command.kind==='helper-resolve')for(const suffix of ['-helper-start','-helper-stop'])allowed.add(development.id+suffix);}
     const previous=request?.request.replacesPendingId&&state.pending[request.request.replacesPendingId];if(previous?.phase==='publication-queued'&&previous.decision?.successorRequest===request.id)allowed.add('sync-'+previous.id);
-    requireThat(generator&&generator.slug===command.target.slug&&generator.holds.every(h=>allowed.has(h.id)),'generator-source-held');
+    requireThat(generator&&generator.slug===command.target.slug&&(['helper-resolve','helper-stop'].includes(command.kind)||generator.holds.every(h=>allowed.has(h.id))),'generator-source-held');
   }
 }
