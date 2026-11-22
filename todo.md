@@ -1,21 +1,20 @@
 # Active work — handoff
 
-**Current phase:** P11 — Settings UI and safe configuration. **Status:** Planned.
+**Current phase:** P11 — Settings UI and safe configuration. **Status:** Implemented; browser CI pending.
 
 ## Next action
 
-- Implement aligned Account/GitHub/Automatic checks/Interface/System settings.
-- Use isolated native credential entry, Test→Apply drafts and explicit pending-work switch confirmation.
-- Keep previous repository credentials only while pending work needs them; preserve drafts through rerender/navigation.
-- Test invalid settings, staged edits, sign-out and repository/PAT switching.
+- Check Chromium/Firefox settings tests: staged form values across navigation, native prompt credential isolation, invalid poll preserving applied cap, desktop/narrow layout.
+- Accept P11 after verification, then implement P12 Overview cases and journal.
 
 ## Evidence
 
-- P10: 40 tests/build/syntax pass; atomic source/status writes and unknown-response reconciliation. See `docs/verification.md`.
+- Build/syntax and 43 Node tests pass. Settings tests cover invalid/stale Test, pending-switch confirmation, original repository credentials, PAT-only switch and polling bounds.
+- Aligned accepted settings cards and narrow Connection / Controls & system views; credentials never bound to page input; diagnostic export contains only six fixed counts.
 
 ## Blockers / deferred checks
 
 - DEFERRED — P01/P06/P07/P08 — live Firefox/Violentmonkey install/session/inventory/source/tab activation — disposable profile unavailable.
-- All native write capabilities remain false; no user repository writes used as synthetic tests.
+- Native write flags remain false.
 
-**Last pushed commit:** 194a30f374fd8b023544b850c8fe3a5e5d55b836.
+**Last pushed commit:** 62a2e59dfb2b43bcc180f4dc0dfab340b25ad130.

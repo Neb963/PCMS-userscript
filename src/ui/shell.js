@@ -1,5 +1,5 @@
 import { el, button } from './dom.js';
-import { CSS } from './styles.js';
+import { CSS, SETTINGS_CSS } from './styles.js';
 
 export const MAIN_ROUTES = Object.freeze(['overview', 'generators', 'reviews', 'refresher']);
 export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generators', reviews: 'Reviews', refresher: 'Refresher', settings: 'Settings', utility: 'Utility', sync: 'GitHub sync', import: 'Bulk Import' });
@@ -18,9 +18,10 @@ export function publicSnapshot(state) {
 
 export function mountShell(doc, host, { snapshot = { restored: false }, onTheme = async () => {}, renderers = {} } = {}) {
   const root = host.attachShadow({ mode: 'closed' });
-  const style = el(doc, 'style', {}, CSS);
+  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS);
   let route = 'overview';
   let model = snapshot;
+  let view = null;
   const shell = el(doc, 'div', { className: 'shell' });
   const nav = el(doc, 'nav', { className: 'topnav', 'aria-label': 'Main navigation' });
   const tools = el(doc, 'div', { className: 'tools' });
@@ -28,6 +29,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   const status = el(doc, 'span', { className: 'account-label' }, model.accountId || 'Setup required');
   const navigate = next => {
     if (!Object.hasOwn(TITLES, next)) return;
+    view?.dispose?.();
     route = next;
     for (const control of nav.children) control.setAttribute('aria-current', control.dataset.route === route ? 'page' : 'false');
     settings.setAttribute('aria-pressed', String(route === 'settings'));
@@ -36,8 +38,8 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
     if (['utility', 'sync', 'import'].includes(route)) actions.append(button(doc, 'Back', () => navigate(route === 'import' ? 'generators' : 'overview')));
     const body = el(doc, 'div', { className: 'body' });
     main.replaceChildren(el(doc, 'header', { className: 'pagehead' }, heading, actions), body);
-    if (renderers[route]) renderers[route]({ doc, root, body, actions, snapshot: model, navigate });
-    else renderBase(body);
+    if (renderers[route]) view = renderers[route]({ doc, root, body, actions, snapshot: model, navigate });
+    else { view = null; renderBase(body); }
   };
   function panel(title, content) {
     return el(doc, 'section', { className: 'panel', 'aria-label': title }, el(doc, 'header', {}, el(doc, 'h2', {}, title)), el(doc, 'div', { className: 'scroll' }, content));
@@ -80,7 +82,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   navigate('overview');
   return {
     navigate,
-    update(next) { model = next; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; navigate(route); },
+    update(next) { model = next; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
     get route() { return route; },
   };
 }

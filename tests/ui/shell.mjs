@@ -30,6 +30,7 @@ try {
       window.GM_removeValueChangeListener = () => {};
       window.GM_getValue = async (key, fallback) => data.get(key) ?? fallback;
       window.GM_setValue = async (key, value) => data.set(key, value);
+      window.unsafeWindow = { app: { store: { data: { user: { loggedIn: false } } } } };
       window.GM = { getValue: window.GM_getValue, setValue: window.GM_setValue };
     });
     await page.goto('https://perchance.org/welcome#pcms');
@@ -44,6 +45,20 @@ try {
       assert.ok(Math.abs(box.x - baseline.x) <= 2 && Math.abs(box.y - baseline.y) <= 2 && Math.abs(box.height - baseline.height) <= 2);
     }
     await app.getByRole('button', { name: 'Settings', exact: true }).click();
+    await app.getByLabel('Account ID', { exact: true }).fill('synthetic-account');
+    await app.getByLabel('Repository URL', { exact: true }).fill('https://github.com/synthetic/staged-repository');
+    await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();
+    await app.getByRole('button', { name: 'Settings', exact: true }).click();
+    assert.equal(await app.getByLabel('Account ID', { exact: true }).inputValue(), 'synthetic-account');
+    assert.equal(await app.getByLabel('Repository URL', { exact: true }).inputValue(), 'https://github.com/synthetic/staged-repository');
+    page.once('dialog', d => d.accept('synthetic-secret-never-in-dom'));
+    await app.getByRole('button', { name: 'Set PAT', exact: true }).click();
+    assert.equal((await app.textContent()).includes('synthetic-secret-never-in-dom'), false);
+    if (width <= 760) await app.getByRole('button', { name: 'Controls & system', exact: true }).click();
+    await app.getByLabel('Polling interval (minutes)', { exact: true }).fill('0');
+    await app.locator('.checks-card').getByRole('button', { name: 'Apply', exact: true }).click();
+    await app.getByRole('status').filter({ hasText: 'Use an integer from 1 to 1440.' }).waitFor();
+    assert.equal(await page.evaluate(async () => JSON.parse(await window.GM.getValue('PCMS_STORE_V1')).settings.pollMinutes), 10);
     await app.getByRole('button', { name: 'Toggle theme' }).click();
     await page.waitForFunction(() => document.querySelector('#pcms-root').dataset.theme === 'dark');
     assert.equal(await app.locator('h1').evaluate(n => getComputedStyle(n).color), 'rgb(238, 242, 250)');

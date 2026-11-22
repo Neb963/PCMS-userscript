@@ -20,6 +20,8 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { SettingsController } from './state/settings.js';
+import { settingsRenderer } from './ui/settings.js';
 import { GitHubPoller } from './adapters/github/poller.js';
 import { privilegedRequest } from './adapters/http.js';
 import { PerchanceReader } from './adapters/perchance/reader.js';
@@ -97,10 +99,25 @@ if (isAppPage(location)) {
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   const store = new ProtectedStore({ get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), locks: navigator.locks });
-  const ui = mountShell(document, host, { onTheme: theme => store.transact(state => { state.settings.theme = theme; }) });
-  store.read().then(state => { ui.update(publicSnapshot(state)); coordinate(store, ui); }).catch(() => ui.update({ restored: true, storageAvailable: false }));
+  const request = (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options);
+  const native = new NativePage(unsafeWindow);
+  const gate = new SessionGate(store, native);
+  const controller = new SettingsController({ store, request });
+  const poller = new GitHubPoller({ store, request });
+  const ui = mountShell(document, host, {
+    onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
+    renderers: { settings: settingsRenderer({ store, controller, gate, poller,
+      requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
+      signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
+    }) },
+  });
+  store.read().then(state => { controller.initialize(state); ui.update(publicSnapshot(state)); coordinate(store, ui); }).catch(() => ui.update({ restored: true, storageAvailable: false }));
   document.body.append(host);
 } else {
   installLauncher(document, launch);
+  if (new URL(location.href).searchParams.get('pcms_sign_in') === '1') {
+    const signIn = () => { const control = document.querySelector('[data-ref="loginButton"]'); if (control) { control.click(); return true; } return false; };
+    if (!signIn()) { const observer = new MutationObserver(() => { if (signIn()) observer.disconnect(); }); observer.observe(document.documentElement, { childList: true, subtree: true }); setTimeout(() => observer.disconnect(), 15000); }
+  }
   startAssignedWorker().catch(() => { /* Never repeat an unconfirmed worker action. */ });
 }
