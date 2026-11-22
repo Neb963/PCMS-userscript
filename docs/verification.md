@@ -21,3 +21,10 @@
 - `npm test` PASS (9 tests), build and syntax PASS.
 - Canonical status states/actions; manual account binding; ID/slug/Listing; independently keyed holds; original-repository pending updates; exact binary source validation.
 - Negative paths cover duplicate/missing status, invented states, unsafe paths, incomplete panels, malformed bytes and one-hold resolution retaining another.
+
+## P03
+
+- `npm test` PASS (14 tests), build and syntax PASS.
+- Single protected root with schema validation, Web-Lock transaction serialization and exact write/readback.
+- Restart retains complete binary source, original repository and all independent holds; dispatched actions become Unknown without automatic replay.
+- Quota errors, mismatching readback, unavailable lock and unsupported schema fail without resetting stored work.

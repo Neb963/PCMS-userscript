@@ -35,10 +35,10 @@
 
 ### P03 — Durable local store and recovery records
 
-- [ ] Implement one userscript-controlled store for settings, FIFO, attempts, holds and pending source.
-- [ ] Persist before remote dispatch and read back accepted source snapshots before Save.
-- [ ] Test restart rehydration, storage failure and preservation of unresolved records.
-- [ ] **Accept:** Simulated restart retains pending snapshots and holds; failure never creates false completion.
+- [x] Implement one userscript-controlled store for settings, FIFO, attempts, holds and pending source.
+- [x] Persist before remote dispatch and read back accepted source snapshots before Save.
+- [x] Test restart rehydration, storage failure and preservation of unresolved records.
+- [x] **Accept:** Simulated restart retains pending snapshots and holds; failure never creates false completion.
 
 ### P04 — Accepted PCMS shell and navigation
 
