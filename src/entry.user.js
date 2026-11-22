@@ -10,6 +10,7 @@
 // @grant        GM_registerMenuCommand
 // @connect      perchance.org
 // @connect      user.uploads.dev
+// @connect      api.github.com
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // @grant        GM.getValue
@@ -19,6 +20,7 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { GitHubPoller } from './adapters/github/poller.js';
 import { privilegedRequest } from './adapters/http.js';
 import { PerchanceReader } from './adapters/perchance/reader.js';
 import { NativePage, SessionGate } from './adapters/perchance/session.js';
@@ -37,11 +39,12 @@ function coordinate(store, ui = null) {
   const lifecycle = new AbortController();
   const coordinator = new Coordinator({ store, locks: navigator.locks, owner: crypto.randomUUID() });
   const pool = new WorkerPool({ store, openTab: GM_openInTab });
+  const poller = new GitHubPoller({ store, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
   let consuming = false;
   const tick = async () => {
     if (consuming || !coordinator.active) return;
     consuming = true;
-    try { await pool.consume(coordinator); } catch { /* Durable state retains the unresolved command. */ }
+    try { await pool.consume(coordinator); await poller.check(true); } catch { /* Durable state retains the unresolved command. */ }
     finally { consuming = false; }
   };
   const unwatch = watchProtectedStore(GM_addValueChangeListener, GM_removeValueChangeListener, tick);
@@ -49,8 +52,9 @@ function coordinate(store, ui = null) {
     if (ui) ui.update({ ...publicSnapshot(await store.read()), coordinator: 'Verified' });
     await tick();
   }).catch(() => { if (ui) ui.update({ restored: true, storageAvailable: store.available, coordinator: 'Unverified' }); });
-  window.addEventListener('pagehide', () => { unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });
-  return { coordinator, pool };
+  const timer = setInterval(tick, 1000);
+  window.addEventListener('pagehide', () => { clearInterval(timer); unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });
+  return { coordinator, pool, poller };
 }
 
 async function startAssignedWorker() {

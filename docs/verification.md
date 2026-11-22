@@ -69,3 +69,11 @@
 - Checked [Violentmonkey privileged API](https://violentmonkey.github.io/api/gm/): removed unsupported GM_getTab/GM_saveTab and setParent option; use documented GM.getValue/GM.setValue promises.
 - Worker URL/name contains only a non-secret worker reference. Protected root assignment/document/term remains the authority; a reload cannot blindly re-execute a command.
 - Build/syntax and 32 tests PASS; production API allowlist regression added. Prior P08 UI run 44967606581 pending at this checkpoint.
+
+## P09
+
+- Build/syntax and 37 Node tests PASS.
+- Exact repository URL validation; one main commit/tree with content-addressed blobs checked by Git blob SHA/byte length; complete source and manual-account status selection.
+- Request identity uses status path history and instruction blob IDs. Closed stale ready/instruction edits cannot replay; a new ready needs explicit transition evidence.
+- Tests cover lookalike URLs, missing/corrupt source, truncated trees, changed repository, account mismatch, stale instructions, offline preservation and Check now without schedule reset.
+- Runtime polls only configured repositories; outage leaves prior records and independent FIFO untouched.

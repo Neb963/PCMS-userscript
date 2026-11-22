@@ -77,10 +77,10 @@
 
 ### P09 — GitHub reader and status parser
 
-- [ ] Validate repository URL and fetch one coherent `main` snapshot.
-- [ ] Parse three required `status.md` fields; select only requests assigned to manual `account_id`.
-- [ ] Handle changed repository, missing source, stale/invalid request and GitHub offline.
-- [ ] **Accept:** Synthetic GitHub fixtures reject malformed requests and never mix revisions.
+- [x] Validate repository URL and fetch one coherent `main` snapshot.
+- [x] Parse three required `status.md` fields; select only requests assigned to manual `account_id`.
+- [x] Handle changed repository, missing source, stale/invalid request and GitHub offline.
+- [x] **Accept:** Synthetic GitHub fixtures reject malformed requests and never mix revisions.
 
 ### P10 — GitHub complete-source commit writer
 
