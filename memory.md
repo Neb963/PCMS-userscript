@@ -11,3 +11,5 @@
 
 - Recovery comparisons and source snapshots stay protected. Source readback may resolve an unknown refresh hold, but its counted attempt stays Unknown without a native Save ACK. Source restoration uses Utility and consumes no refresh attempt.
 - Stop managing checks canonical Helper state even with an idle worker, archives local identity/holds and retains all snapshots/unknown effects. It never deletes the native generator.
+
+- User requested all workflows enabled for testing after 0.1.1. Use the explicit operator-test build/profile (TEST badge); default inspection stays closed. Build-time authorization is distinct from live proof; retain all existing runtime guards and never mark native acceptance from synthetic runs. Both artifacts keep the same script identity/store keys.

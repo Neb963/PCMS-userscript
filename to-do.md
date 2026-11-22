@@ -233,7 +233,7 @@ Operator-requested P29 re-audit accepted after repairs: 216 captures/browser, st
 
 ### P31 — Release and fresh-profile verification
 
-- [ ] Supply an explicitly enabled operator-test build with retained guards and verified build separation (operator request, 2026-11-22).
+- [x] Supply an explicitly enabled operator-test build with retained guards and verified build separation (operator request, 2026-11-22; 7bc24ad4fcaf2caa7160f45627f2948b12d7a545, UI 45060377092).
 
 - [x] Build/inspect one production userscript; confirm metadata and no mockup/demo payload.
 - [ ] Smoke-test install, reload, saved state and focused workflows on a clean disposable Firefox profile.

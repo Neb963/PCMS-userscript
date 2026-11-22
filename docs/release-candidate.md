@@ -1,18 +1,21 @@
-# PCMS 0.1.1 — disabled UI audit candidate
+# PCMS 0.1.2 — inspection and enabled operator testing
 
-This build supersedes the 0.1.0 visual-inspection candidate after the operator reopened P29. Settings now uses shared intrinsic grid rows with natural card bodies and one overflow owner when needed. The pass also corrects short-screen clipping, enlarged-text layout, state labels, picker cancellation and background-update focus/scroll behavior. See `visual-audit.md` for the complete findings.
+The operator requested full live testing after the 0.1.1 disabled inspection build. Version 0.1.2 provides two explicit build profiles with the same installed userscript identity and storage keys.
 
-Implementation through P30 retains synthetic verification. The production artifact is one deterministic userscript with no backend, companion extension or runtime dependency. The downloadable package supplies the script as `.txt`; rename a copy to `.user.js` for later designated test-profile installation. The simulated UI reference and audit fixtures remain separate from the artifact.
+| Build | Output | Real native/GitHub writes | Purpose |
+| --- | --- | --- | --- |
+| Default inspection | `dist/PCMS.user.js` | Disabled | Read-only inspection until normal-use qualification |
+| Operator test | `dist/PCMS-operator-test.user.js` | Enabled | User-authorized full workflow testing; shows TEST |
 
-## Verification
+The downloadable **enabled-test** package contains the operator artifact as `PCMS-operator-test.user.txt`. Use this one for full testing. It enables Save, create, Rename, Listing, Helper and GitHub writes. It preserves session/account/owner checks, source snapshots, approvals, draft protection, concurrency and unknown-write reconciliation. A fresh profile still starts Refresher paused; existing settings are retained. No URL, page variable or persisted toggle unlocks the normal artifact.
 
-- 266 Node tests pass. Build, JavaScript syntax, immutable references and candidate validation pass.
-- Complete built-userscript Chromium and Firefox interaction regressions pass after the Settings repair. The final strict scenario sweep and exact CI references are recorded in `visual-audit.md` and `verification.md`.
-- Candidate validation checks source/bundle reproducibility, version, metadata, hosts, parseability, absence of known fixture/token/private-key payload and all mutation gates disabled.
-- Working artifact and clean committed-tree export agree: 460234 bytes, SHA-256 `c68120cc7956dde8e0e1909ee3d9f768eae57570209adeda3c4f61ec45f935e3`. The source tree was matched to GitHub through the connector; the clean export is local, not an authenticated remote clone.
+See [operator installation](operator-qualification.md) and the [full testing sequence](operator-test-guide.md). Replace the existing PCMS script rather than installing a second copy. Native browser behavior is still unverified, so start with owned disposable targets and a testing repository; matching ready/reserved requests may run automatically after setup.
 
-## Remaining limitation
+## Reproducible artifacts
 
-P31 and further native/operator testing remain paused at the user's request. P01 actual Violentmonkey installation and P31 fresh-profile/live effects are not verified. Synthetic origins and fake services exercise UI behavior without provider effects. Native Save/create/Rename/Listing/Helper and application GitHub writes remain disabled. This candidate does not establish native workflow qualification.
+- Inspection: 461254 bytes, SHA-256 `7b8045521115ba6bd3b614ab09303032819c3f5afbe3ce3b6135ffa0a58b9e63`.
+- Enabled operator test: 461276 bytes, SHA-256 `3447f02e3956c48cfe16832494b0aae4778fcd460800344bffeff679bc148de7`.
+- Working and clean committed-tree builds agree. Metadata, version, isolated context, hosts, single-file output and absence of known fixture/token/private-key payload are checked for each profile.
+- 270 Node tests pass, including enabled/disabled policy, retained session/ownership/account-lock guards, publication availability, stable installed identity and waiting-request continuation without duplication. Checks [45060377096](https://github.com/Neb963/PCMS-userscript/actions/runs/45060377096) and UI [45060377092](https://github.com/Neb963/PCMS-userscript/actions/runs/45060377092) PASS at 7bc24ad4fcaf2caa7160f45627f2948b12d7a545. Both artifacts pass full Chromium/Firefox UI suites; the enabled profile passes a further 216 visual captures per browser with zero strict findings. See verification.md.
 
-Use `operator-qualification.md` for the remaining evidence when testing resumes. No deferred test is reported as passed.
+The P29 visual repairs are retained. Live P01/P31 acceptance remains unverified. Enabling the testing artifact is not evidence that native workflows pass and does not enable the default normal-use artifact.
