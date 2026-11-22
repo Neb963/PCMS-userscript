@@ -161,10 +161,10 @@
 
 ### P21 — Refresher screen
 
-- [ ] Implement complete FIFO queue, compact rate settings, attempts and Not eligible view.
-- [ ] Implement Pause/Resume, integer cap and derived read-only figures.
-- [ ] Test 530px tabs, queue scrolling, unknown worker and cap-change presentation.
-- [ ] **Accept:** Screen reflects scheduler state without imposing its own queue order.
+- [x] Implement complete FIFO queue, compact rate settings, attempts and Not eligible view.
+- [x] Implement Pause/Resume, integer cap and derived read-only figures.
+- [x] Test 530px tabs, queue scrolling, unknown worker and cap-change presentation.
+- [x] **Accept:** Screen reflects scheduler state without imposing its own queue order.
 
 ### P22 — AI Helper send-once development
 
