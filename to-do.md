@@ -203,10 +203,10 @@
 
 ### P27 — Rename, Rollback and exclusion
 
-- [ ] Verify native rename and one coherent GitHub folder move.
-- [ ] Rollback as new GitHub revision then normal Publish from GitHub.
-- [ ] Implement Exclude/Include as local-only setting; test uncertain rename and conflict.
-- [ ] **Accept:** No silent replace, deletion, retargeting or exposure of existing Unlisted generator.
+- [x] Verify native rename and one coherent GitHub folder move.
+- [x] Rollback as new GitHub revision then normal Publish from GitHub.
+- [x] Implement Exclude/Include as local-only setting; test uncertain rename and conflict.
+- [x] **Accept:** No silent replace, deletion, retargeting or exposure of existing Unlisted generator.
 
 ### P28 — Contextual recovery and source drift
 

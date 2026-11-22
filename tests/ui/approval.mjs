@@ -47,5 +47,10 @@ export async function checkApprovalComponent(browser){
   await fixture.getByRole('button',{name:'Open rename',exact:true}).click();const rename=fixture.getByRole('dialog',{name:'Rename generator',exact:true});await rename.getByRole('textbox',{name:'Exact target slug'}).fill('another-target');await rename.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await fixture.getByRole('button',{name:'Open rename',exact:true}).evaluate(n=>n.getRootNode().activeElement===n),true);
   await fixture.getByRole('button',{name:'Open rollback',exact:true}).click();const rollback=fixture.getByRole('dialog',{name:'Rollback source',exact:true});await rollback.getByRole('button',{name:'Earlier source revision'}).click();await page.keyboard.press('Escape');assert.equal(await rollback.isVisible(),true);await rollback.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await fixture.getByRole('button',{name:'Open rollback',exact:true}).evaluate(n=>n.getRootNode().activeElement===n),true);
 
+  await page.evaluate(async()=>{
+   const {recoveryActions}=await import('/src/ui/recovery.js'),root=document.querySelector('#fixture').shadowRoot,state=window.syntheticApproval.state,store={read:async()=>structuredClone(state),transact:async fn=>({result:fn(state)})};
+   const actions=recoveryActions({store,activate:async()=>({activated:false,label:'retained synthetic tab'})}),trigger=document.createElement('button');trigger.textContent='Open Stop managing';trigger.onclick=()=>actions.stopManaging(state.generators['123'],{doc:document,root});root.append(trigger);
+  });
+  await fixture.getByRole('button',{name:'Open Stop managing',exact:true}).click();const stop=fixture.getByRole('dialog',{name:'Stop managing',exact:true});await stop.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await fixture.getByRole('button',{name:'Open Stop managing',exact:true}).evaluate(n=>n.getRootNode().activeElement===n),true);assert.equal(await page.evaluate(()=>!!window.syntheticApproval.state.generators['123']),true);
  }finally{await page.close();}
 }

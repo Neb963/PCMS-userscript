@@ -223,3 +223,7 @@ A retained native editor blocks unprotected typing/Save after Publish/End and of
 ## P26 — Manual Edit
 
 241 Node tests and build/syntax/bootstrap PASS; checks 45018104980, Chromium/Firefox synthetic UI 45018104924 PASS at 3e8dc38fd15a7d213c9eb699cf32d5965641188d. Durable hold before opening, retained original editor, exact approval/Save, unchanged Listing/action, dirty End rejection, no lost-tab replacement and Edit-again guard tested. Native installation/Save/draft qualification remains DEFERRED; mutation gates false.
+
+## P27 — Rename and Rollback
+
+247 Node tests; build/syntax/bootstrap PASS. Chromium/Firefox synthetic UI 45018800781 PASS at 086a4f61ca33c33046501c33ba88c154d6fafd4c. Exact two-folder move, complete instructions preservation, occupied target, dirty draft, lost ACK/no replay, rollback source-to-new-ready revision and same-operation normal publication handoff tested. Native rename and actual GitHub writes remain DEFERRED and disabled.

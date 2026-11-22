@@ -1,3 +1,4 @@
+import {requireStoppable,stopManagement} from '../state/stop-management.js';
 import {fingerprintSource} from '../shared/source.js';
 import {requireThat,sourceEqual,parseStatus,addHold,releaseHold,completeSource} from '../shared/domain.js';
 import {sourceChanges,statusChanges} from '../adapters/github/writer.js';
@@ -10,7 +11,7 @@ function sourceSignature(snapshot,targetSlug){return signature(snapshot,targetSl
 function instructionSignature(snapshot,targetSlug){return signature(snapshot,targetSlug,p=>p==='prompt.md'||p.startsWith('scratch/'));}
 function hasFolder(snapshot,targetSlug){return Object.keys(snapshot.entries).some(p=>p===targetSlug||p.startsWith(targetSlug+'/'));}
 function sameStatus(a,b){return a.account===b.account&&a.action===b.action&&a.state===b.state;}
-export function approvedLocal(p,g){return p.kind==='source'&&['review','edit'].includes(p.approval?.kind)&&p.nativeVerified===true&&g?.localDone===true&&g.localApproved===true&&g.savedVerified===true;}
+export function approvedLocal(p,g){return p.kind==='source'&&['review','edit','recovery'].includes(p.approval?.kind)&&p.nativeVerified===true&&g?.localDone===true&&g.localApproved===true&&g.savedVerified===true;}
 
 export function syncRecords(state){
   const rows=Object.values(state.pending).map(p=>({...p,scope:'pending'}));
@@ -26,6 +27,7 @@ export async function enqueueSyncAction(store,action,id,{confirmed=false,compari
     const p=syncRecords(s).find(p=>p.id===id);requireThat(p,'sync-record-unavailable');requireThat(s.settings.account.accountId===p.status.account,'account-assignment-mismatch');
     s.commands||={};const duplicate=Object.values(s.commands).find(c=>c.kind==='sync-action'&&c.pendingId===id&&c.action===action&&['queued','running'].includes(c.phase)&&JSON.stringify(c.comparison)===JSON.stringify(comparison));if(duplicate)return duplicate.id;
     if(action==='stop'){
+      if(p.generatorId)requireStoppable(s,p.generatorId);
       requireThat(!Object.values(s.workers).some(w=>p.generatorId&&w.generatorId===p.generatorId&&w.role==='development'&&['opening','busy','lost'].includes(w.phase)),'resolve-development-before-stop');
       for(const row of syncRecords(s))if(row.id===id||p.generatorId&&row.generatorId===p.generatorId){if(row.scope==='pending')s.pending[row.id].stopRequested=true;else s.utility[row.requestId].pendingStatus.stopRequested=true;}
       if(p.generatorId&&s.generators[p.generatorId])s.generators[p.generatorId].stopRequested=true;
@@ -261,6 +263,7 @@ export class Synchronizer {
     requireThat(confirmed===true,'stop-management-confirmation-required');await this.guard();const p=await this.record(id);
     await this.store.transact(s=>{
       this.assertCurrent(s);
+      if(p.generatorId&&s.generators[p.generatorId]){stopManagement(s,p.generatorId);this.cleanupCredentials(s);return;}
       requireThat(!Object.values(s.workers).some(w=>w.generatorId===p.generatorId&&p.generatorId&&w.role==='development'&&['opening','busy','lost'].includes(w.phase)),'resolve-development-before-stop');
       const affected=syncRecords(s).filter(row=>row.id===id||(p.generatorId&&row.generatorId===p.generatorId));
       const requestIds=new Set(affected.map(row=>row.requestId).filter(Boolean));

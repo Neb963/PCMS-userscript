@@ -86,6 +86,14 @@ export function inventoryRenderer({controller,project,actions={}}) {
           }
           else tools.append(button(doc,action[0].toUpperCase()+action.slice(1),()=>actions[action](g,{doc,root,modal,navigate})));
         }
+        if(g.managed&&g.holds?.length&&actions.stopManaging){
+          if(g.retainedTab)tools.append(button(doc,'Open retained tab',()=>actions.openRetained(g,{doc,root,modal,navigate})));
+          tools.append(button(doc,'Recheck result',()=>actions.recheckRecovery(g,{doc,root,modal,navigate})));
+          if(g.holds.some(h=>['source-drift','snapshot-failure','native-unknown','identity-mismatch'].includes(h.kind)))tools.append(button(doc,'Compare saved source',()=>actions.compareSaved(g,{doc,root,modal,navigate})));
+          if(g.holds.some(h=>h.kind==='listing-mismatch'))tools.append(button(doc,'Confirm intentional Unlisting',()=>actions.acceptUnlisted(g,{doc,root})),button(doc,'Restore Listed',()=>actions.restoreListed(g,{doc,root})));
+          if(g.holds.some(h=>h.kind==='identity-mismatch'))tools.append(button(doc,'Resolve rename',()=>actions.resolveRename(g,{doc,root})));
+          tools.append(button(doc,'Stop managing',()=>actions.stopManaging(g,{doc,root})));if(g.recovery?.message)content.append(el(doc,'p',{className:'notice'},g.recovery.message));
+        }
         if(g.maintenance?.active){tools.append(button(doc,'Recheck result',()=>actions.recheckMaintenance?.(g,{doc,root,modal,navigate})));if(g.maintenance.message)content.append(el(doc,'p',{className:'notice'},g.maintenance.message));}
         if(g.edit){
           const add=(key,label,disabled=false)=>{let control=editControls.get(key);if(!control){control=button(doc,label,()=>actions[key]?.(g,{doc,root,modal,navigate,trigger:control}));editControls.set(key,control);}control.textContent=label;control.disabled=disabled||g.edit.actionBusy;tools.append(control);};

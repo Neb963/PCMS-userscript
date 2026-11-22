@@ -2,7 +2,7 @@ import {requireThat,pendingUpdate,completeSource,sourceEqual} from '../shared/do
 
 function opaque(value){requireThat(typeof value==='string'&&value.length>0&&value.length<=512&&!/[\x00-\x1f\x7f]/.test(value),'invalid-approval-identity');return value;}
 export function approvalIdentity(value){
-  requireThat(value&&['github','review','edit'].includes(value.kind)&&Number.isSafeInteger(value.confirmedAt)&&value.confirmedAt>=0,'invalid-source-approval');
+  requireThat(value&&['github','review','edit','recovery'].includes(value.kind)&&Number.isSafeInteger(value.confirmedAt)&&value.confirmedAt>=0,'invalid-source-approval');
   return {id:opaque(value.id),kind:value.kind,draftId:opaque(value.draftId),workerId:opaque(value.workerId),documentId:opaque(value.documentId),confirmedAt:value.confirmedAt};
 }
 export function approvedRecord(value){

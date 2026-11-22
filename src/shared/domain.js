@@ -118,4 +118,4 @@ export function requestIdentity(value) {
   return { repository: repository(value.repository), slug: slug(value.slug), commit: value.commit, status: statusRecord(value.status) };
 }
 
-export function isReadOnlyCommand(kind){return ['read-saved','inspect-target','native-capture','maintenance-capture','approved-capture','edit-capture','helper-resolve'].includes(kind);}
+export function isReadOnlyCommand(kind){return ['read-saved','inspect-target','native-capture','maintenance-capture','recovery-capture','approved-capture','edit-capture','helper-resolve'].includes(kind);}

@@ -93,7 +93,7 @@ export class BulkImport {
         await this.store.retainSource({id:pendingId,generatorId:id,slug:saved.slug,repository:command.repository,baseCommit:snapshot.commit,kind:'source',status,source:saved.source,listingIntent:saved.listing,draftId:null,retainedTab:null},s=>{
           this.assertCurrent(s);
           requireThat(s.settings.account.accountId===command.account&&!s.generators[id],'import-target-changed');
-          s.settings.account.locked=true;
+          s.settings.account.locked=true;if(s.stoppedGenerators)delete s.stoppedGenerators[id];
           s.generators[id]={...generatorRecord({id,slug:saved.slug,listing:saved.listing,status:null,holds:[{id:pendingId,kind:'publication'}]}),repository:command.repository,ownerVerified:true,importCommand:command.id};
         });
         const receipt=await this.writer.write({id:writeId,targetSlug:saved.slug,baseline:snapshot,changes:sourceChanges(snapshot,saved.slug,saved.source,status),operation:'import'});
