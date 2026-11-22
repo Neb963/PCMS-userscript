@@ -65,6 +65,7 @@ export function inventoryRenderer({controller,project,actions={}}) {
       const content=el(doc,'div',{className:'panelbody stack'});
       const modal=dialog(doc,root,'Manage '+g.slug,content,{drawer:true});
       function draw(){
+        const restoreEligibility=content.contains(root.activeElement)&&root.activeElement?.hasAttribute('data-eligibility');
         content.replaceChildren(el(doc,'p',{},'Native ID '+g.id),el(doc,'div',{className:'manage-states'},Object.entries(g.states||{}).map(([key,value])=>el(doc,'div',{},el(doc,'strong',{},key==='github'?'GitHub':key[0].toUpperCase()+key.slice(1)),el(doc,'span',{className:'tag'},value)))));
         if(g.holds?.length)content.append(el(doc,'p',{className:'notice'},g.holds.map(h=>h.kind).join(' · ')));
         const available=manageActions(g,Object.keys(actions));
@@ -83,9 +84,10 @@ export function inventoryRenderer({controller,project,actions={}}) {
         if(g.holds?.some(h=>h.kind==='source-conflict'))tools.append(button(doc,'Open GitHub sync',()=>{modal.close();navigate('sync');}));
         content.append(tools);
         if(!g.ownerVerified)content.append(el(doc,'p',{className:'statusline'},'Ownership unverified. Confirm session in Settings before owner actions.'));
+        if(restoreEligibility)content.querySelector('[data-eligibility]')?.focus({preventScroll:true});
       }
       draw();
-      controller.inspect(id).then(verified=>{if(!modal.isConnected)return;g={...g,...verified,states:g.states};draw();}).catch(()=>{if(modal.isConnected){g={...g,ownerVerified:false};draw();}});
+      controller.inspect(id).then(verified=>{if(!modal.isConnected)return;g={...(model.generators.find(item=>item.id===id)||g),listing:verified.listing,ownerVerified:true};draw();}).catch(()=>{if(modal.isConnected){g={...(model.generators.find(item=>item.id===id)||g),ownerVerified:false};draw();}});
     }
     function update(next){model=next;render(false);}
     render();if(params?.manageId)openManage(params.manageId);
