@@ -32,19 +32,18 @@ try {
       window.GM_addValueChangeListener = (key, callback) => { const id = ++gm.sequence; gm.listeners.set(id, { key, callback }); return id; };
       window.GM_removeValueChangeListener = id => gm.listeners.delete(id);
       window.GM_getValue = async (key, fallback) => data.get(key) ?? fallback;
-      window.GM_setValue = async (key, value) => { const old = data.get(key); data.set(key, value); gm.trace.push({event:'set',key,type:value?.type||null}); queueMicrotask(() => { for (const listener of gm.listeners.values()) if (listener.key === key) listener.callback(key, old, value, true); }); };
+      window.GM_setValue = async (key, value) => { const old = data.get(key); data.set(key, value); gm.trace.push({event:'set',key,type:value?.type||null,nonce:key==='PCMS_STORE_PROBE_V1'?value?.nonce:null}); queueMicrotask(() => { for (const listener of gm.listeners.values()) if (listener.key === key) listener.callback(key, old, value, true); }); };
       window.unsafeWindow = { app: { store: { data: { user: { loggedIn: false } } } } };
       window.GM = { getValue: window.GM_getValue, setValue: window.GM_setValue, deleteValue: async key => data.delete(key) };
-      if (window !== window.top) {
-        // Simulate manager injection inside the document. The probe intentionally
-        // removes itself after its GM reply, so a protocol evaluation cannot await it.
-        document.addEventListener('DOMContentLoaded', () => {
-          if (!new URL(location.href).searchParams.has('pcms_store_probe')) return;
-          gm.trace.push({event:'inject-probe',url:location.href});
-          const injected = document.createElement('script'); injected.textContent = artifact; document.documentElement.append(injected);
-        }, { once: true });
-      }
     }, script);
+    const probeInjections = [];
+    page.on('framenavigated', frame => {
+      if (frame === page.mainFrame() || !frame.url().includes('pcms_store_probe=')) return;
+      const nonce = new URL(frame.url()).searchParams.get('pcms_store_probe');
+      const attempt = { nonce, error: null };
+      attempt.done = frame.addScriptTag({ content: script }).catch(error => { attempt.error = error.message; });
+      probeInjections.push(attempt);
+    });
     await page.goto('https://perchance.org/welcome#pcms');
     await page.addScriptTag({ content: script });
     const app = page.locator('#pcms-root');
@@ -55,6 +54,12 @@ try {
       throw error;
     }
     await page.waitForFunction(() => document.querySelectorAll('iframe[src*=pcms_store_probe]').length === 0);
+    await Promise.all(probeInjections.map(attempt => attempt.done));
+    for (const attempt of probeInjections) {
+      if (attempt.error) assert.match(attempt.error, /Execution context was destroyed|Frame was detached|frame has been detached/i);
+      assert.equal(await page.evaluate(nonce => window.__syntheticGM.trace.some(event => event.key === 'PCMS_STORE_PROBE_V1' && event.nonce === nonce), attempt.nonce), true, 'Every probe injection must produce its protected reply');
+    }
+
     const baseline = await app.locator('.pagehead').boundingBox();
     for (const route of ['Generators', 'Reviews', 'Refresher']) {
       await app.getByRole('navigation').getByRole('button', { name: route, exact: true }).click();
