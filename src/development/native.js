@@ -69,6 +69,19 @@ export class NativeHelper {
     return async()=>this.until(()=>ack);
   }
   dispose(){for(const fn of this.restore.splice(0))fn();for(const fn of this.listeners.splice(0))fn();}
+  async inspect(id){
+    await this.tail;const r=(await this.store.read()).development?.[id];if(!r||!['running','submitting'].includes(r.phase))return;
+    const target={id:r.generatorId,slug:r.slug};
+    const editor=new EditorSource({page:this.actions.page,native:this.native,guard:async()=>{const state=await this.store.read(),current=state.development?.[id];requireThat(current?.documentId===this.actions.documentId&&current.workerId===this.actions.workerId&&state.workers[current.workerId]?.documentId===this.actions.documentId,'helper-document-changed');}});
+    try{
+      const a=this.activity();if(a.active||a.unknown){await this.record(id,own=>{if(own.observation)own.observation.settled=false;});return;}
+      const delivery=await this.actions.page.__aiAgentDeliveryState?.();
+      const current=await editor.capture(target),p=this.actions.page;requireThat(typeof p.aiAgentWorkspaceSnapshot==='function','helper-workspace-unavailable');const workspace=await p.aiAgentWorkspaceSnapshot();
+      const quiet=this.activity(),sid=p.srcState.getDraftChatSid?.();
+      const settled=quiet.active===false&&quiet.unknown===false&&delivery?.id===r.nativeAttemptId&&delivery.checked===true&&delivery.terminal===true&&delivery.delivery==='delivered'&&delivery.state==='completed'&&!delivery.busy&&sid===r.nativeSession&&current.draftId===r.draftId&&!workspace?.unavailable&&!workspace?.preferWorkspace?.modelText&&!workspace?.preferWorkspace?.outputTemplate;
+      await this.record(id,(own,state)=>{own.observation={workerPulse:state.workers[own.workerId]?.pulse??null,documentId:this.actions.documentId,draftId:current.draftId,nativeAttemptId:delivery?.id||null,terminalAttempt:r.terminal?.attemptId||null,settled};});
+    }catch{ /* No new completion proof when the editor or native state cannot be read. */ }
+  }
   async start(target,id){
     this.actions.capability('helper');this.actions.selected();await this.actions.guard();await this.gate.requireOwner(target);
     const r=(await this.store.read()).development?.[id];requireThat(r&&r.phase==='starting'&&!r.sendInvoked,'helper-start-not-replayable');

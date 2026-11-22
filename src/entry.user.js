@@ -169,7 +169,8 @@ async function startAssignedWorker() {
   window.name = 'PCMS_WORKER_' + id;
   coordinate(store);
   const unwatch = watchProtectedStore(GM_addValueChangeListener, GM_removeValueChangeListener, () => { runtime.pump().catch(() => {}); });
-  const observe = () => { runtime.observe().catch(() => {}); };
+  let observing=false;
+  const observe = async () => { if(observing)return;observing=true;try{await runtime.observe();if(helper){const state=await store.read(),record=Object.values(state.development||{}).find(r=>r.workerId===id&&r.documentId===runtime.documentId&&['starting','running','submitting'].includes(r.phase));if(record)await helper.inspect(record.id);else helper.dispose();}}catch{}finally{observing=false;} };
   document.addEventListener('visibilitychange', observe);
   const heartbeat = setInterval(observe, 5000);
   window.addEventListener('pagehide', () => { clearInterval(heartbeat); helper?.dispose(); unwatch(); document.removeEventListener('visibilitychange', observe); }, { once: true });

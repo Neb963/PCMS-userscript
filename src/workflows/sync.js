@@ -73,7 +73,8 @@ export class Synchronizer {
     await this.update(id,(p,s)=>{
       requireThat(!['stopped','reassigned'].includes(p.phase)&&!p.stopRequested,'sync-record-stopped');p.phase='synced';p.reason=null;p.commit=commit;
       const g=s.generators[p.generatorId];
-      if(g){s.generators[p.generatorId]=releaseHold({...g,status:p.status,githubCommit:commit},'sync-'+id);if(!s.generators[p.generatorId].holds.length&&p.kind==='source'){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}
+      if(g&&(!p.developmentId||s.development?.[p.developmentId]?.statusPending===p.id)){s.generators[p.generatorId]=releaseHold({...g,status:p.status,githubCommit:commit},'sync-'+id);if(!s.generators[p.generatorId].holds.length&&p.kind==='source'){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}
+      if(p.developmentId&&s.development?.[p.developmentId])s.development[p.developmentId].statusCommit=commit;
       const r=p.requestId&&s.utility?.[p.requestId];if(r&&r.pendingStatus&&sameStatus(r.pendingStatus.status,p.status)){if(p.scope==='pending')r.pendingStatus=null;r.statusCommit=commit;if(r.localDone)r.phase='done';}
       if(p.writeId&&s.jobs[p.writeId]?.phase==='unknown'){s.jobs[p.writeId].phase='cancelled';s.jobs[p.writeId].resolution='desired-state-present';s.jobs[p.writeId].remoteOutcome='unknown';}
       appendEvent(s,{component:'github',outcome:'verified',nativeId:p.generatorId||null});

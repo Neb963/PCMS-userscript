@@ -1,3 +1,4 @@
+import {completeDevelopments,abandonDevelopment} from './completion.js';
 import {requireThat,sourcePath,addHold,releaseHold,parseStatus} from '../shared/domain.js';
 import {functionalFingerprint} from '../refresher/markers.js';
 import {appendEvent} from '../state/journal.js';
@@ -26,10 +27,11 @@ export class Development {
       state.generators[g.id]=addHold(releaseHold(g,id),{id,kind:'development'});appendEvent(state,{component:'helper',outcome:'queued',nativeId:g.id});return state.development[id];
     });return result.result;
   }
+  abandon(id,confirmed){return abandonDevelopment(this.store,id,confirmed,this.assertCurrent);}
   async tick(){
     if(this.busy)return;this.busy=true;
     try{
-      await this.guard();this.allowed();const state=await this.store.read();if(!state.settings.account.confirmed)return;
+      await this.guard();await completeDevelopments(this.store,this.assertCurrent);this.allowed();const state=await this.store.read();if(!state.settings.account.confirmed)return;
       const record=Object.values(state.development||{}).find(r=>r.phase==='queued'&&!state.requestQueue?.[r.id]?.incoming);if(!record)return;
       if(Object.values(state.workers).filter(w=>w.role==='development'&&!['retained','released'].includes(w.phase)).length>=2)return;
       await this.store.transact(s=>{this.assertCurrent(s);const r=s.development[record.id];requireThat(r.phase==='queued'&&!s.requestQueue?.[r.id]?.incoming,'request-changed');r.phase='starting';});

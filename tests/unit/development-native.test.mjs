@@ -27,3 +27,14 @@ test('native commit cannot be duplicated, and only matching fresh stream facts a
     f.emit({t:'done',attemptID:'native-attempt',errored:false});await f.helper.tail;assert.equal((await f.store.read()).development.dev.terminal.attemptId,'native-attempt');
   }finally{f.helper.dispose();}
 });
+
+test('completion observation requires same chat/draft, native checked receipt, no queued work and settled workspace',async()=>{
+  const f=await helperFixture();try{
+    await f.helper.start(f.target,'dev');f.emit({t:'done',attemptID:'native-attempt'});await f.helper.tail;
+    f.page.__aiAgentDeliveryState=async()=>({id:'native-attempt',checked:true,terminal:true,delivery:'delivered',state:'completed',busy:false});f.page.aiAgentWorkspaceSnapshot=async()=>null;
+    await f.helper.inspect('dev');assert.equal((await f.store.read()).development.dev.observation.settled,true);
+    f.page.srcState.getDraftChatSid=()=> 'different-chat';await f.helper.inspect('dev');assert.equal((await f.store.read()).development.dev.observation.settled,false);
+    f.page.srcState.getDraftChatSid=()=> 'native-session';f.page.aiAgentWorkspaceSnapshot=async()=>({unavailable:true});await f.helper.inspect('dev');assert.equal((await f.store.read()).development.dev.observation.settled,false);
+    f.page.aiAgentWorkspaceSnapshot=async()=>null;f.page.aiAgentActivityState=()=>({active:true,unknown:false});await f.helper.inspect('dev');assert.equal((await f.store.read()).development.dev.observation.settled,false);
+  }finally{f.helper.dispose();}
+});

@@ -175,10 +175,10 @@
 
 ### P23 — AI Helper completion and slot release
 
-- [ ] Correlate fresh stream outcome and same draft; reject stopped/errors/reconnect gaps.
-- [ ] Check settled native state and zero queued messages.
-- [ ] Release Development slot only after verified completion or explicit safe abandonment.
-- [ ] **Accept:** Stopped/unknown outcomes never enter Review, and free slots accept the next queued job.
+- [x] Correlate fresh stream outcome and same draft; reject stopped/errors/reconnect gaps.
+- [x] Check settled native state and zero queued messages.
+- [x] Release Development slot only after verified completion or explicit safe abandonment.
+- [x] **Accept:** Stopped/unknown outcomes never enter Review, and free slots accept the next queued job.
 
 ### P24 — Reviews and cancellation UI
 
