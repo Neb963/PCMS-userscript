@@ -112,10 +112,10 @@
 
 ### P14 — Bulk Import end-to-end
 
-- [ ] Preselect eligible native generators; validate source and GitHub-folder absence.
-- [ ] Commit complete saved source plus `publish_from_github / done` without native Save.
-- [ ] Report per-generator outcomes and reconcile uncertain GitHub commits.
-- [ ] **Accept:** Imported source equals native saved source; conflicts skip without blocking other rows.
+- [x] Preselect eligible native generators; validate source and GitHub-folder absence.
+- [x] Commit complete saved source plus `publish_from_github / done` without native Save.
+- [x] Report per-generator outcomes and reconcile uncertain GitHub commits.
+- [x] **Accept:** Imported source equals native saved source; conflicts skip without blocking other rows.
 
 ### P15 — Slug reservation in Utility
 

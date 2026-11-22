@@ -130,3 +130,7 @@
 - Build/syntax and 67 Node tests PASS. Complete source/status import, folder-conflict isolation, Listed/Unlisted preservation, durable unknown-commit reconciliation, late local reporting and source drift tested.
 - Import preview is bound to its tested repository; queue rejects changed settings. Missing binary payload cannot be mistaken for a zero-byte saved file. Cancelling preview stops further read work without cancelling an explicit queued Import.
 - Runtime coordinator owns sequential import commands and guarded GitHub writes. Integration write proof remains false; no real VM/PAT/provider operation is claimed.
+
+## P14 — Bulk Import
+
+67 Node tests, build and syntax pass. Synthetic UI run 44973566403 (Chromium and Firefox) and checks 44973566397 pass at remote 2271908424ab290c6be515515408fe6585993393. Import preselection, folder skips, exact source/deletions, retained snapshots, original repository, uncertain commit and post-commit source drift are covered. The delayed Manage inspection race preserves both current exclusion state and keyboard focus. Live VM/private GitHub/native inventory evidence remains DEFERRED; write gates remain closed.
