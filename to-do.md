@@ -140,10 +140,10 @@
 
 ### P18 — Offline synchronization and conflicts
 
-- [ ] Record locally done/source verified while GitHub unavailable; bind original repository.
-- [ ] Reconcile pending commits, same-source success, unknown commits and incompatible changes.
-- [ ] Expose Compare/Keep local/Publish GitHub choices without losing local snapshot.
-- [ ] **Accept:** One GitHub failure does not stop locally verified eligible Refresher work.
+- [x] Record locally done/source verified while GitHub unavailable; bind original repository.
+- [x] Reconcile pending commits, same-source success, unknown commits and incompatible changes.
+- [x] Expose Compare/Keep local/Publish GitHub choices without losing local snapshot.
+- [x] **Accept:** One GitHub failure does not stop locally verified eligible Refresher work.
 
 ### P19 — Pure FIFO scheduler
 
