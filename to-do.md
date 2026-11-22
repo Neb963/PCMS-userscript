@@ -14,10 +14,10 @@
 
 ### P00 — Repository bootstrap and CI
 
-- [ ] Check initial tree, README, reference SHA-256 manifest, and no secrets.
-- [ ] Run bootstrap checks locally and in GitHub Actions.
-- [ ] Commit/push initial scaffold to `main`; ensure a fresh clone passes.
-- [ ] **Accept:** A fresh clone runs the two bootstrap commands; CI green; no runtime feature claimed.
+- [x] Check initial tree, README, reference SHA-256 manifest, and no secrets.
+- [x] Run bootstrap checks locally and in GitHub Actions.
+- [x] Commit/push initial scaffold to `main`; ensure a fresh clone passes.
+- [x] **Accept:** A fresh clone runs the two bootstrap commands; CI green; no runtime feature claimed.
 
 ### P01 — Build a real installable userscript
 

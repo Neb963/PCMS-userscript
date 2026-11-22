@@ -1,23 +1,20 @@
 # Active work — handoff
 
-**Current phase:** P00 — Repository bootstrap and CI. **Status:** In progress.
+**Current phase:** P01 — Build a real installable userscript. **Status:** Planned.
 
 ## Next action
 
-- Push the verified scaffold to empty public `main` through the GitHub connector.
-- Verify remote tree, bootstrap Actions result and fresh checkout checks.
+- Build isolated entry, explicit launch and reusable dedicated tab.
+- Add deterministic, dependency-free ES-module bundling; metadata and native-page noninterference tests.
+- Expand lightweight CI to syntax/build/tests after local validation.
 
 ## Evidence
 
-- GitHub metadata: public repository, default `main`, empty; no open PRs.
-- `npm run check:bootstrap`: PASS (32 phases, 11 immutable reference hashes).
-- `npm test`: PASS (3 bootstrap tests). No runtime behavior claimed.
-- Read AGENTS, v1.4 authority, discovery, architecture, testing and CI guidance.
-- Discovery's old instruction-file/native-src and rank/PersonaMonkey references conflict with v1.4; v1.4 controls: scratch stays outside src, no ranking, no companion extension.
+- P00 complete: bootstrap checks, 3 tests and clean Actions checkout PASS. See `docs/verification.md`.
+- Read v1.4, discovery and accepted UI entry/layout reference. Authority overrides older discovery references to ranking, instruction files in src and PersonaMonkey.
 
 ## Blockers / deferred checks
 
-- Direct shell GitHub transport unavailable; using authorized GitHub connector for commits and remote verification.
-- No live Perchance account or disposable targets designated. Native actions require deferred Firefox/Violentmonkey proof before normal-use enablement.
+- Native actions need disposable Firefox/Violentmonkey verification before normal-use enablement; no live account targets designated.
 
-**Last pushed commit:** None yet.
+**Last pushed commit:** d33ebffcc51b95fdda0a70104f379acaeb10c742.
