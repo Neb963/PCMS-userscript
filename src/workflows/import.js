@@ -1,4 +1,4 @@
-import { requireThat, generatorRecord, sourceEqual, releaseHold, addHold } from '../shared/domain.js';
+import { requireThat, generatorRecord, sourceEqual, parseStatus, releaseHold, addHold } from '../shared/domain.js';
 import { sourceChanges } from '../adapters/github/writer.js';
 import { appendEvent } from '../state/journal.js';
 
@@ -55,7 +55,27 @@ export class BulkImport {
         const pending=state.pending[pendingId];
         if(pending?.phase==='synced'){const g=state.generators[id];outcomes.push(await this.record(command,id,{id,slug:pending.slug,outcome:g?.savedVerified?'imported':'held',reason:g?.savedVerified?null:g?.holds?.[0]?.kind||'saved-source-unavailable',commit:pending.commit}));continue;}
         if(pending&&state.jobs[writeId]){
-          const receipt=await this.writer.reconcile(writeId);
+          const receipt=await this.writer.reconcile(writeId,{fresh:true});
+          if(!receipt.verified){outcomes.push(await this.record(command,id,{id,slug:pending.slug,outcome:'unknown',reason:'github-result'}));continue;}
+          outcomes.push(await this.finish(command,id,pendingId,receipt));continue;
+        }
+        if(pending){
+          requireThat(state.generators[id]?.importCommand===command.id&&JSON.stringify(pending.repository)===JSON.stringify(command.repository),'import-identity-changed');
+          await this.gate.requireOwner({id,slug:pending.slug,account:command.account});
+          const live=await this.reader.saved(pending.slug,id);
+          if(!sourceEqual(live.source,pending.source)){
+            await this.store.transact(s=>{this.assertCurrent(s);s.generators[id]=addHold(s.generators[id],{id:pendingId+'-recheck',kind:'source-drift'});});
+            outcomes.push(await this.record(command,id,{id,slug:pending.slug,outcome:'held',reason:'source-drift'}));continue;
+          }
+          const current=await this.github.snapshot();
+          if(folderExists(current,pending.slug)){
+            const remote=await this.github.source(current,pending.slug),status=await this.github.text(current,pending.slug+'/status.md');
+            requireThat(sourceEqual(remote,pending.source)&&JSON.stringify(parseStatus(status))===JSON.stringify(pending.status),'import-folder-conflict');
+            outcomes.push(await this.finish(command,id,pendingId,{verified:true,commit:current.commit}));continue;
+          }
+          this.writeAllowed();
+          const baseline=await this.github.snapshot(pending.baseCommit);
+          const receipt=await this.writer.write({id:writeId,targetSlug:pending.slug,baseline,changes:sourceChanges(baseline,pending.slug,pending.source,pending.status),operation:'import'});
           if(!receipt.verified){outcomes.push(await this.record(command,id,{id,slug:pending.slug,outcome:'unknown',reason:'github-result'}));continue;}
           outcomes.push(await this.finish(command,id,pendingId,receipt));continue;
         }

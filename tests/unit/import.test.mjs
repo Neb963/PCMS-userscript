@@ -36,3 +36,11 @@ test('a crash after verified import but before the row report does not need dele
   const f=await fixture();f.command.ids=['456'];await f.workflow.run(f.command);await f.store.transact(s=>{delete s.commands.run1.results['456'];});
   assert.equal((await f.workflow.run(f.command))[0].outcome,'imported');assert.equal(f.commits.length,1);assert.equal((await f.store.read()).generators['456'].holds.length,0);
 });
+test('Import crash between source retention and first GitHub job resumes without losing its original snapshot',async()=>{
+  const f=await fixture();f.command.ids=['456'];const original=f.workflow.writer.write;f.workflow.writer.write=async()=>{throw Error('crash before action preparation');};assert.equal((await f.workflow.run(f.command))[0].outcome,'unknown');assert.equal(Object.keys((await f.store.read()).jobs).length,0);
+  f.workflow.writer.write=original;assert.equal((await f.workflow.run(f.command))[0].outcome,'imported');assert.equal(f.commits.length,1);
+});
+test('Import recovery cannot publish its retained snapshot after native source changed',async()=>{
+  const f=await fixture();f.command.ids=['456'];f.workflow.writer.write=async()=>{throw Error('crash before action preparation');};await f.workflow.run(f.command);const original=f.reader.saved;f.reader.saved=async(...args)=>{const live=await original(...args);live.source.html='new native content';return live;};
+  assert.equal((await f.workflow.run(f.command))[0].outcome,'held');assert.equal(f.commits.length,0);assert.ok((await f.store.read()).pending['run1-456'].source);
+});

@@ -52,3 +52,8 @@ test('changed same-generator baseline and head race never overwrite new main',as
   await assert.rejects(g.writer.write({id:'race',targetSlug:'synthetic-generator',baseline:g.baseline,changes:statusChanges('synthetic-generator',status)}),/head-conflict/);
   assert.equal(g.calls.filter(c=>c.path==='/git/refs/heads/main').length,0);
 });
+test('fresh reconciliation detects a superseding edit after an earlier verified receipt',async()=>{
+  const f=await fixture();await f.writer.write({id:'landed',targetSlug:'synthetic-generator',baseline:f.baseline,changes:statusChanges('synthetic-generator',status),operation:'status'});
+  const current=await f.reader.snapshot();current.entries['synthetic-generator/status.md'].sha='f'.repeat(40);f.reader.snapshot=async()=>structuredClone(current);
+  assert.equal((await f.writer.reconcile('landed',{fresh:true})).superseded,true);assert.equal((await f.writer.reconcile('landed')).superseded,true);assert.equal(f.calls.filter(c=>c.path==='/git/refs/heads/main').length,1);
+});

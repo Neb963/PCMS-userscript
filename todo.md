@@ -1,6 +1,6 @@
 # Active work — handoff
 
-**Current phase:** P18 — Offline synchronization and conflicts. **Status:** Planned.
+**Current phase:** P18 — Offline synchronization and conflicts. **Status:** In progress.
 
 ## Next action
 
@@ -13,10 +13,12 @@
 
 ## Evidence
 
+- P18 first verified batch: Import resumes a crash after snapshot but before GitHub preparation; native drift blocks that recovery. Fresh GitHub receipt reconciliation retains superseded state. Focused Import/writer tests pass; sync engine and UI remain to implement.
+
 P00–P17 synthetic implementation evidence is in docs/verification.md. Build/syntax and 109 Node tests PASS. P17 checks 44975374094 and both-browser UI 44975374083 PASS. P01 installation acceptance remains deferred.
 
 ## Blockers / deferred checks
 
 DEFERRED — P01–P18 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft Save and real GitHub synchronization — no disposable profile/targets/PAT supplied. Static capability flags remain false.
 
-**Last pushed commit:** ec302f59c95ec4303183caa38c3d4b2d179c7647.
+**Last pushed commit:** 999a0f8e76e151fa041d742111192924d384b73e.

@@ -77,15 +77,16 @@ export class GitHubWriter {
     });
   }
 
-  async reconcile(id) {
+  async reconcile(id,{fresh=false}={}) {
     const job = (await this.store.read()).jobs[id];
     requireThat(job?.kind === 'github' && JSON.stringify(job.repository) === JSON.stringify(this.reader.repository), 'github-write-not-found');
-    if (job.phase === 'verified') return { verified: true, commit: job.commitSha };
+    if (job.phase === 'verified'&&!fresh) return { verified: true, commit: job.commitSha, superseded:job.superseded===true };
     const current = await this.reader.snapshot();
+    const matches = Object.entries(job.intended).every(([path, sha]) => sha === null ? !current.entries[path] : current.entries[path]?.sha === sha);
+    if(job.phase==='verified'){await this.store.transact(s=>{s.jobs[id].superseded=!matches;});return {verified:true,commit:job.commitSha,superseded:!matches};}
     const history = await this.reader.api('/commits?sha=' + current.commit + '&per_page=100');
     requireThat(Array.isArray(history), 'github-history-unavailable');
     const landed = history.find(c => (job.commitSha ? c.sha === job.commitSha : c.commit?.message === `PCMS ${job.operation} [${id}]`) && c.commit?.tree?.sha === job.treeSha);
-    const matches = Object.entries(job.intended).every(([path, sha]) => sha === null ? !current.entries[path] : current.entries[path]?.sha === sha);
     if (!landed) {
       await this.store.transact(s => { s.jobs[id].phase = 'unknown'; });
       return { verified: false, unknown: true };
