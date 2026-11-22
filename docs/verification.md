@@ -91,3 +91,10 @@
 - [UI run 44968484461](https://github.com/Neb963/PCMS-userscript/actions/runs/44968484461): Chromium and Firefox steps PASS at four widths, including account/repository drafts across navigation, credential absence from DOM and invalid polling preserving applied settings.
 - Settings Test→Apply invalidation, pending-work confirmation and original repository credential retention verified. Native credential dialog keeps PAT outside page input; main Settings shows only masking.
 - Fixed server session-token rejection to invalidate confirmation even if native page login flag is stale.
+
+### P03/P05/P06 cache-coherence repair during P12
+
+- Provider source shows `GM.getValue` uses a document-local cache. Original cached root read/modify/write was insufficient for concurrent tabs.
+- Added one Coordinator writer, protected checkpoint/CAS messaging and fresh-injection startup read. No ordinary frame can start PCMS or native operations.
+- Build/syntax and 50 Node tests PASS. New tests deliberately give a follower a stale cache and verify retained approved source, both independent updates, fresh takeover and fail-closed persistence failure.
+- Original P12 [UI run 44968961811](https://github.com/Neb963/PCMS-userscript/actions/runs/44968961811) PASS. Updated startup/iframe path needs the next synthetic UI run; actual VM cache/injection persistence remains DEFERRED.

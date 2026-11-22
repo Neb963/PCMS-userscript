@@ -25,26 +25,29 @@ export class Coordinator {
   async run(signal, onActive = () => {}) {
     requireThat(this.locks?.request, 'coordinator-lock-unavailable');
     return this.locks.request(COORDINATOR_LOCK, { mode: 'exclusive', signal }, async () => {
-      if (signal.aborted) return;
-      const claim = await this.store.transact(state => {
-        interruptJobs(state);
-        state.coordinator = { term: state.coordinator.term + 1, owner: this.owner };
-        appendEvent(state, { component: 'coordinator', outcome: 'verified' });
-        return state.coordinator.term;
-      });
-      this.term = claim.result;
-      this.active = true;
-      const stopped = new Promise(resolve => { this.release = resolve; });
       const stop = () => this.stop();
-      signal.addEventListener('abort', stop, { once: true });
       try {
+        if (signal.aborted) return;
+        if (this.store.acquireAuthority) await this.store.acquireAuthority();
+        if (signal.aborted) return;
+        const claim = await this.store.transact(state => {
+          interruptJobs(state);
+          state.coordinator = { term: state.coordinator.term + 1, owner: this.owner };
+          appendEvent(state, { component: 'coordinator', outcome: 'verified' });
+          return state.coordinator.term;
+        });
+        this.term = claim.result;
+        this.active = true;
+        const stopped = new Promise(resolve => { this.release = resolve; });
+        signal.addEventListener('abort', stop, { once: true });
         if (signal.aborted) this.stop();
         await onActive(this);
         await stopped;
       } finally {
         this.active = false;
-        this.release = null;
         signal.removeEventListener('abort', stop);
+        if (this.store.releaseAuthority) await this.store.releaseAuthority();
+        this.release = null;
       }
     });
   }

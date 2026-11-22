@@ -58,3 +58,11 @@ PCMS-userscript/
 Use plain JavaScript ES modules and the smallest practical build mechanism unless P01 finds a concrete need for more. Use JSDoc/type checking or a minimal type system if it improves correctness without increasing runtime complexity. Keep the installable output **one userscript**. No backend or companion extension is allowed.
 
 Do not decide product questions by architecture preference. If a required Perchance interface changes, record the observed difference in `todo.md` and adapt the narrow native adapter without altering the workflow contract.
+
+## Violentmonkey cache coherence
+
+The VM implementation keeps a document-local value cache; awaiting `GM.getValue` does not fetch a fresh root. A Web Lock around cached read/modify/write can therefore lose a different tab's update. See the provider's [GM implementation](https://github.com/violentmonkey/violentmonkey/blob/master/src/injected/web/gm-api.js) and [value propagation](https://github.com/violentmonkey/violentmonkey/blob/master/src/injected/web/gm-values.js).
+
+`CoherentStore` keeps one authoritative protected root and one writer in the Coordinator. A follower holds the store Web Lock, requests a protected fresh checkpoint, then sends an expected-revision/write-ID update through a privileged GM mailbox. The Web Lock checkpoint name contains only a random read nonce; it cannot invoke native commands or expose protected data. All native worker commands still use the protected root inbox.
+
+On coordinator takeover, a temporary hidden same-origin document obtains a fresh VM-injected value copy. It returns that copy only through protected GM storage and is removed afterward. Ordinary frames exit before any PCMS UI or worker logic. The transient reply is removed after the primary root is confirmed. This is a demonstrated cache-coherence need, not an additional database, backend, account service or user-facing tab. If this provider path is unavailable, authority acquisition fails closed. Actual VM injection/cache/disk behavior remains a required live deferral before any native write is enabled.

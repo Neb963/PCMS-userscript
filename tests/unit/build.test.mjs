@@ -9,7 +9,8 @@ test('deterministic isolated production build with strict metadata', async () =>
   const a = await bundle(resolve('src/entry.user.js'));
   assert.equal(a, await bundle(resolve('src/entry.user.js')));
   assert.match(a, /@inject-into\s+content/);
-  assert.match(a, /@noframes/);
+  assert.match(a, /window.top !== window.self/);
+  assert.match(a, /pcms_store_probe/);
   assert.match(a, /@match\s+https:\/\/perchance.org\/\*/);
   assert.equal((a.match(/==UserScript==/g) || []).length, 1);
   assert.doesNotMatch(a, /SIMULATION|NAMES =|\beval\s*\(|new Function|^import /m);

@@ -23,16 +23,19 @@ try {
       // Test instrumentation only: open roots for browser assertions. Production is closed.
       const attach = Element.prototype.attachShadow;
       Element.prototype.attachShadow = function(options) { return attach.call(this, { ...options, mode: 'open' }); };
-      const data = new Map();
+      const gm = window === window.top ? { data: new Map(), listeners: new Map(), sequence: 0 } : window.top.__syntheticGM;
+      window.__syntheticGM = gm;
+      const data = gm.data;
       window.GM_registerMenuCommand = () => {};
       window.GM_openInTab = () => { throw new Error('UI smoke must not open workers'); };
-      window.GM_addValueChangeListener = () => 1;
-      window.GM_removeValueChangeListener = () => {};
+      window.GM_addValueChangeListener = (key, callback) => { const id = ++gm.sequence; gm.listeners.set(id, { key, callback }); return id; };
+      window.GM_removeValueChangeListener = id => gm.listeners.delete(id);
       window.GM_getValue = async (key, fallback) => data.get(key) ?? fallback;
-      window.GM_setValue = async (key, value) => data.set(key, value);
+      window.GM_setValue = async (key, value) => { const old = data.get(key); data.set(key, value); queueMicrotask(() => { for (const listener of gm.listeners.values()) if (listener.key === key) listener.callback(key, old, value, true); }); };
       window.unsafeWindow = { app: { store: { data: { user: { loggedIn: false } } } } };
-      window.GM = { getValue: window.GM_getValue, setValue: window.GM_setValue };
+      window.GM = { getValue: window.GM_getValue, setValue: window.GM_setValue, deleteValue: async key => data.delete(key) };
     });
+    page.on('framenavigated', frame => { if (frame !== page.mainFrame() && frame.url().includes('pcms_store_probe=')) frame.addScriptTag({ content: script }).catch(error => { if (!frame.isDetached()) errors.push(error.message); }); });
     await page.goto('https://perchance.org/welcome#pcms');
     await page.addScriptTag({ content: script });
     const app = page.locator('#pcms-root');

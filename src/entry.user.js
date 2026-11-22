@@ -5,7 +5,6 @@
 // @description  Perchance account management with protected local state.
 // @match        https://perchance.org/*
 // @run-at       document-end
-// @noframes
 // @inject-into  content
 // @grant        GM_registerMenuCommand
 // @connect      perchance.org
@@ -15,6 +14,7 @@
 // @grant        unsafeWindow
 // @grant        GM.getValue
 // @grant        GM.setValue
+// @grant        GM.deleteValue
 // @grant        GM_openInTab
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
@@ -29,9 +29,14 @@ import { PerchanceReader } from './adapters/perchance/reader.js';
 import { NativePage, SessionGate } from './adapters/perchance/session.js';
 import { WorkerPool, WorkerRuntime, watchProtectedStore } from './runtime/workers.js';
 import { Coordinator } from './runtime/coordinator.js';
-import { ProtectedStore } from './state/store.js';
+import { CoherentStore, freshStoreProbe, serveStoreProbe } from './state/coherent-store.js';
 import { mountShell, publicSnapshot } from './ui/shell.js';
 import { isAppPage, openPCMS, installLauncher, APP_NAME } from './runtime/launch.js';
+
+function createStore(probeHost = document.body) {
+  const api = { get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), addListener: GM_addValueChangeListener, removeListener: GM_removeValueChangeListener };
+  return new CoherentStore({ ...api, clearProbe: () => GM.deleteValue('PCMS_STORE_PROBE_V1'), locks: navigator.locks, probe: freshStoreProbe({ doc: document, host: probeHost, ...api }) });
+}
 
 function launch() {
   const result = openPCMS(window);
@@ -80,7 +85,7 @@ async function startAssignedWorker() {
   const retained = window.name.startsWith('PCMS_WORKER_') ? window.name.slice('PCMS_WORKER_'.length) : null;
   const id = requested || retained;
   if (!id) return;
-  const store = new ProtectedStore({ get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), locks: navigator.locks });
+  const store = createStore();
   const runtime = new WorkerRuntime({ store, id, documentId: crypto.randomUUID(), doc: document, execute: async command => {
     const native = new NativePage(unsafeWindow);
     const gate = new SessionGate(store, native);
@@ -106,6 +111,10 @@ async function startAssignedWorker() {
   await runtime.pump();
 }
 
+if (window.top !== window.self) {
+  const nonce = new URL(location.href).searchParams.get('pcms_store_probe');
+  if (nonce) serveStoreProbe({ get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), nonce }).catch(() => {});
+} else {
 GM_registerMenuCommand('Open PCMS', launch);
 if (isAppPage(location)) {
   window.name = APP_NAME;
@@ -115,7 +124,7 @@ if (isAppPage(location)) {
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:hidden;display:block;isolation:isolate';
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
-  const store = new ProtectedStore({ get: (key, fallback) => GM.getValue(key, fallback), set: (key, value) => GM.setValue(key, value), locks: navigator.locks });
+  const store = createStore();
   const request = (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options);
   const native = new NativePage(unsafeWindow);
   const gate = new SessionGate(store, native);
@@ -138,4 +147,6 @@ if (isAppPage(location)) {
     if (!signIn()) { const observer = new MutationObserver(() => { if (signIn()) observer.disconnect(); }); observer.observe(document.documentElement, { childList: true, subtree: true }); setTimeout(() => observer.disconnect(), 15000); }
   }
   startAssignedWorker().catch(() => { /* Never repeat an unconfirmed worker action. */ });
+}
+
 }
