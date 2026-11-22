@@ -249,3 +249,12 @@ Artifact: one userscript, version 0.1.0, 453396 bytes, SHA-256 `4972820441bbab22
 DEFERRED — P01 actual installation and P31 clean-profile/VM/native/provider qualification: no operator-designated disposable profile, native targets/free slug or protected repository credential. No native effect or authenticated application GitHub write is claimed passed. P31 release acceptance remains unchecked. `operator-qualification.md` states the exact needed environment and checks. Distribute only the disabled candidate.
 
 Candidate checkpoint checks 45021550610 and Chromium/Firefox UI 45021550631 PASS at `3e7abe00b45986aa71e7f28158863be1d73ce02e` (same runtime hash above). This is synthetic acceptance only.
+
+
+## P29 reopened — complete visual audit, 0.1.1
+
+Operator-reported Settings double scrolling reopened P29; the earlier UI acceptance did not cover the failures discovered by this expanded sweep. See [visual-audit.md](visual-audit.md) for all findings, corrections, scope and limits.
+
+Final implementation `0e8747cf562f2500a5bcddf12f4301ce1f039401`, matched tree `a514449331639d163c321c39aa1a8435a1efea98`. Checks [45057499016](https://github.com/Neb963/PCMS-userscript/actions/runs/45057499016) and Chromium/Firefox UI [45057498921](https://github.com/Neb963/PCMS-userscript/actions/runs/45057498921) PASS. Both complete built-userscript regressions and strict 216-capture/browser visual sweeps pass; metrics report zero nested scroll chains, unintended horizontal overflow, tiny scrollers, clipped controls, Settings card overlap, outer page overflow and runtime errors. Screenshots retrieved and inspected. Seven viewports, both themes, simulated 150% text, setup/empty/loading/offline/unknown/import results, long lists and nested dialogs are covered. Focus/scroll retention and wheel ownership also pass.
+
+266 Node tests and build/syntax/bootstrap/candidate checks PASS. Version 0.1.1 is 460234 bytes, SHA-256 `c68120cc7956dde8e0e1909ee3d9f768eae57570209adeda3c4f61ec45f935e3`; working and clean committed-tree-export builds are identical. Source/bundle metadata and all disabled gates checked. P29 repaired visual/interaction surface is accepted synthetically. P31 and further native/operator testing remain paused; P01/live qualification remains deferred. This supersedes 0.1.0 for UI inspection only.

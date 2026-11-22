@@ -1,20 +1,18 @@
-# PCMS 0.1.0 — disabled candidate
+# PCMS 0.1.1 — disabled UI audit candidate
 
-Implementation through P30 has synthetic verification. This build includes import/reservation/publication, send-once Helper development and review/cancellation, protected Manual Edit, offline original-repository synchronization, pure-FIFO Refresher, atomic Rename, complete-source Rollback and contextual recovery.
+This build supersedes the 0.1.0 visual-inspection candidate after the operator reopened P29. Settings now uses shared intrinsic grid rows with natural card bodies and one overflow owner when needed. The pass also corrects short-screen clipping, enlarged-text layout, state labels, picker cancellation and background-update focus/scroll behavior. See `visual-audit.md` for the complete findings.
 
-The production artifact is one deterministic userscript with no backend, companion extension or runtime package dependency. The accepted UI reference remains separate. The downloadable package supplies the script as `.txt`; rename a copy to `.user.js` only in the designated test environment.
+Implementation through P30 retains synthetic verification. The production artifact is one deterministic userscript with no backend, companion extension or runtime dependency. The downloadable package supplies the script as `.txt`; rename a copy to `.user.js` for later designated test-profile installation. The simulated UI reference and audit fixtures remain separate from the artifact.
 
 ## Verification
 
-- 266 Node tests pass, including production GitHubReader/Writer against an immutable synthetic Git Data provider through full Listed/Unlisted lifecycles and restart/lost-response reconciliation.
-- Build, syntax and immutable-reference checks pass.
-- Chromium and Firefox synthetic UI pass at six widths plus empty setup and short-height/reduced-motion interaction checks.
-- Candidate validation checks exact source/bundle reproducibility, version, metadata, expected hosts, JavaScript parseability, no known fixture/token/private-key payload and all mutation gates disabled.
-
-See `verification.md` and `integration-matrix.md` for exact commits/run IDs and limits. Clean exported-source checks and a fresh local clone of the exact GitHub-verified tree produce identical bytes: 453396 bytes, SHA-256 `4972820441bbab22c3df33b3c56119b294b868705a19f3a51fbc3e4f7fe14554`. This was not an authenticated remote clone.
+- 266 Node tests pass. Build, JavaScript syntax, immutable references and candidate validation pass.
+- Complete built-userscript Chromium and Firefox interaction regressions pass after the Settings repair. The final strict scenario sweep and exact CI references are recorded in `visual-audit.md` and `verification.md`.
+- Candidate validation checks source/bundle reproducibility, version, metadata, hosts, parseability, absence of known fixture/token/private-key payload and all mutation gates disabled.
+- Working artifact and clean committed-tree export agree: 460234 bytes, SHA-256 `c68120cc7956dde8e0e1909ee3d9f768eae57570209adeda3c4f61ec45f935e3`. The source tree was matched to GitHub through the connector; the clean export is local, not an authenticated remote clone.
 
 ## Remaining limitation
 
-P01 actual Violentmonkey installation and P31 fresh-profile/live effects are not verified. No designated disposable browser profile, targets or protected test credential were supplied. The browser connector failed and local browser launch is restricted; CI browsers use synthetic origins only. Consequently native Save/create/Rename/Listing/Helper and application GitHub writes remain disabled. This candidate is for inspection and controlled qualification, and will not operate those workflows on a real account.
+P31 and further native/operator testing remain paused at the user's request. P01 actual Violentmonkey installation and P31 fresh-profile/live effects are not verified. Synthetic origins and fake services exercise UI behavior without provider effects. Native Save/create/Rename/Listing/Helper and application GitHub writes remain disabled. This candidate does not establish native workflow qualification.
 
-Use `operator-qualification.md` for the exact remaining evidence. No existing test is reported as native/live success.
+Use `operator-qualification.md` for the remaining evidence when testing resumes. No deferred test is reported as passed.

@@ -217,12 +217,12 @@
 
 ### P29 — UI fidelity, keyboard and responsive pass
 
-- [ ] Check all screens against v2.0.0 screenshots and the exact Section 8 contract.
-- [ ] Fix focus return, nested dialogs, pane scroll, picker behavior and 320px access.
-- [ ] Validate light/dark, reduced motion, contrast and no duplicate navigation.
-- [ ] **Accept:** No regression in accepted UI routes, spacing, no outer desktop scroll and actionable states.
+- [x] Check all screens against v2.0.0 screenshots and the exact Section 8 contract.
+- [x] Fix focus return, nested dialogs, pane scroll, picker behavior and 320px access.
+- [x] Validate light/dark, reduced motion, contrast and no duplicate navigation.
+- [x] **Accept:** No regression in accepted UI routes, spacing, no outer desktop scroll and actionable states.
 
-Operator reopened P29: Settings double scrolling and full scenario audit are not accepted until corrected and visually verified. P31 testing is paused.
+Operator-requested P29 re-audit accepted after repairs: 216 captures/browser, strict geometry and complete built-script regressions pass in Firefox/Chromium at 0e8747cf562f2500a5bcddf12f4301ce1f039401 (UI run 45057498921). See docs/visual-audit.md. P31 testing remains paused.
 
 ### P30 — Integration and failure regression
 

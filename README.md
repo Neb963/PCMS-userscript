@@ -24,7 +24,7 @@ npm run check:syntax
 npm run check:candidate
 ```
 
-Checks run build, syntax, immutable-reference and synthetic contract tests. Chromium/Firefox CI uses synthetic Perchance routing. It does not prove native provider behavior. See [operator qualification](docs/operator-qualification.md), [candidate release notes](docs/release-candidate.md), and the [integration matrix](docs/integration-matrix.md).
+Checks run build, syntax, immutable-reference and synthetic contract tests. Chromium/Firefox CI uses synthetic Perchance routing. It does not prove native provider behavior. See [operator qualification](docs/operator-qualification.md), [candidate release notes](docs/release-candidate.md), the [integration matrix](docs/integration-matrix.md), and the [full visual audit](docs/visual-audit.md).
 
 ## Reference precedence
 
