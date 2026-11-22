@@ -105,10 +105,10 @@
 
 ### P13 — Generator inventory and Manage
 
-- [ ] Implement list/table, filter/search/sort, stable selection and per-generator state columns.
-- [ ] Implement contextual Manage drawer and action validation.
-- [ ] Test preserved selection, internal scrolling, wrong-owner and unknown states.
-- [ ] **Accept:** One verified native ID maps to one row; no selection operation mutates remote state.
+- [x] Implement list/table, filter/search/sort, stable selection and per-generator state columns.
+- [x] Implement contextual Manage drawer and action validation.
+- [x] Test preserved selection, internal scrolling, wrong-owner and unknown states.
+- [x] **Accept:** One verified native ID maps to one row; no selection operation mutates remote state.
 
 ### P14 — Bulk Import end-to-end
 

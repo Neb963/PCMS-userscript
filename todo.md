@@ -1,23 +1,21 @@
 # Active work — handoff
 
-**Current phase:** P13 — Generator inventory and Manage. **Status:** Implemented; browser verification pending.
+**Current phase:** P14 — Bulk Import end-to-end. **Status:** Planned.
 
 ## Next action
 
-- Verify four-width inventory tests: stable checkbox/list scroll, hidden selection, locked account, Manage close/focus and existing Settings/history regressions.
-- Verify separate unbound setup form still preserves staged account ID.
-- Then implement P14 complete saved-source Bulk Import with conflict-safe independent outcomes.
+- Verify/discover complete native saved source and target-folder absence; preselect only Ready candidates.
+- Process explicit selections sequentially, persist full source/repository before GitHub dispatch, lock manual account at first management and commit source/status atomically.
+- Skip conflicts independently, preserve native Listing/drafts and reconcile unknown GitHub results without replay.
+- Add fixed preview/results UI and protected coordinator intent queue; keep unverified live write capability disabled.
 
 ## Evidence
 
-- Build/syntax and 57 Node tests pass.
-- Inventory is keyed by verified native ID; separate four-state projection; pure filters/sorts; keyed row updates preserve checkbox focus and list position.
-- Manage shows only applicable implemented actions. Bulk Exclude/Include rechecks each selected ID, changes local eligibility only and preserves independent holds/source/Listing.
-- Unknown/renamed IDs are retained; unexpected Unlisting adds its own hold. No native operation was simulated as success.
+- P13 UI 44971751107 and synthetic checks 44971751136 PASS; 58 tests. See `docs/verification.md`.
 
 ## Blockers / deferred checks
 
-- Real Firefox/Violentmonkey provider/injection/persistence/session/inventory/source/tab checks remain DEFERRED; no disposable live targets/profile available.
-- Native write capability flags remain false.
+- Real Firefox/Violentmonkey provider/injection/persistence/session/inventory/source/tab and GitHub-write checks are DEFERRED; no disposable live targets/profile/PAT supplied.
+- Native write capability flags remain false; normal-use integration effects require their live proof.
 
-**Last pushed commit:** 4b2185174f7a1b735d63e9f393cf48a6be6057d9.
+**Last pushed commit:** 63d176452ddd73612f690cfa4541583a4e24fda1.
