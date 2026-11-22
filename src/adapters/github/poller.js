@@ -1,7 +1,14 @@
+import { GitHubWriter } from './writer.js';
+import { requireThat } from '../../shared/domain.js';
 import { GitHubReader } from './reader.js';
 
 export class GitHubPoller {
   constructor({ store, request, now = () => Date.now() }) { Object.assign(this, { store, request, now }); this.nextAt = 0; this.busy = false; this.client = null; this.config = null; }
+
+  writer({ locks, guard }) {
+    requireThat(this.client, 'github-client-unavailable');
+    return new GitHubWriter({ reader: this.client, store: this.store, locks, guard });
+  }
 
   async check(scheduled = false) {
     if (this.busy) return false;

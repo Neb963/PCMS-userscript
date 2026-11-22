@@ -84,10 +84,10 @@
 
 ### P10 — GitHub complete-source commit writer
 
-- [ ] Implement source/`src/` deletion commits and separate status-only writes.
-- [ ] Detect changed HEAD/incompatible generator revisions before committing.
-- [ ] Reconcile lost commit response without blind repeat.
-- [ ] **Accept:** Tests prove complete-tree updates and conflict-safe behavior with concurrent changes.
+- [x] Implement source/`src/` deletion commits and separate status-only writes.
+- [x] Detect changed HEAD/incompatible generator revisions before committing.
+- [x] Reconcile lost commit response without blind repeat.
+- [x] **Accept:** Tests prove complete-tree updates and conflict-safe behavior with concurrent changes.
 
 ### P11 — Settings UI and safe configuration
 

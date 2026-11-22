@@ -77,3 +77,10 @@
 - Request identity uses status path history and instruction blob IDs. Closed stale ready/instruction edits cannot replay; a new ready needs explicit transition evidence.
 - Tests cover lookalike URLs, missing/corrupt source, truncated trees, changed repository, account mismatch, stale instructions, offline preservation and Check now without schedule reset.
 - Runtime polls only configured repositories; outage leaves prior records and independent FIFO untouched.
+
+## P10
+
+- Build/syntax and 40 Node tests PASS.
+- Complete source/status commits use Git Data API, preserve unrelated files/instructions, remove obsolete src and always update main without force after checking HEAD.
+- Persisted operation intent, object/commit/ref stages and protected global commit lock. Uncertain results require history/tree reconciliation; no blind second commit/ref dispatch.
+- Tests cover atomic source/deletion, separate status writes, changed generator baseline, HEAD race and landed ref with lost response. No configured live repository was written for tests.

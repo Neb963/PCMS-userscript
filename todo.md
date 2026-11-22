@@ -1,20 +1,21 @@
 # Active work — handoff
 
-**Current phase:** P10 — GitHub complete-source commit writer. **Status:** Planned.
+**Current phase:** P11 — Settings UI and safe configuration. **Status:** Planned.
 
 ## Next action
 
-- Build atomic complete-source/status commits with exact src deletions and unchanged unrelated files.
-- Serialize commits, compare source/request baselines and recheck main before a non-forced ref update.
-- Persist commit intent and reconcile unknown responses without a second write.
+- Implement aligned Account/GitHub/Automatic checks/Interface/System settings.
+- Use isolated native credential entry, Test→Apply drafts and explicit pending-work switch confirmation.
+- Keep previous repository credentials only while pending work needs them; preserve drafts through rerender/navigation.
+- Test invalid settings, staged edits, sign-out and repository/PAT switching.
 
 ## Evidence
 
-- P09: 37 tests/build/syntax pass; coherent GitHub reader, request freshness and polling/offline behavior. See `docs/verification.md`.
+- P10: 40 tests/build/syntax pass; atomic source/status writes and unknown-response reconciliation. See `docs/verification.md`.
 
 ## Blockers / deferred checks
 
 - DEFERRED — P01/P06/P07/P08 — live Firefox/Violentmonkey install/session/inventory/source/tab activation — disposable profile unavailable.
-- All native write capability flags remain false.
+- All native write capabilities remain false; no user repository writes used as synthetic tests.
 
-**Last pushed commit:** de0647621d9568dc4bab05c5e6ae164c02fab519.
+**Last pushed commit:** 194a30f374fd8b023544b850c8fe3a5e5d55b836.
