@@ -98,10 +98,10 @@
 
 ### P12 — Overview action cases, operations and journal
 
-- [ ] Project verified unresolved cases and their canonical recovery links.
-- [ ] Project four workers and Unknown/offline states without invented progress.
-- [ ] Keep one event journal; implement 3-event summary, search, details and safe export.
-- [ ] **Accept:** No bell, notification store or duplicated diagnostics; cases are not cleared by navigation.
+- [x] Project verified unresolved cases and their canonical recovery links.
+- [x] Project four workers and Unknown/offline states without invented progress.
+- [x] Keep one event journal; implement 3-event summary, search, details and safe export.
+- [x] **Accept:** No bell, notification store or duplicated diagnostics; cases are not cleared by navigation.
 
 ### P13 — Generator inventory and Manage
 

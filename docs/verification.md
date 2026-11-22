@@ -106,3 +106,9 @@
 - UI run 44970210617: Firefox did not establish authority; diagnostics showed Unverified after probe removal, with no page exception. The fixture now registers injection before reading a potentially not-yet-final child URL, and records synthetic startup stage metadata. Failed authority acquisition marks storage unavailable; an unverified case set can no longer show No action required. Coordinator bootstrap-failure cleanup regression added (52 total tests PASS).
 
 - Firefox fixture trace in 44970465169 identified init-script execution before the child URL became available (empty URL, no probe injection). The test now injects on actual frame navigation and accepts protocol teardown only when the exact nonce has a protected GM reply, authority is Verified, and the probe frame is removed. All production/page-error assertions remain active.
+
+### P12 final verification
+
+- [UI run 44970649444](https://github.com/Neb963/PCMS-userscript/actions/runs/44970649444) PASS in Chromium and Firefox, four widths, including verified authority, exact protected probe nonce, probe removal, history details/focus and preserved settings drafts.
+- [Synthetic run 44970649403](https://github.com/Neb963/PCMS-userscript/actions/runs/44970649403) PASS (52 tests, build, syntax, reference hashes).
+- The earlier Firefox failures were synthetic injection/lifecycle timing defects; receipt-based assertions remain active. Actual VM provider persistence/injection is still deferred and native writes stay disabled.
