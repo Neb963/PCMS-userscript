@@ -1,6 +1,6 @@
 # Active work — handoff
 
-**Current phase:** P20 — Dedicated Refresher Save worker. **Status:** Planned.
+**Current phase:** P20 — Dedicated Refresher Save worker. **Status:** In progress.
 
 ## Next action
 
@@ -12,10 +12,12 @@
 
 ## Evidence
 
-P00–P19 evidence is in docs/verification.md. Build/syntax and 158 Node tests PASS. P19 checks 44978381380 and Chromium/Firefox UI 44978381382 PASS at c0eacfe17b4267acb474f74e1b776d6812e2edbd. P01 live installation acceptance remains deferred.
+- P20 first verified batch: 164 Node tests PASS. Leading PJS/HTML markers preserve BOM/CRLF/empty panels and exact functional source/src, reject unsafe/malformed/moved/duplicate markers, and support baseline fingerprints at verified Import/publication. Native transport revalidates before dispatch, sends at most one matched request, bounds hung frontend calls and retains observed receipts. Dedicated Refresher preparation/Save/controller wiring remains to implement.
+
+P00–P19 evidence is in docs/verification.md. Build/syntax and 158 Node tests PASS. P19 checks 44978381380 and Chromium/Firefox UI 44978381382 PASS at 54d8d7cd6c1834e78a700c720901f8ecd7161097. P01 live installation acceptance remains deferred.
 
 ## Blockers / deferred checks
 
 DEFERRED — P01–P20 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft/refresh Save and GitHub synchronization — no disposable profile/targets/PAT supplied. Static write flags remain false.
 
-**Last pushed commit:** c0eacfe17b4267acb474f74e1b776d6812e2edbd.
+**Last pushed commit:** 54d8d7cd6c1834e78a700c720901f8ecd7161097.

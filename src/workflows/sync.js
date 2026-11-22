@@ -1,3 +1,4 @@
+import {fingerprintSource} from '../shared/source.js';
 import {requireThat,sourceEqual,parseStatus,addHold,releaseHold,completeSource} from '../shared/domain.js';
 import {sourceChanges,statusChanges} from '../adapters/github/writer.js';
 import {pruneRepositoryCredentials} from '../state/settings.js';
@@ -17,7 +18,7 @@ export function syncRecords(state){
   return rows;
 }
 
-export async function sourceFingerprint(source){const bytes=new TextEncoder().encode(JSON.stringify(completeSource(source))),hash=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');}
+export async function sourceFingerprint(source){return fingerprintSource(source);}
 export async function enqueueSyncAction(store,action,id,{confirmed=false,comparison=null}={},uuid=()=>crypto.randomUUID()){
   requireThat(['recheck','local','github','reassign','stop'].includes(action),'unsupported-sync-action');
   if(action!=='recheck')requireThat(confirmed===true,'sync-confirmation-required');const commandId=uuid();

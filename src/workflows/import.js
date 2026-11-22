@@ -1,3 +1,4 @@
+import {functionalFingerprint} from '../refresher/markers.js';
 import { requireThat, generatorRecord, sourceEqual, parseStatus, releaseHold, addHold } from '../shared/domain.js';
 import { sourceChanges } from '../adapters/github/writer.js';
 import { appendEvent } from '../state/journal.js';
@@ -28,12 +29,13 @@ export class BulkImport {
     const state=await this.store.read(),p=state.pending[pendingId];let live=null,reason=null;
     try{live=await this.reader.saved(p.slug,p.generatorId);if(!sourceEqual(live.source,p.source))reason='source-drift';}catch{reason='snapshot-failure';}
     if(receipt.superseded)reason='source-conflict';
+    const fingerprint=live?await functionalFingerprint(live.source):null;
     await this.guard();
     await this.store.transact(s=>{
       this.assertCurrent(s);
       const g=s.generators[id],pending=s.pending[pendingId];
       requireThat(g&&g.importCommand===command.id,'import-identity-changed');
-      g.status=structuredClone(p.status);g.githubCommit=receipt.commit;g.savedVerified=!reason;g.holds=releaseHold(g,pendingId).holds;
+      g.status=structuredClone(p.status);g.githubCommit=receipt.commit;g.savedVerified=!reason;if(!reason)g.verifiedFingerprint=fingerprint;g.holds=releaseHold(g,pendingId).holds;
       if(live)g.listing=live.listing;
       if(reason)s.generators[id]=addHold(g,{id:pendingId+'-recheck',kind:reason});
       pending.phase='synced';pending.commit=receipt.commit;pending.sourceCommitted=true;

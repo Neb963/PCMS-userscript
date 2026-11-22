@@ -49,7 +49,7 @@ test('uncertain Rename reconciles exact same ID and owner without another native
   assert.equal((await f.reservation.run(f.request,'rename')).phase,'unknown');assert.equal((await f.reservation.run(f.request,'rename')).phase,'reserved');assert.equal(f.calls.filter(c=>c==='rename').length,1);
 });
 test('native receipt observes matched native response and never treats frontend return as success',async()=>{
-  const page={fetch:async()=>({ok:true,clone:()=>({json:async()=>({status:'saved',name:'wanted-slug',sessionToken:'must not escape',arbitrary:'must not escape'})})})};
+  const page={Promise,fetch:async()=>({ok:true,clone:()=>({json:async()=>({status:'saved',name:'wanted-slug',sessionToken:'must not escape',arbitrary:'must not escape'})})})};
   const original=page.fetch;const receipt=await nativeReceipt(page,{path:'/api/save',exporter:f=>f,matches:b=>b?.generator?.name==='wanted-slug',invoke:()=>page.fetch('/api/save',{body:JSON.stringify({generator:{name:'wanted-slug'}})})});
   assert.deepEqual(receipt,{status:'saved',name:'wanted-slug'});assert.equal(page.fetch,original);
   await assert.rejects(nativeReceipt(page,{path:'/api/save',exporter:f=>f,timeout:2,invoke:()=>Promise.resolve('saved')}),/timeout/);
@@ -85,4 +85,17 @@ test('a late created receipt retains the temporary ID after Stop without reactiv
   const f=await fixture();await f.store.transact(s=>{s.utility={late:{id:'late',request:f.request,phase:'checking',generatorId:null,steps:[]}};s.jobs.lateCreate={id:'lateCreate',kind:'native-create',requestId:'late',phase:'dispatched'};});
   const page={location:{pathname:'/minimal',hash:'#edit'},currentInterfaceMode:'edit',perchanceSaveState:'saved',srcState:{isDirty:()=>false},modelTextEditor:{isClean:()=>true},outputTemplateEditor:{isClean:()=>true},app:{saveGenerator:()=>{}}};
   const actions=new NativeActions({store:f.store,page,doc:{visibilityState:'hidden'},capability:()=>{},native:{identity:()=>({id:'minimal',slug:'minimal'}),ready:async()=>{},ownership:async()=>false},gate:{store:f.store,requireSession:async()=>{},requireOwner:async()=>{}},reader:{metadata:async()=>({id:'123',slug:'temporary-slug',listing:'listed'})}});actions.receipt=async()=>{await f.store.transact(s=>{s.utility.late.phase='stopped';s.utility.late.stopped=true;s.utility.late.stopRequested=true;s.jobs.lateCreate.phase='unknown';s.jobs.lateCreate.locallyStopped=true;});return {status:'created',name:'temporary-slug'};};await actions.create('lateCreate');const s=await f.store.read();assert.equal(s.jobs.lateCreate.createdIdentity.id,'123');assert.equal(s.jobs.lateCreate.creationReceipt.status,'created');assert.equal(s.generators['123'],undefined);assert.equal(s.utility.late.phase,'stopped');
+});
+test('a stale native operation is rejected before transport while unrelated fetches stay native',async()=>{
+  let effects=0;const page={Promise,fetch:async()=>{effects++;return {ok:true,clone:()=>({json:async()=>({status:'saved',name:'wanted-slug'})})};}};const original=page.fetch;
+  await assert.rejects(nativeReceipt(page,{path:'/api/save',exporter:f=>f,allow:async()=>{throw Error('stale');},invoke:()=>page.fetch('/api/save',{body:JSON.stringify({generator:{name:'wanted-slug'}})}),matches:b=>b?.generator?.name==='wanted-slug'}));assert.equal(effects,0);assert.equal(page.fetch,original);
+  const receipt=await nativeReceipt(page,{path:'/api/save',exporter:f=>f,allow:async()=>{},invoke:async()=>{await page.fetch('/api/unrelated');await page.fetch('/api/save',{body:'{}'});}});assert.equal(receipt.status,'saved');assert.equal(effects,2);
+});
+test('native receipt timeout bounds a hung frontend and preserves an already-observed acknowledgement',async()=>{
+  let observed=null;const page={Promise,fetch:async()=>({ok:true,clone:()=>({json:async()=>({status:'saved',name:'wanted-slug'})})})};const original=page.fetch;
+  await assert.rejects(nativeReceipt(page,{path:'/api/save',exporter:f=>f,observe:async value=>{observed=value;},timeout:2,invoke:async()=>{await page.fetch('/api/save',{body:'{}'});await new Promise(()=>{});}}),/timeout/);assert.equal(observed.status,'saved');assert.equal(page.fetch,original);
+});
+test('one native invocation cannot send a second matched Save',async()=>{
+  let sends=0;const page={Promise,fetch:async()=>{sends++;return {ok:true,clone:()=>({json:async()=>({status:'saved',name:'wanted-slug'})})};}};
+  await assert.rejects(nativeReceipt(page,{path:'/api/save',exporter:f=>f,invoke:()=>Promise.all([page.fetch('/api/save',{body:'{}'}),page.fetch('/api/save',{body:'{}'})])}));assert.equal(sends,1);
 });

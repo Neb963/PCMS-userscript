@@ -1,3 +1,4 @@
+import {functionalFingerprint} from '../refresher/markers.js';
 import {requireThat,sourceEqual,releaseHold,addHold,parseStatus} from '../shared/domain.js';
 import {appendEvent} from '../state/journal.js';
 
@@ -54,9 +55,10 @@ export class Publication {
           }
           live=await this.reader.saved(target.slug,target.id);await this.gate.requireOwner(target);
           requireThat(sourceEqual(live.source,source),'saved-source-mismatch');requireThat(live.listing===pending.listingIntent,'intended-listing-unconfirmed');
+          const verifiedFingerprint=await functionalFingerprint(live.source);
           await this.reservation.update(id,(record,s)=>{
             record.localDone=true;record.closed=true;record.phase='done';record.steps.push('intended Listing confirmed');
-            const g=s.generators[target.id];s.generators[target.id]={...releaseHold(g,id),listing:live.listing,localDone:true,localApproved:false,savedVerified:true,ownerVerified:true};
+            const g=s.generators[target.id];s.generators[target.id]={...releaseHold(g,id),listing:live.listing,localDone:true,localApproved:false,savedVerified:true,verifiedFingerprint,ownerVerified:true};
             const superseded=request.replacesPendingId&&s.pending[request.replacesPendingId];
             if(superseded){requireThat(superseded.decision?.successorRequest===id,'source-handoff-changed');superseded.phase='superseded';superseded.successorId=pendingId;superseded.decision.phase='done';s.generators[target.id]=releaseHold(s.generators[target.id],'sync-'+superseded.id);}
             s.pending[pendingId].phase='local-done';s.pending[pendingId].nativeVerified=true;appendEvent(s,{component:'utility',outcome:'verified',nativeId:target.id});

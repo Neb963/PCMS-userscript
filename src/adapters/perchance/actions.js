@@ -5,37 +5,39 @@ import { requireLiveCapability } from './session.js';
 
 // Observe only the specific native endpoint while its own UI action is running.
 // No direct owner mutation HTTP client, Save-state heuristics or receipt-by-click.
-export async function nativeReceipt(page,{path,invoke,matches=()=>true,exporter,timeout=30000}) {
-  requireThat(typeof exporter==='function'&&typeof page.fetch==='function','native-receipt-bridge-unavailable');
-  const original=page.fetch;let wrapped,timer,resolveReply,rejectReply;
+export async function nativeReceipt(page,{path,invoke,matches=()=>true,allow=async()=>{},observe=async()=>{},exporter,timeout=30000}) {
+  requireThat(typeof exporter==='function'&&typeof page.fetch==='function'&&typeof page.Promise==='function','native-receipt-bridge-unavailable');
+  const original=page.fetch,PagePromise=page.Promise;let wrapped,timer,resolveReply,rejectReply,active=true,dispatched=false;
   const reply=new Promise((resolve,reject)=>{resolveReply=resolve;rejectReply=reject;});reply.catch(()=>{});
   wrapped=exporter(function(...args){
-    const result=original.apply(this,args);
-    try {
+    let matched=false,body=null;
+    try{
       const url=new URL(typeof args[0]==='string'?args[0]:args[0].url,'https://perchance.org');
-      if(url.origin==='https://perchance.org'&&url.pathname===path){
-        const body=typeof args[1]?.body==='string'?JSON.parse(args[1].body):null;
-        if(matches(body))Promise.resolve(result).then(async response=>{
-          requireThat(response.ok,'native-http-unconfirmed');const value=await response.clone().json();
-          // No session, request envelope, raw error, source or arbitrary object escapes.
-          const safe={};for(const key of ['status','name','time','saveCount','sourceRevision','editorPayloadRevision'])if(['string','number','boolean'].includes(typeof value?.[key]))safe[key]=value[key];
-          resolveReply(safe);
-        }).catch(()=>rejectReply(Error('native-receipt-unconfirmed')));
-      }
-    }catch{rejectReply(Error('native-receipt-unconfirmed'));}
-    return result;
+      if(url.origin==='https://perchance.org'&&url.pathname===path){body=typeof args[1]?.body==='string'?JSON.parse(args[1].body):null;matched=matches(body);}
+    }catch{rejectReply(Error('native-request-unconfirmed'));}
+    if(!matched)return original.apply(this,args);
+    const receiver=this;
+    // A page-realm Promise returns the existing page Response, not a privileged
+    // Promise/object. The allow check runs before the native transport is called.
+    return new PagePromise((resolve,reject)=>{
+      Promise.resolve().then(()=>{requireThat(active,'native-observer-expired');return allow(body);}).then(()=>{requireThat(active,'native-observer-expired');requireThat(!dispatched,'duplicate-native-dispatch');dispatched=true;return original.apply(receiver,args);}).then(response=>{
+        resolve(response);
+        Promise.resolve().then(async()=>{requireThat(response.ok,'native-http-unconfirmed');const value=await response.clone().json(),safe={};for(const key of ['status','name','time','saveCount','sourceRevision','editorPayloadRevision'])if(['string','number','boolean'].includes(typeof value?.[key]))safe[key]=value[key];await observe(safe);resolveReply(safe);}).catch(()=>rejectReply(Error('native-receipt-unconfirmed')));
+      }).catch(()=>{reject('PCMS native operation unavailable');rejectReply(Error('native-dispatch-unconfirmed'));});
+    });
   },page);
   page.fetch=wrapped;
-  timer=setTimeout(()=>rejectReply(Error('native-receipt-timeout')),timeout);timer.unref?.();
-  try{await invoke();return await reply;}finally{clearTimeout(timer);if(page.fetch===wrapped)page.fetch=original;reply.catch(()=>{});}
+  const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{active=false;reject(Error('native-receipt-timeout'));},timeout);timer.unref?.();});
+  const invoked=Promise.resolve().then(invoke).catch(()=>{if(!dispatched)rejectReply(Error('native-invocation-unconfirmed'));});
+  try{return await Promise.race([Promise.all([invoked,reply]).then(([,value])=>value),deadline]);}finally{active=false;clearTimeout(timer);if(page.fetch===wrapped)page.fetch=original;reply.catch(()=>{});}
 }
 
 export class NativeActions {
   constructor({page,native,gate,reader,doc,exporter,store=null,workerId=null,documentId=null,actionId=null,guard=async()=>{},capability=requireLiveCapability}) {Object.assign(this,{page,native,gate,reader,doc,exporter,store,workerId,documentId,actionId,guard,capability});}
   async receipt(path,invoke,matches){
-    const observed=await nativeReceipt(this.page,{path,invoke,matches,exporter:this.exporter});
-    if(this.store&&this.actionId)await this.store.transact(s=>{const job=s.jobs[this.actionId];requireThat(job?.workerId===this.workerId&&job.documentId===this.documentId,'receipt-job-changed');job.observedReceipt=observed;const parent=job.parentId&&s.jobs[job.parentId];if(parent)parent.observedReceipt=observed;});
-    return observed;
+    return nativeReceipt(this.page,{path,invoke,matches,allow:async()=>{this.selected();await this.guard();},exporter:this.exporter,observe:async observed=>{
+      if(this.store&&this.actionId)await this.store.transact(s=>{const job=s.jobs[this.actionId];requireThat(job?.workerId===this.workerId&&job.documentId===this.documentId,'receipt-job-changed');job.observedReceipt=observed;const parent=job.parentId&&s.jobs[job.parentId];if(parent)parent.observedReceipt=observed;});
+    }});
   }
   selected(){requireThat(this.doc.visibilityState!=='visible','operator-selected-tab');}
   async create(actionId){
