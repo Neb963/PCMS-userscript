@@ -68,6 +68,7 @@ export function inventoryRenderer({controller,project,actions={}}) {
       const refreshThis=()=>{if(!modal.isConnected)return;g=model.generators.find(item=>item.id===id)||g;draw();};refreshManage=refreshThis;modal.addEventListener('close',()=>{if(refreshManage===refreshThis)refreshManage=null;},{once:true});
       function control(key,label,run){let node=controls.get(key);if(!node){node=button(doc,label,()=>run(g));controls.set(key,node);}return node;}
       function draw(){
+        modal.setAttribute('aria-label','Manage '+g.slug);modal.querySelector('header h2').textContent='Manage '+g.slug;modal.querySelector('header button').setAttribute('aria-label','Close Manage '+g.slug);
         const editFocus=[...editControls.values(),...controls.values()].includes(root.activeElement)?root.activeElement:null;
         const restoreEligibility=content.contains(root.activeElement)&&root.activeElement?.hasAttribute('data-eligibility');
         content.replaceChildren(el(doc,'p',{},'Native ID '+g.id),el(doc,'div',{className:'manage-states'},Object.entries(g.states||{}).map(([key,value])=>el(doc,'div',{},el(doc,'strong',{},key==='github'?'GitHub':key[0].toUpperCase()+key.slice(1)),el(doc,'span',{className:'tag'},value)))));

@@ -17,7 +17,7 @@ export function reviewsRenderer({action,activate,publish=null}){
       const top=list.scrollTop,wanted=new Set(jobs.map(j=>j.id));for(const child of [...list.children])if(!wanted.has(child.dataset.id))child.remove();
       if(!jobs.length)list.append(el(doc,'p',{className:'empty'},empty));
       for(const [index,job] of jobs.entries()){
-        let row=[...list.children].find(n=>n.dataset.id===job.id);const signature=JSON.stringify([job.phase,job.canResume,job.canDiscard,job.actionBusy,job.canPublish,job.retainedTab]);
+        let row=[...list.children].find(n=>n.dataset.id===job.id);const signature=JSON.stringify([job.phase,job.listing,job.slug,job.canResume,job.canDiscard,job.actionBusy,job.canPublish,job.retainedTab]);
         if(!row||row.dataset.signature!==signature){
           const hadFocus=row?.contains(root.activeElement),focus=hadFocus?root.activeElement?.getAttribute('aria-label'):null;
           const next=el(doc,'div',{role:'listitem',className:'development-row','data-id':job.id,tabindex:-1,'data-signature':signature},el(doc,'div',{className:'development-identity'},el(doc,'strong',{},job.slug),el(doc,'span',{className:'tag'},listingLabel(job.listing)),el(doc,'span',{className:'tag'},operationLabel(job.phase))),el(doc,'p',{className:'statusline','data-message':''},job.message||'')),tools=el(doc,'div',{className:'toolbar development-tools'});

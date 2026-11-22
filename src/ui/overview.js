@@ -14,8 +14,8 @@ export function overviewRenderer({ activateRetained }) {
     const operationPanel=panel('Operations',ops,coordinator);
     const expand=button(doc,view.expanded?'Show less':'Show all',()=>{view.expanded=!view.expanded;expand.textContent=view.expanded?'Show less':'Show all';tools.hidden=!view.expanded;renderEvents();},{className:'link'});
     const activityPanel=panel('Recent activity',events,expand);
-    const search=el(doc,'input',{type:'search','aria-label':'Search activity',placeholder:'Search activity',value:view.query,oninput:e=>{view.query=e.target.value;view.limit=100;renderEvents();}});
-    const tools=el(doc,'div',{className:'activity-tools',hidden:!view.expanded},search,picker(doc,root,'Activity filter',[['all','All'],['warnings','Warnings']],view.filter,value=>{view.filter=value;view.limit=100;renderEvents();}),button(doc,'Export journal',()=>downloadJSON(doc,'pcms-journal.json',exportJournal(model.journal||[])),{className:'link'}));
+    const search=el(doc,'input',{type:'search','aria-label':'Search activity',placeholder:'Search activity',value:view.query,oninput:e=>{view.query=e.target.value;view.limit=100;renderEvents(true);}});
+    const tools=el(doc,'div',{className:'activity-tools',hidden:!view.expanded},search,picker(doc,root,'Activity filter',[['all','All'],['warnings','Warnings']],view.filter,value=>{view.filter=value;view.limit=100;renderEvents(true);}),button(doc,'Export journal',()=>downloadJSON(doc,'pcms-journal.json',exportJournal(model.journal||[])),{className:'link'}));
     activityPanel.insertBefore(tools,events);
     body.append(el(doc,'div',{className:'columns overview'},actionPanel,operationPanel,activityPanel));
     async function openCase(row){
@@ -34,7 +34,7 @@ export function overviewRenderer({ activateRetained }) {
     }
     function renderOps(){coordinator.textContent='Coordinator '+(model.coordinator||'Checking');const rows=model.operations||[['Refresher','refresher'],['AI Helper','reviews'],['Publication','utility'],['GitHub sync','sync']].map(([title,route])=>({title,route,status:'Unknown',detail:'State unavailable'}));for(const [i,row] of rows.entries()){let node=ops.children[i];if(!node){node=el(doc,'div',{className:'row'},el(doc,'div',{},el(doc,'strong'),el(doc,'p')),button(doc,'Open',()=>navigate(node.destination),{className:'link'}));ops.append(node);}node.destination=row.route;node.querySelector('strong').textContent=row.title;node.querySelector('p').textContent=row.status+' · '+row.detail;node.querySelector('button').setAttribute('aria-label','Open '+row.title);}}
     function details(event){dialog(doc,root,'Event details',el(doc,'div',{className:'panelbody stack'},el(doc,'p',{},eventLabel(event)),...Object.entries(exportJournal([event])[0]||{}).map(([key,value])=>el(doc,'p',{},`${key}: ${value??'—'}`))));}
-    function renderEvents(){
+    function renderEvents(reset=false){
       const top=events.scrollTop,cached=new Map([...events.children].filter(n=>n.dataset.event).map(n=>[n.dataset.event,n]));
       if(!model.restored||!model.journal){events.replaceChildren();events.append(el(doc,'p',{className:'empty'},model.storageAvailable===false?'Journal unavailable':'Checking saved events…'));return;}
       let rows=view.expanded?[...model.journal].reverse():recentEvents(model.journal);
@@ -44,7 +44,7 @@ export function overviewRenderer({ activateRetained }) {
       for(const event of rows){let row=cached.get(event.id);if(!row)row=button(doc,'',()=>details(row.event),{className:'journal-row','data-event':event.id});row.event=event;row.setAttribute('aria-label',eventLabel(event));let identity=row.firstElementChild;if(!identity){identity=el(doc,'div',{},el(doc,'strong'),el(doc,'p'));row.append(identity,el(doc,'time'));}identity.querySelector('strong').textContent=eventLabel(event);identity.querySelector('p').textContent=event.nativeId?'Native ID '+event.nativeId:event.component;row.querySelector('time').textContent=new Date(event.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});next.push(row);}
       if(view.expanded&&total>view.limit)next.push(button(doc,'Load older',()=>{view.limit+=100;renderEvents();},{className:'link'}));
       for(const node of [...events.children])if(!next.includes(node))node.remove();for(const [i,node] of next.entries())if(events.children[i]!==node)events.insertBefore(node,events.children[i]||null);
-      events.scrollTop=top;
+      events.scrollTop=reset?0:top;
     }
     function update(next){model=next;renderCases();renderOps();renderEvents();}
     update(model);return {update};

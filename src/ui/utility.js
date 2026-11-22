@@ -19,13 +19,14 @@ export function utilityRenderer(){
       list.scrollTop=scroll;if(focus)list.querySelector('[data-job="'+focus+'"]')?.focus({preventScroll:true});detail();
     }
     function detail(){
-      const job=(model.utility||[]).find(j=>j.id===selected);steps.replaceChildren();
+      const top=steps.scrollTop,focused=steps.contains(steps.getRootNode().activeElement)?steps.getRootNode().activeElement?.dataset.action:null;const job=(model.utility||[]).find(j=>j.id===selected);steps.replaceChildren();
       if(!job){steps.append(el(doc,'p',{},'Select a job to inspect its verified steps.'));return;}
       steps.append(el(doc,'strong',{},job.slug),el(doc,'p',{className:'statusline'},operationLabel(job.phase)));
       if(job.reason)steps.append(el(doc,'p',{className:'notice'},job.reason==='live-verification-required'?'Native writes await disposable Firefox/Violentmonkey verification.':job.reason.replaceAll('-',' ')));
       if(job.steps.length){const ordered=el(doc,'ol',{});for(const step of job.steps)ordered.append(el(doc,'li',{},step+' · Verified'));steps.append(ordered);}
-      if(job.generatorId&&['unknown','blocked'].includes(job.phase))steps.append(button(doc,'Manage',()=>navigate('generators',{manageId:job.generatorId})));
-      if(job.phase==='sync-pending')steps.append(button(doc,'Open GitHub sync',()=>navigate('sync')));
+      if(job.generatorId&&['unknown','blocked'].includes(job.phase))steps.append(button(doc,'Manage',()=>navigate('generators',{manageId:job.generatorId}),{'data-action':'manage'}));
+      if(job.phase==='sync-pending')steps.append(button(doc,'Open GitHub sync',()=>navigate('sync'),{'data-action':'sync'}));
+      steps.scrollTop=top;if(focused)steps.querySelector('[data-action="'+focused+'"]')?.focus({preventScroll:true});
     }
     draw();return {update:next=>{model=next;draw();}};
   };

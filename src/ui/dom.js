@@ -42,6 +42,7 @@ export function picker(doc, root, label, options, value, onChange) {
   }
   function open() {
     if (list) { close(); return; }
+    index=Math.max(0,options.findIndex(option=>option[0]===value));
     list = el(doc, 'div', { role: 'listbox', 'aria-label': label, className: 'picker-list' });
     options.forEach(([key, text], i) => {
       const option = el(doc, 'button', { type: 'button', role: 'option', 'aria-selected': key === value, tabindex: i === index ? 0 : -1, onclick: () => {

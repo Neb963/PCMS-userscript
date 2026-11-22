@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
@@ -13,13 +14,24 @@ async function capture(page,meta,suffix=''){
  const nested=scroll.flatMap(n=>{if(n.matches(':popover-open'))return [];let p=n.parentElement;while(p){if(scroll.includes(p))return [{child:label(n),parent:label(p)}];p=p.parentElement;}return [];});
  const horizontal=elements.filter(n=>visible(n)&&n.clientWidth>0&&n.scrollWidth>n.clientWidth+2&&!n.closest('pre')&&!n.matches('input,textarea,.topnav,.inventory-filters')&&getComputedStyle(n).textOverflow!=='ellipsis').map(label);
  const tiny=scroll.filter(n=>n.clientHeight<28).map(n=>({element:label(n),height:n.clientHeight}));
- const clipped=elements.filter(n=>visible(n)&&n.matches('button,input,summary')&&!n.closest('[popover]')).flatMap(n=>{const r=n.getBoundingClientRect();let p=n.parentElement;while(p){const s=getComputedStyle(p),b=p.getBoundingClientRect();if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+2)return [];if(/hidden|clip/.test(s.overflowY)&&(r.top<b.top-2||r.bottom>b.bottom+2||r.left<b.left-2||r.right>b.right+2))return [{element:n.getAttribute('aria-label')||n.textContent,parent:label(p)}];p=p.parentElement;}return [];});
+ const clipped=elements.filter(n=>visible(n)&&n.matches('button,input,summary')&&!n.closest('[popover]')).flatMap(n=>{const r=n.getBoundingClientRect();let p=n.parentElement;while(p){const s=getComputedStyle(p),b=p.getBoundingClientRect();if((/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+2)||(/auto|scroll/.test(s.overflowX)&&p.scrollWidth>p.clientWidth+2))return [];if(/hidden|clip/.test(s.overflowY)&&(r.top<b.top-2||r.bottom>b.bottom+2||r.left<b.left-2||r.right>b.right+2))return [{element:n.getAttribute('aria-label')||n.textContent,parent:label(p)}];p=p.parentElement;}return [];});
  return {scroll:scroll.map(label),nested,horizontal,tiny,clipped,outer:document.documentElement.scrollHeight>innerHeight+1};
  });findings.push({...meta,suffix,...metrics});await page.screenshot({path:out+'/'+`${meta.viewport.width}x${meta.viewport.height}-${meta.theme}-${meta.scenario}-${meta.route}${suffix}.png`});
 }
 try{
+ // Exercise state updates as well as geometry. Every command here targets the fake store.
+ const dynamic=await pageFor({width:1024,height:768},'interactive','dark','reviews'),app=dynamic.locator('#audit-app');
+ const review=app.getByRole('list',{name:'Awaiting review jobs'}).locator('[data-id="review-0"]'),reviewControl=review.getByRole('button',{name:/^Review /});
+ await reviewControl.focus();await dynamic.evaluate(()=>window.syntheticAudit.store.transact(s=>{s.generators['110'].listing='listed';}));
+ assert.equal(await review.getByText('Listed',{exact:true}).count(),1);assert.equal(await reviewControl.evaluate(n=>n.getRootNode().activeElement===n),true);
+ await dynamic.evaluate(()=>window.syntheticAudit.ui.navigate('utility'));const manage=app.getByRole('button',{name:'Manage',exact:true});await manage.focus();await dynamic.evaluate(()=>window.syntheticAudit.store.transact(s=>{s.githubCheck.at++;}));assert.equal(await manage.evaluate(n=>n.getRootNode().activeElement===n),true);
+ await dynamic.evaluate(()=>window.syntheticAudit.ui.navigate('overview'));await app.getByRole('button',{name:'Show all',exact:true}).click();const history=app.getByLabel('Activity history',{exact:true});await history.evaluate(n=>n.scrollTop=200);await dynamic.evaluate(()=>window.syntheticAudit.store.transact(s=>{s.githubCheck.at++;}));assert.ok(await history.evaluate(n=>n.scrollTop)>0);await app.getByRole('searchbox',{name:'Search activity'}).fill('refresher');assert.equal(await history.evaluate(n=>n.scrollTop),0);
+ await dynamic.evaluate(()=>window.syntheticAudit.ui.navigate('generators'));await app.getByRole('button',{name:/^Manage /}).first().click();await dynamic.evaluate(()=>window.syntheticAudit.store.transact(s=>{s.generators['100'].slug='synthetic-renamed';}));assert.equal(await app.getByRole('dialog',{name:'Manage synthetic-renamed',exact:true}).count(),1);await dynamic.close();
  for(const viewport of viewports)for(const theme of ['light','dark'])for(const route of routes){const scenario=viewport.width>=800?'long':'busy',page=await pageFor(viewport,scenario,theme,route),app=page.locator('#audit-app'),meta={viewport,theme,scenario,route};await capture(page,meta);
-  if(route==='settings'){if(viewport.width<=760)await app.getByRole('button',{name:'Controls & system',exact:true}).click();await app.getByLabel('Polling interval (minutes)',{exact:true}).fill('0');await app.locator('.checks-card').getByRole('button',{name:'Apply',exact:true}).click();await capture(page,meta,'-validation');}
+  if(route==='settings'){
+   if(viewport.width>=1024){assert.equal(await app.locator('.settings-layout').evaluate(n=>n.scrollHeight>n.clientHeight+2),false,'Nominal desktop Settings must fit');}
+   else {const owner=app.locator(viewport.width<=760?'.settings-column[data-section=connection]':'.settings-layout');if(await owner.evaluate(n=>n.scrollHeight>n.clientHeight+2)){const heading=await app.locator('.pagehead').boundingBox();await owner.hover();await page.mouse.wheel(0,250);await page.waitForFunction(()=>{const r=document.querySelector('#audit-app').shadowRoot;return (r.querySelector('.settings-column[data-section=connection]').scrollTop||r.querySelector('.settings-layout').scrollTop)>0;});assert.ok(Math.abs((await app.locator('.pagehead').boundingBox()).y-heading.y)<1);}}
+   if(viewport.width<=760)await app.getByRole('button',{name:'Controls & system',exact:true}).click();await app.getByLabel('Polling interval (minutes)',{exact:true}).fill('0');await app.locator('.checks-card').getByRole('button',{name:'Apply',exact:true}).click();await capture(page,meta,'-validation');}
   if(route==='refresher'&&viewport.width<=530){for(const pane of ['Rate','Attempts']){await app.getByLabel('Refresher mobile sections').getByRole('button',{name:pane,exact:true}).click();await capture(page,meta,'-'+pane.toLowerCase());}}
   if(route==='generators'&&theme==='dark'&&viewport.width===320){await app.getByRole('button',{name:/^Manage /}).first().click();await capture(page,meta,'-drawer');}
   await page.close();

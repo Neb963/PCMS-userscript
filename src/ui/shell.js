@@ -44,7 +44,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   const nav = el(doc, 'nav', { className: 'topnav', 'aria-label': 'Main navigation' });
   const tools = el(doc, 'div', { className: 'tools' });
   const main = el(doc, 'main', { className: 'content' });
-  const status = el(doc, 'span', { className: 'account-label' }, model.accountId || 'Setup required');
+  const status = el(doc, 'span', { className: 'account-label',title:model.accountId||'Setup required' }, model.accountId || 'Setup required');
   const navigate = (next, params = {}) => {
     if (!Object.hasOwn(TITLES, next)) return;
     view?.dispose?.();
@@ -102,7 +102,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   navigate('overview');
   return {
     navigate,
-    update(next) { if(Number.isFinite(next.revision)&&Number.isFinite(model.revision)&&next.revision<model.revision)return; model = next; const counter = nav.querySelector('[data-action-count]'); counter.textContent = model.restored && model.casesKnown && model.cases ? String(model.cases.length) : '—'; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
+    update(next) { if(Number.isFinite(next.revision)&&Number.isFinite(model.revision)&&next.revision<model.revision)return; model = next; const counter = nav.querySelector('[data-action-count]'); counter.textContent = model.restored && model.casesKnown && model.cases ? String(model.cases.length) : '—'; status.textContent = model.accountId || 'Setup required';status.title=model.accountId||'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
     get route() { return route; },
   };
 }
