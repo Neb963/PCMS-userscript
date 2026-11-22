@@ -1,10 +1,12 @@
 import { el, button } from './dom.js';
-import { CSS, SETTINGS_CSS } from './styles.js';
+import { actionCases, operationRows } from './overview-model.js';
+import { exportJournal } from '../state/journal.js';
+import { CSS, SETTINGS_CSS, OVERVIEW_CSS } from './styles.js';
 
 export const MAIN_ROUTES = Object.freeze(['overview', 'generators', 'reviews', 'refresher']);
 export const TITLES = Object.freeze({ overview: 'Overview', generators: 'Generators', reviews: 'Reviews', refresher: 'Refresher', settings: 'Settings', utility: 'Utility', sync: 'GitHub sync', import: 'Bulk Import' });
 
-export function publicSnapshot(state) {
+export function publicSnapshot(state, { session = null, coordinator = 'Unverified' } = {}) {
   return {
     accountId: state.settings.account.accountId,
     theme: state.settings.theme,
@@ -12,13 +14,16 @@ export function publicSnapshot(state) {
     storageAvailable: true,
     generators: Object.values(state.generators).map(g => ({ id: g.id, slug: g.slug, listing: g.listing, status: g.status, holds: g.holds, excluded: g.excluded })),
     journalCount: state.journal.length,
-    coordinator: 'Unverified',
+    coordinator,
+    cases: actionCases(state, { session }),
+    operations: operationRows(state, coordinator, session),
+    journal: exportJournal(state.journal),
   };
 }
 
 export function mountShell(doc, host, { snapshot = { restored: false }, onTheme = async () => {}, renderers = {} } = {}) {
   const root = host.attachShadow({ mode: 'closed' });
-  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS);
+  const style = el(doc, 'style', {}, CSS + SETTINGS_CSS + OVERVIEW_CSS);
   let route = 'overview';
   let model = snapshot;
   let view = null;
@@ -27,7 +32,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   const tools = el(doc, 'div', { className: 'tools' });
   const main = el(doc, 'main', { className: 'content' });
   const status = el(doc, 'span', { className: 'account-label' }, model.accountId || 'Setup required');
-  const navigate = next => {
+  const navigate = (next, params = {}) => {
     if (!Object.hasOwn(TITLES, next)) return;
     view?.dispose?.();
     route = next;
@@ -38,7 +43,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
     if (['utility', 'sync', 'import'].includes(route)) actions.append(button(doc, 'Back', () => navigate(route === 'import' ? 'generators' : 'overview')));
     const body = el(doc, 'div', { className: 'body' });
     main.replaceChildren(el(doc, 'header', { className: 'pagehead' }, heading, actions), body);
-    if (renderers[route]) view = renderers[route]({ doc, root, body, actions, snapshot: model, navigate });
+    if (renderers[route]) view = renderers[route]({ doc, root, body, actions, snapshot: model, navigate, params });
     else { view = null; renderBase(body); }
   };
   function panel(title, content) {
@@ -64,7 +69,8 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
     }
   }
   for (const key of MAIN_ROUTES) {
-    const control = button(doc, TITLES[key], () => navigate(key), { 'data-route': key });
+    const control = button(doc, TITLES[key], () => navigate(key), { 'data-route': key, 'aria-label': TITLES[key] });
+    if (key === 'overview') control.append(el(doc, 'span', { className: 'tag', 'data-action-count': '', 'aria-hidden': 'true' }, model.restored && model.cases ? String(model.cases.length) : '—'));
     nav.append(control);
   }
   const settings = button(doc, '⚙', () => navigate('settings'), { className: 'icon', 'aria-label': 'Settings' });
@@ -82,7 +88,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   navigate('overview');
   return {
     navigate,
-    update(next) { model = next; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
+    update(next) { model = next; const counter = nav.querySelector('[data-action-count]'); counter.textContent = model.restored && model.cases ? String(model.cases.length) : '—'; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
     get route() { return route; },
   };
 }

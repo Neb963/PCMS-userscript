@@ -1,3 +1,4 @@
+import { appendEvent } from '../state/journal.js';
 import { requireThat } from '../shared/domain.js';
 
 export const COORDINATOR_LOCK = 'pcms:coordinator:v1';
@@ -28,6 +29,7 @@ export class Coordinator {
       const claim = await this.store.transact(state => {
         interruptJobs(state);
         state.coordinator = { term: state.coordinator.term + 1, owner: this.owner };
+        appendEvent(state, { component: 'coordinator', outcome: 'verified' });
         return state.coordinator.term;
       });
       this.term = claim.result;

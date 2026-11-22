@@ -68,6 +68,15 @@ try {
     await app.getByRole('heading', { name: 'Utility', exact: true }).first().waitFor();
     await app.getByRole('button', { name: 'Back', exact: true }).click();
     assert.equal(await app.getByRole('heading', { name: 'Overview', exact: true }).count(), 1);
+    await app.getByRole('button', { name: 'Show all', exact: true }).click();
+    await app.getByRole('searchbox', { name: 'Search activity', exact: true }).fill('coordinator');
+    const journalRow = app.getByRole('button', { name: 'Coordinator · verified', exact: true }).first();
+    await journalRow.click();
+    await app.getByRole('dialog', { name: 'Event details', exact: true }).waitFor();
+    await page.keyboard.press('Escape');
+    assert.equal(await app.getByRole('dialog').count(), 0);
+    assert.equal(await journalRow.evaluate(n => n.getRootNode().activeElement === n), true);
+
     assert.equal(await page.locator('#native').textContent(), 'Native fixture');
     assert.equal(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight), false);
     assert.equal(await app.locator('.shell').evaluate(n => n.scrollWidth > n.clientWidth), false);

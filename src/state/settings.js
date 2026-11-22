@@ -1,3 +1,4 @@
+import { appendEvent } from './journal.js';
 import { requireThat } from '../shared/domain.js';
 import { GitHubReader, parseRepositoryURL } from '../adapters/github/reader.js';
 
@@ -57,6 +58,7 @@ export class SettingsController {
       state.settings.github = candidate;
       delete state.settings.repositoryCredentials[repositoryKey(candidate.repository)];
       state.githubCheck = { status: 'checking' };
+      appendEvent(state, { component: 'settings', outcome: 'applied' });
     });
   }
 

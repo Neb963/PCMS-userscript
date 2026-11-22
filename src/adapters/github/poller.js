@@ -1,3 +1,4 @@
+import { appendEvent } from '../../state/journal.js';
 import { GitHubWriter } from './writer.js';
 import { requireThat } from '../../shared/domain.js';
 import { GitHubReader } from './reader.js';
@@ -26,13 +27,14 @@ export class GitHubPoller {
       const requests = await this.client.requests(snapshot, state.settings.account.accountId);
       await this.store.transact(current => {
         if (JSON.stringify(current.settings.github) !== key) return;
+        if (current.githubCheck?.commit !== snapshot.commit || current.githubCheck?.status === 'offline') appendEvent(current, { component: 'github', outcome: 'verified' });
         current.githubSnapshot = snapshot;
         current.requests = requests;
         current.githubCheck = { status: 'verified', at: now, commit: snapshot.commit };
       });
       return true;
     } catch {
-      await this.store.transact(current => { if (JSON.stringify(current.settings.github) === JSON.stringify(config)) current.githubCheck = { ...current.githubCheck, status: 'offline', attemptedAt: now }; });
+      await this.store.transact(current => { if (JSON.stringify(current.settings.github) === JSON.stringify(config)) { if (current.githubCheck?.status !== 'offline') appendEvent(current, { component: 'github', outcome: 'offline' }); current.githubCheck = { ...current.githubCheck, status: 'offline', attemptedAt: now }; } });
       return false;
     } finally { this.busy = false; }
   }

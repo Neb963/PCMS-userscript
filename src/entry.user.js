@@ -20,6 +20,7 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { overviewRenderer } from './ui/overview.js';
 import { SettingsController } from './state/settings.js';
 import { settingsRenderer } from './ui/settings.js';
 import { GitHubPoller } from './adapters/github/poller.js';
@@ -43,19 +44,34 @@ function coordinate(store, ui = null) {
   const pool = new WorkerPool({ store, openTab: GM_openInTab });
   const poller = new GitHubPoller({ store, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
   let consuming = false;
+  let lastPulse = 0;
+  const mountedAt = Date.now();
+  const gate = new SessionGate(store, new NativePage(unsafeWindow));
+  let updating = false;
+  const refresh = async () => {
+    if (!ui || updating) return;
+    updating = true;
+    try { const state = await store.read(); const session = await gate.observe(); const verified = coordinator.active || (state.coordinator.observedAt >= mountedAt && Date.now() - state.coordinator.observedAt < 15000); ui.update(publicSnapshot(state, { session, coordinator: verified ? 'Verified' : 'Unverified' })); }
+    catch { ui.update({ restored: true, storageAvailable: false, coordinator: 'Unverified' }); }
+    finally { updating = false; }
+  };
   const tick = async () => {
     if (consuming || !coordinator.active) return;
     consuming = true;
-    try { await pool.consume(coordinator); await poller.check(true); } catch { /* Durable state retains the unresolved command. */ }
+    try {
+      if (Date.now() - lastPulse >= 5000) { await store.transact(state => { coordinator.assertOwner(state); state.coordinator.observedAt = Date.now(); }); lastPulse = Date.now(); }
+      await pool.consume(coordinator); await poller.check(true);
+    } catch { /* Durable state retains the unresolved command. */ }
     finally { consuming = false; }
   };
-  const unwatch = watchProtectedStore(GM_addValueChangeListener, GM_removeValueChangeListener, tick);
+  const unwatch = watchProtectedStore(GM_addValueChangeListener, GM_removeValueChangeListener, () => { tick(); refresh(); });
   coordinator.run(lifecycle.signal, async () => {
-    if (ui) ui.update({ ...publicSnapshot(await store.read()), coordinator: 'Verified' });
+    await refresh();
     await tick();
   }).catch(() => { if (ui) ui.update({ restored: true, storageAvailable: store.available, coordinator: 'Unverified' }); });
   const timer = setInterval(tick, 1000);
-  window.addEventListener('pagehide', () => { clearInterval(timer); unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });
+  const viewTimer = ui ? setInterval(refresh, 5000) : null;
+  window.addEventListener('pagehide', () => { clearInterval(timer); clearInterval(viewTimer); unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });
   return { coordinator, pool, poller };
 }
 
@@ -85,7 +101,8 @@ async function startAssignedWorker() {
   const unwatch = watchProtectedStore(GM_addValueChangeListener, GM_removeValueChangeListener, () => { runtime.pump().catch(() => {}); });
   const observe = () => { runtime.observe().catch(() => {}); };
   document.addEventListener('visibilitychange', observe);
-  window.addEventListener('pagehide', () => { unwatch(); document.removeEventListener('visibilitychange', observe); }, { once: true });
+  const heartbeat = setInterval(observe, 5000);
+  window.addEventListener('pagehide', () => { clearInterval(heartbeat); unwatch(); document.removeEventListener('visibilitychange', observe); }, { once: true });
   await runtime.pump();
 }
 
@@ -104,14 +121,15 @@ if (isAppPage(location)) {
   const gate = new SessionGate(store, native);
   const controller = new SettingsController({ store, request });
   const poller = new GitHubPoller({ store, request });
+  let runtime;
   const ui = mountShell(document, host, {
     onTheme: theme => store.transact(state => { state.settings.theme = theme; }),
-    renderers: { settings: settingsRenderer({ store, controller, gate, poller,
+    renderers: { overview: overviewRenderer({ activateRetained: id => runtime.pool.activate(id, true) }), settings: settingsRenderer({ store, controller, gate, poller,
       requestCredential: () => window.prompt('GitHub PAT — stored only in Violentmonkey. Leave blank to clear the candidate.', ''),
       signIn: () => GM_openInTab('https://perchance.org/welcome?pcms_sign_in=1', { active: true }),
     }) },
   });
-  store.read().then(state => { controller.initialize(state); ui.update(publicSnapshot(state)); coordinate(store, ui); }).catch(() => ui.update({ restored: true, storageAvailable: false }));
+  store.read().then(state => { controller.initialize(state); ui.update(publicSnapshot(state)); runtime = coordinate(store, ui); }).catch(() => ui.update({ restored: true, storageAvailable: false }));
   document.body.append(host);
 } else {
   installLauncher(document, launch);
