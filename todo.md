@@ -1,23 +1,21 @@
 # Active work — handoff
 
-**Current phase:** P20 — Dedicated Refresher Save worker. **Status:** Implemented; regression/final boundary review pending.
+**Current phase:** P21 — Refresher screen. **Status:** Planned.
 
 ## Next action
 
-- Verify final browser regression after fixing Manage action-node replacement and stale snapshot ordering. UI run 44980455714 caught the recurring Include-focus failure; checks 44980455742 passed.
-- Final boundary checks: 185 Node tests PASS. Approved native requests validate both panels, exact src manifest and uploaded bytes before transport (including zero-byte mismatch). Request mutation during async guards is rejected. Manage reuses its eligibility node and ignores older snapshots.
-- Accept P20 synthetic evidence after checks; then plan P21 full Refresher screen. Native Save qualification remains DEFERRED and statically disabled.
+- Read/implement the accepted Refresher layout: full FIFO queue left, compact Rate/Recent attempts right; at <=530px use Queue/Rate/Attempts tabs. No simulation controls, extra navigation or outer page scrolling.
+- Project only canonical queue/history: Eligible vs Not eligible with reasons/Manage, next eligible/actual next slot and last result, failed/Unknown counted correctly. Unverified worker shows Unknown with queue snapshot, not fake progress.
+- Publish a Coordinator-owned clock/rate snapshot on existing heartbeat; followers must not use their own performance clock. Use monotonic pulse observation for clock-change-safe liveness.
+- Add local Pause/Resume and integer cap 1–3600, preserve FIFO/history and staged input through rerenders/navigation. Handle Pause during preparation without losing or unnecessarily holding its own marker draft; current already-dispatched Saves may finish.
+- Test n=0, changed caps/retained attempts, long queue/history, skipped/failed/Unknown, sign-out/unverified worker, narrow tabs, focus, internal scrolling and both themes. Run focused Node/browser regressions; keep native gates false.
 
 ## Evidence
 
-- P20 worker/controller batch: 183 Node tests PASS. Dedicated hidden preparation/Save commands preserve src keys/bytes, confirm only an acknowledged Listed exact marker Save, and retain uncertain drafts. Atomic outcome/attempt/hold/journal writes recover persisted RPC results once. Failures count without GitHub workflow changes; unknown holds only that generator; pre-send skips do not count. Source guards reject independent holds/stale/lost/stopped workers, read-only inspection remains available, takeover retains non-Development roles and preserves Development slots. Runtime is wired with static Save gate false; browser regression pending.
-
-- P20 first verified batch: 164 Node tests PASS. Leading PJS/HTML markers preserve BOM/CRLF/empty panels and exact functional source/src, reject unsafe/malformed/moved/duplicate markers, and support baseline fingerprints at verified Import/publication. Native transport revalidates before dispatch, sends at most one matched request, bounds hung frontend calls and retains observed receipts. Dedicated Refresher preparation/Save/controller wiring remains to implement.
-
-P00–P19 evidence is in docs/verification.md. Build/syntax and 158 Node tests PASS. P19 checks 44978381380 and Chromium/Firefox UI 44978381382 PASS at cb7165381f304dd8e8e023438b917801c5b11cfc. P01 live installation acceptance remains deferred.
+P00–P20 evidence is in docs/verification.md. Build/syntax and 186 Node tests PASS. P20 final UI 44980953769 and checks 44980953760 PASS at 6c453584c640c7eb05bb1eee6b980f3ea55e3a24. Live P01 installation and native qualification remain deferred.
 
 ## Blockers / deferred checks
 
-DEFERRED — P01–P20 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft/refresh Save and GitHub synchronization — no disposable profile/targets/PAT supplied. Static write flags remain false.
+DEFERRED — P01–P20 real Firefox/Violentmonkey injection/cache/disk, native receipt interception/comment parsing/editor cleanup, retained/refresh Save and GitHub synchronization — no disposable profile/targets/PAT supplied. Static write flags remain false.
 
-**Last pushed commit:** cb7165381f304dd8e8e023438b917801c5b11cfc.
+**Last pushed commit:** 6c453584c640c7eb05bb1eee6b980f3ea55e3a24.

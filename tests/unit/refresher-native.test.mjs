@@ -45,3 +45,6 @@ test('native refresh request cannot change panel content, src path set, key or b
   const source={pjs:'pjs',html:'html',files:{'a.bin':[0,255]}},manifest={'a.bin':{key:'expected',size:2}},body={generator:{modelText:'pjs',outputTemplate:'html'},srcManifest:{'a.bin':{key:'expected',size:2}}};checkRefreshRequest(body,source,manifest);
   for(const change of [b=>{b.generator.modelText='wrong';},b=>{b.srcManifest={};},b=>{b.srcManifest['a.bin'].key='different';},b=>{b.srcManifest['a.bin'].size=1;}]){const value=structuredClone(body);change(value);assert.throws(()=>checkRefreshRequest(value,source,manifest),/refresh-request/);}
 });
+test('an operator draft changed during a rejected Save is retained and held instead of being restored over',async()=>{
+  const f=await fixture();await f.prepared();f.mode('failed');const send=f.actions.receipt;f.actions.receipt=async(...args)=>{const reply=await send(...args);f.dirty();return reply;};const result=await f.worker.save(f.target,'attempt-one');assert.equal(result.kind,'failed');assert.equal(result.hold,'edit');assert.equal(result.reusable,false);assert.equal(f.actions.page.modelTextEditor.getValue(),'operator draft');assert.equal(f.saves(),1);
+});

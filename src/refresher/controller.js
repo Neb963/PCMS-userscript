@@ -58,13 +58,13 @@ export class RefresherController {
           await this.result(generatorId,id,id+'-save',outcome);
           if(!outcome.reusable)await this.retainWorker(native.workerId);
         }catch{
-          const jobId=id+(counted?'-save':'-prepare');
+          const jobId=id+(counted?'-save':'-prepare');let retire=true;
           if(counted){
             const known=(await this.store.read()).jobs[jobId]?.data;
-            if(known&&['confirmed','failed','skipped','unknown'].includes(known.kind))await this.result(generatorId,id,jobId,known);
+            if(known&&['confirmed','failed','skipped','unknown'].includes(known.kind)){await this.result(generatorId,id,jobId,known);retire=!known.reusable;}
             else{const knownNoSend=await this.cancelUnaccepted(jobId);await this.result(generatorId,id,jobId,{kind:knownNoSend?'skipped':'unknown',notSent:knownNoSend,reason:'refresh-preflight-unconfirmed',reusable:false});}
           }else if((await this.store.read()).jobs[jobId])await this.hold(generatorId,jobId,'edit',native.workerId);
-          await this.retainWorker(native.workerId);
+          if(retire)await this.retainWorker(native.workerId);
         }
       });
     }finally{this.busy=false;}

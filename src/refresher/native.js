@@ -59,7 +59,7 @@ export class NativeRefresher {
       if(NO_SAVE.has(receipt.status)){
         if(receipt.status==='session-token-error')await this.store.transact(s=>{s.settings.account.confirmed=false;});
         const live=await this.reader.saved(target.slug,target.id),same=sourceEqual(live.source,record.previousSource),reusable=same&&await this.restore(target,record);
-        return {kind:'failed',receipt,reason:same?'native-rejected':'source-drift',reusable,hold:same?null:'source-drift'};
+        return {kind:'failed',receipt,reason:same?'native-rejected':'source-drift',reusable,hold:same&&reusable?null:same?'edit':'source-drift'};
       }
       requireThat(receipt.status==='saved'&&receipt.name===target.slug,'refresh-receipt-unconfirmed');
       const live=await this.reader.saved(target.slug,target.id),markers=refreshMarkers(live.source);

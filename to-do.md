@@ -154,10 +154,10 @@
 
 ### P20 — Dedicated Refresher Save worker
 
-- [ ] Implement inert marker edits and one native Save per attempt.
-- [ ] Record failures as counted attempts; hold only uncertain generator writes.
-- [ ] Test isolated worker loss, editor conflict, missing marker and successful receipt.
-- [ ] **Accept:** Only native acknowledged Listed Save is a confirmed refresh; no functional source changes.
+- [x] Implement inert marker edits and one native Save per attempt.
+- [x] Record failures as counted attempts; hold only uncertain generator writes.
+- [x] Test isolated worker loss, editor conflict, missing marker and successful receipt.
+- [x] **Accept:** Only native acknowledged Listed Save is a confirmed refresh; no functional source changes.
 
 ### P21 — Refresher screen
 
