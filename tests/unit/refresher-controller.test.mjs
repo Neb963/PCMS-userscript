@@ -48,3 +48,8 @@ test('unconfirmed Pause cleanup retains only its affected generator and preserve
   f.native.restoreRefresh=async()=>({kind:'held',reusable:false});await f.controller.tick();
   const s=await f.store.read();assert.equal(s.attempts.length,0);assert.deepEqual(s.fifo,['a','b','c']);assert.equal(s.generators.a.holds[0].kind,'edit');assert.equal(s.generators.b.holds.length,0);assert.equal(s.workers.worker.phase,'retained');assert.equal(f.calls.some(c=>c.startsWith('save-')),false);
 });
+
+test('Pause after native dispatch lets the current Save finish without starting another',async()=>{
+  const f=await fixture(),save=f.native.saveRefresh;f.native.saveRefresh=async(...args)=>{await f.store.transact(s=>{s.settings.refreshPaused=true;});return save(...args);};
+  await f.controller.tick();f.set(HOUR);await f.controller.tick();const s=await f.store.read();assert.equal(s.attempts.length,1);assert.equal(s.attempts[0].outcome,'confirmed');assert.equal(f.calls.filter(c=>c.startsWith('save-')).length,1);assert.deepEqual(s.fifo,['b','c','a']);
+});

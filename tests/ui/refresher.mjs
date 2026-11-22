@@ -28,6 +28,8 @@ export async function checkRefresher({page,app,width,empty=false}) {
   await app.getByRole('button',{name:/^Snapshot \(/}).click();
   await pane('Rate');
   const cap=app.getByLabel('Max attempts per hour',{exact:true}),apply=app.locator('.refresh-rate').getByRole('button',{name:'Apply',exact:true});
+  const ratePanel=await app.locator('.refresh-rate').boundingBox(),lastFigure=await app.locator('.refresh-derived').boundingBox();
+  assert.ok(lastFigure.y+lastFigure.height<=ratePanel.y+ratePanel.height,'Rate figures must remain inside their panel');
   await cap.fill('0');await apply.click();await app.getByText('Use an integer from 1 to 3600.',{exact:true}).waitFor();
   assert.equal((await read()).settings.refreshCap,before.settings.refreshCap);
   await cap.fill('60');await cap.focus();await apply.click();
@@ -60,7 +62,7 @@ export async function checkRefresher({page,app,width,empty=false}) {
   if(width<=530)assert.equal(await attempts.isVisible(),false);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false);
   assert.equal(await app.locator('.refresh-layout').evaluate(n=>n.scrollWidth>n.clientWidth),false);
-  if(width>800){
+  if(width>530){
     const left=await app.locator('.refresh-queue').boundingBox(),right=await app.locator('.refresh-rate').boundingBox();assert.ok(right.x>=left.x+left.width);
   }
 }

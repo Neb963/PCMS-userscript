@@ -29,7 +29,7 @@ for(let i=0;i<35;i++){const id='utility-'+i,request={valid:true,slug:'synthetic-
 initialState.generators['101'].localDone=true;initialState.generators['101'].localApproved=true;initialState.generators['101'].holds=[{id:'sync-conflict-source',kind:'source-conflict'}];
 for(let i=0;i<32;i++){const id=i===0?'conflict-source':'synced-'+i;initialState.pending[id]={id,generatorId:'101',slug:'synthetic-generator-01',repository:{owner:'synthetic',name:'original-repository'},baseCommit:'a'.repeat(40),kind:i===0?'source':'status',status:{account:'synthetic-account',action:'develop',state:'done'},phase:i===0?'source-conflict':'synced',nativeVerified:true,...(i===0?{source:{pjs:'synthetic-private-sync-source',html:'<p>protected</p>',files:{}},previousSource:{pjs:'previous',html:'previous',files:{}},listingIntent:'listed',approval:{id:'synthetic-approval',kind:'review',draftId:'draft',workerId:'retained',documentId:'doc',confirmedAt:1},draftId:'draft',retainedTab:'retained'}:{})};}
 try {
-  for (const scenario of [...[1440,1024,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
+  for (const scenario of [...[1440,1024,800,531,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
     const {width}=scenario;
     const page = await browser.newPage({ viewport: { width, height: 768 } });
     page.on('pageerror', error => errors.push(error.message));
@@ -187,5 +187,5 @@ try {
     await page.close();
   }
   assert.deepEqual(errors, []);
-  console.log(`UI shell PASS: ${browserType}, four widths, navigation, keyboard, Refresher queue/rates/history, theme, header stability and native page preservation`);
+  console.log(`UI shell PASS: ${browserType}, six widths, navigation, keyboard, Refresher queue/rates/history, theme, header stability and native page preservation`);
 } finally { await browser.close(); }
