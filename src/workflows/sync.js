@@ -74,7 +74,7 @@ export class Synchronizer {
       requireThat(!['stopped','reassigned'].includes(p.phase)&&!p.stopRequested,'sync-record-stopped');p.phase='synced';p.reason=null;p.commit=commit;
       const g=s.generators[p.generatorId];
       if(g&&(!p.developmentId||s.development?.[p.developmentId]?.statusPending===p.id)){s.generators[p.generatorId]=releaseHold({...g,status:p.status,githubCommit:commit},'sync-'+id);if(!s.generators[p.generatorId].holds.length&&p.kind==='source'){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}
-      if(p.developmentId&&s.development?.[p.developmentId])s.development[p.developmentId].statusCommit=commit;
+      if(p.developmentId&&s.development?.[p.developmentId]){s.development[p.developmentId].statusCommit=commit;if(p.kind==='status')for(const newer of Object.values(s.pending))if(newer.kind==='source'&&newer.developmentId===p.developmentId&&!newer.writeId&&newer.baseCommit===p.baseCommit)newer.baseCommit=commit;}
       const r=p.requestId&&s.utility?.[p.requestId];if(r&&r.pendingStatus&&sameStatus(r.pendingStatus.status,p.status)){if(p.scope==='pending')r.pendingStatus=null;r.statusCommit=commit;if(r.localDone)r.phase='done';}
       if(p.writeId&&s.jobs[p.writeId]?.phase==='unknown'){s.jobs[p.writeId].phase='cancelled';s.jobs[p.writeId].resolution='desired-state-present';s.jobs[p.writeId].remoteOutcome='unknown';}
       appendEvent(s,{component:'github',outcome:'verified',nativeId:p.generatorId||null});
@@ -98,6 +98,17 @@ export class Synchronizer {
     let client;
     try{client=await this.services(p.repository);}catch{await this.annotate(id,'original-access-unavailable');return this.record(id);}
     try{
+      if(p.kind==='source'&&p.developmentId){
+        const latest=await this.store.read();
+        for(const older of Object.values(latest.pending).filter(row=>row.id!==p.id&&row.developmentId===p.developmentId&&row.kind==='status'&&row.stopRequested&&row.writeId&&!['synced','superseded'].includes(row.phase))){
+          const job=(await this.store.read()).jobs[older.writeId];
+          if(!job||['cancelled','rejected','prepared'].includes(job.phase))continue;
+          const receipt=await client.writer.reconcile(older.writeId,{fresh:true});
+          if(!receipt.verified){await this.annotate(id,'unknown');return this.record(id);}
+          await this.store.transact(s=>{this.assertCurrent(s);const old=s.pending[older.id],current=s.pending[p.id];requireThat(old.developmentId===current.developmentId&&JSON.stringify(old.repository)===JSON.stringify(current.repository),'status-scope-changed');old.phase='superseded';if(!current.writeId)current.baseCommit=receipt.commit;const native=s.generators[current.generatorId];if(native)s.generators[native.id]=releaseHold(native,'sync-'+old.id);if(s.jobs[old.writeId]){s.jobs[old.writeId].phase='verified';s.jobs[old.writeId].resolution='superseded-status-reconciled';}});
+          p=await this.record(id);
+        }
+      }
       const related=p.writeId||(p.requestId&&state.jobs[p.requestId+'-status-'+p.status.state]?p.requestId+'-status-'+p.status.state:null);
       if(related&&!p.writeId){await this.update(id,row=>{row.writeId=related;});p=await this.record(id);}
       const prior=p.writeId&&(await this.store.read()).jobs[p.writeId];

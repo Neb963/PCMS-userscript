@@ -36,3 +36,7 @@ test('expired or previous-term navigation cannot move a worker',async()=>{
   }
   assert.match(workerURL({id:'create',fork:true},'minimal'),/#edit:new$/);
 });
+test('a missing pinned retained worker never opens a replacement editor',async()=>{
+ const {store}=testStore();const client=new NativeClient({store,role:'development',workerId:'missing',coordinator:{assertOwner:()=>{}},pool:{open:()=>assert.fail('must keep original tab')}});
+ await assert.rejects(client.captureApproved({id:'123',slug:'synthetic-target'},'dev','capture'),/retained-tab-unavailable/);
+});

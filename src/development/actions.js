@@ -3,14 +3,14 @@ import {developmentStatus,abandonDevelopment} from './completion.js';
 import {appendEvent} from '../state/journal.js';
 import {functionalFingerprint} from '../refresher/markers.js';
 
-export async function enqueueDevelopmentAction(store,id,action,confirmed,uuid=()=>crypto.randomUUID()){
-  requireThat(confirmed===true&&['cancel','abandon','resume','discard'].includes(action),'confirmation-required');
+export async function enqueueDevelopmentAction(store,id,action,confirmed,uuid=()=>crypto.randomUUID(),token=null){
+  requireThat(confirmed===true&&['cancel','abandon','resume','discard','prepare','approve','recheck-publication'].includes(action),'confirmation-required');
   return store.transact(s=>{
     const r=s.development?.[id],q=s.requestQueue?.[id];requireThat(r||q?.request.status.action==='develop','development-unavailable');
     const account=r?.request.status.account||q.request.status.account;requireThat(account===s.settings.account.accountId,'account-assignment-mismatch');
-    s.commands||={};const duplicate=Object.values(s.commands).find(c=>c.kind==='development-action'&&c.developmentId===id&&c.action===action&&['queued','running'].includes(c.phase));if(duplicate)return duplicate.id;
+    s.commands||={};const duplicate=Object.values(s.commands).find(c=>c.kind==='development-action'&&c.developmentId===id&&c.action===action&&c.token===token&&['queued','running'].includes(c.phase));if(duplicate)return duplicate.id;
     if(action==='cancel'){if(r)r.stopRequested=true;if(q)q.stopRequested=true;if(s.utility?.[id])s.utility[id].stopRequested=true;}
-    const commandId=uuid();s.commands[commandId]={id:commandId,kind:'development-action',developmentId:id,action,account,phase:'queued'};return commandId;
+    const commandId=uuid();s.commands[commandId]={id:commandId,kind:'development-action',developmentId:id,action,account,token,phase:'queued'};return commandId;
   });
 }
 function supersedeStatus(s,r){
@@ -19,7 +19,7 @@ function supersedeStatus(s,r){
   }
 }
 export class DevelopmentActions {
-  constructor({store,nativeFactory,guard=async()=>{},assertCurrent=()=>{}}){Object.assign(this,{store,nativeFactory,guard,assertCurrent});this.busy=false;}
+  constructor({store,nativeFactory,publisher=null,guard=async()=>{},assertCurrent=()=>{}}){Object.assign(this,{store,nativeFactory,publisher,guard,assertCurrent});this.busy=false;}
   async cancelled(id){return this.store.transact(s=>{
     this.assertCurrent(s);const r=s.development?.[id],q=s.requestQueue?.[id];
     if(r){supersedeStatus(s,r);r.phase='cancelled';const worker=s.workers[r.workerId];if(worker){worker.phase='retained';worker.slotReleased=true;}const g=s.generators[r.generatorId];s.generators[g.id]=addHold({...releaseHold(g,id),retainedTab:r.workerId},{id,kind:'cancelled-draft'});developmentStatus(s,r,'blocked');}
@@ -47,7 +47,7 @@ export class DevelopmentActions {
   async tick(){
     if(this.busy)return;this.busy=true;try{await this.guard();const s=await this.store.read(),c=Object.values(s.commands||{}).find(c=>c.kind==='development-action'&&c.phase==='queued');if(!c)return;
       await this.store.transact(state=>{this.assertCurrent(state);requireThat(state.settings.account.accountId===c.account,'account-assignment-mismatch');state.commands[c.id].phase='running';});
-      try{if(c.action==='cancel')await this.cancel(c.developmentId);else if(c.action==='abandon')await abandonDevelopment(this.store,c.developmentId,true,this.assertCurrent);else await this.resolve(c.developmentId,c.action);await this.store.transact(state=>{this.assertCurrent(state);state.commands[c.id].phase='done';});}
+      try{let result=null;if(c.action==='prepare'){requireThat(this.publisher,'publication-unavailable');const candidate=await this.publisher.prepare(c.developmentId);result={token:candidate.approval.id,pjsChars:candidate.source.pjs.length,htmlChars:candidate.source.html.length,fileCount:Object.keys(candidate.source.files).length};}else if(c.action==='approve'){requireThat(this.publisher,'publication-unavailable');result=await this.publisher.confirm(c.developmentId,c.token);}else if(c.action==='recheck-publication'){requireThat(this.publisher,'publication-unavailable');result=await this.publisher.publish(c.developmentId);}else if(c.action==='cancel')await this.cancel(c.developmentId);else if(c.action==='abandon')await abandonDevelopment(this.store,c.developmentId,true,this.assertCurrent);else await this.resolve(c.developmentId,c.action);await this.store.transact(state=>{this.assertCurrent(state);state.commands[c.id].phase='done';state.commands[c.id].result=result;});}
       catch{await this.store.transact(state=>{this.assertCurrent(state);state.commands[c.id].phase='held';state.commands[c.id].reason=c.action==='cancel'?'Stop unconfirmed. Open retained draft or explicitly abandon the local run.':'Resolve the draft in its retained native tab, then recheck. Uncertain results remain held.';});}
     }finally{this.busy=false;}
   }

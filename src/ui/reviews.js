@@ -23,6 +23,7 @@ export function reviewsRenderer({action,activate,publish=null}){
           if(job.retainedTab)add(job.phase==='review'?'Review':'Open retained draft',()=>open(job));
           if(job.phase==='review')add('Approve & Publish',b=>publish?.(job,{doc,root,trigger:b}),{disabled:!job.canPublish||!publish||job.actionBusy,title:job.canPublish?'Confirm this exact settled draft':'Native publication requires live qualification'});
           if(!['cancelled','resolved'].includes(job.phase))add('Cancel',b=>confirm(job,'cancel',b));
+          if(job.phase==='publication-unknown')add('Recheck result',async()=>{try{await action(job.id,'recheck-publication',true);notice.textContent='Publication recheck recorded.';}catch{notice.textContent='Publication recheck unavailable. The approved source is retained.';}});
           if(job.phase==='unknown'&&!job.slotReleased)add('Abandon local run',b=>confirm(job,'abandon',b));
           if(job.canResume)add('Resume saved version',b=>confirm(job,'resume',b));if(job.canDiscard)add('Discard draft & keep Unlisted',b=>confirm(job,'discard',b));
           next.append(tools);if(row)row.replaceWith(next);row=next;
@@ -30,7 +31,7 @@ export function reviewsRenderer({action,activate,publish=null}){
         row.querySelector('[data-message]').textContent=job.message||'';if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
       }list.scrollTop=top;
     }
-    function draw(){const jobs=model.development||[],review=jobs.filter(j=>j.phase==='review'||j.phase==='cancelled'||j.phase==='unknown'&&j.slotReleased),active=jobs.filter(j=>['starting','submitting','running','unknown'].includes(j.phase)&&!j.slotReleased),queue=jobs.filter(j=>j.phase==='queued');counts.textContent=model.coordinator==='Verified'?`${active.length} / 2 active · ${queue.length} queued`:'Unknown · saved queue snapshot';drawList(reviews,review,'No jobs awaiting review.');drawList(running,active,'No running Development jobs.');drawList(queued,queue,'No queued Development jobs.');}
+    function draw(){const jobs=model.development||[],review=jobs.filter(j=>['review','publishing','publication-unknown'].includes(j.phase)||j.phase==='cancelled'||j.phase==='unknown'&&j.slotReleased),active=jobs.filter(j=>['starting','submitting','running','unknown'].includes(j.phase)&&!j.slotReleased),queue=jobs.filter(j=>j.phase==='queued');counts.textContent=model.coordinator==='Verified'?`${active.length} / 2 active · ${queue.length} queued`:'Unknown · saved queue snapshot';drawList(reviews,review,'No jobs awaiting review.');drawList(running,active,'No running Development jobs.');drawList(queued,queue,'No queued Development jobs.');}
     draw();return {update:next=>{if(Number.isFinite(next.revision)&&Number.isFinite(model.revision)&&next.revision<model.revision)return;model=next;draw();}};
   };
 }

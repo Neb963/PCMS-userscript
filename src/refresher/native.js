@@ -16,9 +16,9 @@ export function checkRefreshRequest(body,source,manifest){
 export class NativeRefresher {
   constructor({actions,store,native,gate,reader}){Object.assign(this,{actions,store,native,gate,reader});this.editor=new EditorSource({page:actions.page,native,guard:async()=>{actions.selected();await actions.guard();}});}
   async snapshot(id){const record=(await this.store.read()).refreshDrafts?.[id];requireThat(record&&record.id===id,'refresh-snapshot-unavailable');completeSource(record.source);completeSource(record.previousSource);return record;}
-  async context(target,record){
+  async context(target,record,ownSave=false){
     requireThat(record.generatorId===target.id&&record.slug===target.slug&&record.workerId===this.actions.workerId&&record.documentId===this.actions.documentId,'refresh-context-changed');
-    const current=await this.editor.capture(target);requireThat(current.draftId===record.draftId&&sourceEqual(current.source,record.source),'dirty-or-stale-editor');return current;
+    const editor=ownSave?new EditorSource({page:this.actions.page,native:this.native,allowSaving:true,guard:async()=>{this.actions.selected();await this.actions.guard();}}):this.editor;const current=await editor.capture(target);requireThat(current.draftId===record.draftId&&sourceEqual(current.source,record.source),'dirty-or-stale-editor');return current;
   }
   async prepare(target,id){
     let touched=false;try{
@@ -61,7 +61,7 @@ export class NativeRefresher {
       const saved=await this.reader.saved(target.slug,target.id);requireThat(saved.listing==='listed','listing-unconfirmed');requireThat(sourceEqual(saved.source,record.previousSource),'source-drift');
       const metadata=await this.reader.metadata(target.slug);requireThat(metadata.id===target.id&&metadata.listing==='listed'&&JSON.stringify(metadata.revision)===JSON.stringify(saved.revision),'source-drift');
       receipt=await this.actions.receipt('/api/save',()=>this.actions.page.app.saveGenerator(),body=>body?.generator?.name===target.slug,{onDispatch:()=>{sent=true;},allow:async body=>{
-        checkRefreshRequest(body,record.source,metadata.manifest);await this.context(target,record);await this.gate.requireOwner(target);
+        checkRefreshRequest(body,record.source,metadata.manifest);await this.context(target,record,true);await this.gate.requireOwner(target);
       }});
       if(NO_SAVE.has(receipt.status)){
         if(receipt.status==='session-token-error')await this.store.transact(s=>{s.settings.account.confirmed=false;});

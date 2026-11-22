@@ -8,6 +8,7 @@ export class NativeClient {
     const existing=(await this.store.read()).jobs[id];
     if(existing)return this.result(id);
     let worker=(await this.store.read()).workers[this.workerId];
+    requireThat(!this.workerId||worker,'retained-tab-unavailable');
     if(!worker){
       const state=await this.store.read();worker=this.role==='development'?null:Object.values(state.workers).find(w=>w.role===this.role&&['idle','opening'].includes(w.phase));
       if(!worker)worker=await this.pool.open(this.role,target.slug,target.id||null,kind==='native-create');
@@ -30,6 +31,9 @@ export class NativeClient {
   }
   stopDevelopment(target,id){return this.command('helper-stop',target,{developmentId:id},id+'-helper-stop',true);}
   resolveDevelopment(target,id){return this.command('helper-resolve',target,{developmentId:id},id+'-helper-resolve',true);}
+  captureApproved(target,id,nonce){return this.command('approved-capture',target,{developmentId:id},nonce,true);}
+  saveApproved(target,id,pendingId,approvalId){return this.command('approved-save',target,{developmentId:id,pendingId,approvalId},pendingId+'-save',true);}
+  listApproved(target,id,pendingId){return this.command('approved-listing',target,{developmentId:id,pendingId},pendingId+'-list',true);}
   startDevelopment(target,id){return this.command('helper-start',target,{developmentId:id},id+'-helper-start');}
   prepareRefresh(target,id){return this.command('refresh-prepare',target,{markerId:id},id+'-prepare');}
   restoreRefresh(target,id){return this.command('refresh-restore',target,{markerId:id},id+'-restore');}

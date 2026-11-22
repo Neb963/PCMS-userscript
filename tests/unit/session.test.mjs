@@ -50,3 +50,8 @@ test('server-rejected session invalidates manual confirmation even with stale pa
   await assert.rejects(f.gate.requireOwner({slug:'synthetic-generator'}),/sign-in/);
   assert.equal((await f.store.read()).settings.account.confirmed,false);
 });
+
+test('only explicitly owned Save inspection tolerates saving; identity and draft guards remain enforced',async()=>{
+ const f=fixture();Object.assign(f.page,{modelTextEditor:{getValue:()=>''},outputTemplateEditor:{getValue:()=>''},srcState:{ready:async()=>{},getDraftId:()=> 'draft-1'},currentInterfaceMode:'edit',__draftChoiceSettled:true,perchanceSaveState:'saving'});
+ await assert.rejects(f.native.ready({id:'123',slug:'synthetic-generator'}),/not-settled/);assert.equal((await f.native.ready({id:'123',slug:'synthetic-generator'},{allowSaving:true})).draftId,'draft-1');await assert.rejects(f.native.ready({id:'456',slug:'synthetic-generator'},{allowSaving:true}),/target-mismatch/);f.page.__draftChoiceSettled=false;await assert.rejects(f.native.ready({id:'123',slug:'synthetic-generator'},{allowSaving:true}),/not-settled/);
+});

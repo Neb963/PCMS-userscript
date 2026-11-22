@@ -49,10 +49,10 @@ export class NativePage {
     return { id: nativeId(String(generator.id)), slug: slug(generator.name), publicId: typeof generator.publicId === 'string' ? generator.publicId : null };
   }
 
-  async ready(expected) {
+  async ready(expected,{allowSaving=false}={}) {
     const p = this.page;
     requireThat(p.app && p.modelTextEditor?.getValue && p.outputTemplateEditor?.getValue && p.srcState?.ready, 'editor-unavailable');
-    requireThat(p.__editorReady !== false && p.__draftChoiceSettled !== false && p.currentInterfaceMode === 'edit' && p.perchanceSaveState !== 'saving', 'editor-not-settled');
+    requireThat(p.__editorReady !== false && p.__draftChoiceSettled !== false && p.currentInterfaceMode === 'edit' && (allowSaving||p.perchanceSaveState !== 'saving'), 'editor-not-settled');
     let timer;
     try {
       await Promise.race([Promise.resolve(p.srcState.ready()), new Promise((_, reject) => {
@@ -62,7 +62,7 @@ export class NativePage {
     } finally { clearTimeout(timer); }
     const identity = this.identity();
     requireThat(identity.id === expected.id && identity.slug === expected.slug, 'native-target-mismatch');
-    requireThat(p.__draftChoiceSettled !== false && p.perchanceSaveState !== 'saving', 'editor-not-settled');
+    requireThat(p.__draftChoiceSettled !== false && (allowSaving||p.perchanceSaveState !== 'saving'), 'editor-not-settled');
     const draftId = p.srcState.getDraftId?.() || p.srcState.getWorkspaceId?.();
     requireThat(typeof draftId === 'string' && draftId, 'draft-identity-unavailable');
     return { ...identity, draftId };
