@@ -37,9 +37,9 @@ for(let i=0;i<35;i++){const id='develop-queued-'+i;initialState.requestQueue[id]
 initialState.edits={manual:{id:'manual',generatorId:'600',slug:'synthetic-manual-editor',phase:'editing',workerId:'manual-worker',documentId:'manual-doc',draftId:'manual-draft',baselineSource:{pjs:'private-manual-source',html:'private',files:{}}}};
 initialState.generators['600']={id:'600',slug:'synthetic-manual-editor',listing:'listed',status:{account:'synthetic-account',action:'publish_from_github',state:'done'},holds:[{id:'manual',kind:'edit'}],ownerVerified:true,savedVerified:true};initialState.workers['manual-worker']={id:'manual-worker',role:'manual',slug:'synthetic-manual-editor',generatorId:'600',documentId:'manual-doc',phase:'idle'};
 try {
-  for (const scenario of [...[1440,1024,800,531,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
+  for (const scenario of [...[1440,1024,800,531,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true},{width:320,height:420,state:initialState,shortOnly:true}]) {
     const {width}=scenario;
-    const page = await browser.newPage({ viewport: { width, height: 768 } });
+    const page = await browser.newPage({ viewport: { width, height: scenario.height||768 } });
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://perchance.org/**', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Synthetic Perchance</title><body><p id="native">Native fixture</p></body>' }));
     await page.addInitScript(({artifact,initialState}) => {
@@ -95,6 +95,10 @@ try {
       assert.equal(await app.getByLabel('Account ID',{exact:true}).inputValue(),'staged-account');
       await page.close();continue;
     }
+    if(scenario.shortOnly){
+      for(const label of ['Open Publication','Open GitHub sync']){const control=app.getByRole('button',{name:label,exact:true});await control.scrollIntoViewIfNeeded();const box=await control.boundingBox();assert.ok(box.y>=0&&box.y+box.height<=420);}
+      await app.getByLabel('Settings',{exact:true}).click();await app.getByRole('button',{name:'Controls & system',exact:true}).click();const diagnostic=app.getByRole('button',{name:'Export diagnostic',exact:true});await diagnostic.scrollIntoViewIfNeeded();const box=await diagnostic.boundingBox();assert.ok(box.y>=0&&box.y+box.height<=420);assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false);await page.close();continue;
+    }
     const baseline = await app.locator('.pagehead').boundingBox();
     for (const route of ['Generators', 'Reviews', 'Refresher']) {
       await app.getByRole('navigation').getByRole('button', { name: route, exact: true }).click();
@@ -104,6 +108,7 @@ try {
     }
     await app.getByRole('navigation').getByRole('button',{name:'Generators',exact:true}).click();
     await app.getByRole('button',{name:'Bulk Import',exact:true}).focus();await page.keyboard.press('/');assert.equal(await app.getByRole('searchbox',{name:'Search generators'}).evaluate(n=>n.getRootNode().activeElement===n),true);await page.keyboard.type('/');assert.equal(await app.getByRole('searchbox',{name:'Search generators'}).inputValue(),'/');await app.getByRole('searchbox',{name:'Search generators'}).fill('');
+    await app.getByRole('navigation').getByRole('button',{name:'Refresher',exact:true}).click();
     await checkRefresher({page,app,width});
     await checkReviews({page,app});
     await app.getByRole('navigation').getByRole('button', { name: 'Generators', exact: true }).click();

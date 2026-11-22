@@ -4,7 +4,7 @@
 
 ## Next action
 
-- Verify P29 browser result. 259 Node tests and build/syntax/bootstrap pass. Reviewed all seven accepted screenshots and Section 8. Preserve four main tabs, canonical subviews, headings and scrolling.
+- Verify P29 browser result. First browser attempt exposed an added test navigation assumption (Generators remained selected before Refresher assertions); corrected the test route. Added short-height control reachability. 259 Node tests and build/syntax/bootstrap pass. Reviewed all seven accepted screenshots and Section 8. Preserve four main tabs, canonical subviews, headings and scrolling.
 - Fix clipped dropdowns using native top-layer popovers; test Enter/Space/arrows/Home/End/Escape/Tab and modal coexistence. Add safe / search shortcut and synchronize theme picker.
 - Preserve focus/scroll across journal, case, operation, review and Manage updates. Fix dark primary-hover text contrast. Check both themes, reduced motion, short height, Settings alignment, nested confirmations and 320px controls.
 - Run six-width Chromium/Firefox checks; then P30 interruption/integration regression and P31 candidate packaging. Native qualification remains deferred.
