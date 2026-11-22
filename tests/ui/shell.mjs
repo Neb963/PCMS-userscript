@@ -23,21 +23,24 @@ try {
       // Test instrumentation only: open roots for browser assertions. Production is closed.
       const attach = Element.prototype.attachShadow;
       Element.prototype.attachShadow = function(options) { return attach.call(this, { ...options, mode: 'open' }); };
-      const gm = window === window.top ? { data: new Map(), listeners: new Map(), sequence: 0 } : window.top.__syntheticGM;
+      const gm = window === window.top ? { data: new Map(), listeners: new Map(), sequence: 0, trace: [] } : window.top.__syntheticGM;
       window.__syntheticGM = gm;
+      gm.trace.push({event:'init',top:window===window.top,url:location.href});
       const data = gm.data;
       window.GM_registerMenuCommand = () => {};
       window.GM_openInTab = () => { throw new Error('UI smoke must not open workers'); };
       window.GM_addValueChangeListener = (key, callback) => { const id = ++gm.sequence; gm.listeners.set(id, { key, callback }); return id; };
       window.GM_removeValueChangeListener = id => gm.listeners.delete(id);
       window.GM_getValue = async (key, fallback) => data.get(key) ?? fallback;
-      window.GM_setValue = async (key, value) => { const old = data.get(key); data.set(key, value); queueMicrotask(() => { for (const listener of gm.listeners.values()) if (listener.key === key) listener.callback(key, old, value, true); }); };
+      window.GM_setValue = async (key, value) => { const old = data.get(key); data.set(key, value); gm.trace.push({event:'set',key,type:value?.type||null}); queueMicrotask(() => { for (const listener of gm.listeners.values()) if (listener.key === key) listener.callback(key, old, value, true); }); };
       window.unsafeWindow = { app: { store: { data: { user: { loggedIn: false } } } } };
       window.GM = { getValue: window.GM_getValue, setValue: window.GM_setValue, deleteValue: async key => data.delete(key) };
-      if (window !== window.top && new URL(location.href).searchParams.has('pcms_store_probe')) {
+      if (window !== window.top) {
         // Simulate manager injection inside the document. The probe intentionally
         // removes itself after its GM reply, so a protocol evaluation cannot await it.
         document.addEventListener('DOMContentLoaded', () => {
+          if (!new URL(location.href).searchParams.has('pcms_store_probe')) return;
+          gm.trace.push({event:'inject-probe',url:location.href});
           const injected = document.createElement('script'); injected.textContent = artifact; document.documentElement.append(injected);
         }, { once: true });
       }
@@ -48,7 +51,7 @@ try {
     await app.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
     try { await app.getByText('Coordinator Verified', { exact: true }).waitFor(); }
     catch(error) {
-      console.log(JSON.stringify({browser:browserType,width,errors,coordinatorText:await app.locator('.statusline').allTextContents(),probeFrames:await page.locator('iframe[src*=pcms_store_probe]').count()}));
+      console.log(JSON.stringify({browser:browserType,width,errors,coordinatorText:await app.locator('.statusline').allTextContents(),probeFrames:await page.locator('iframe[src*=pcms_store_probe]').count(),storeTrace:await page.evaluate(()=>window.__syntheticGM.trace)}));
       throw error;
     }
     await page.waitForFunction(() => document.querySelectorAll('iframe[src*=pcms_store_probe]').length === 0);

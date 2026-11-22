@@ -68,3 +68,8 @@ test('duplicate dispatch, wrong document and unknown transport cannot repeat eff
   await assert.rejects(c.dispatch('save-2', () => {}), /not-dispatchable/);
   abort.abort(); await run.done;
 });
+
+test('failed authority bootstrap releases all provider ownership before another candidate',async()=>{
+  const f=fixture();let releases=0;f.store.acquireAuthority=async()=>{throw Error('fresh-read-unavailable');};f.store.releaseAuthority=async()=>{releases++;};
+  const candidate=new Coordinator({...f,owner:'failed-bootstrap'});await assert.rejects(candidate.run(new AbortController().signal),/fresh-read/);assert.equal(candidate.active,false);assert.equal(releases,1);
+});

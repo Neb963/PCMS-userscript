@@ -73,7 +73,7 @@ function coordinate(store, ui = null) {
   coordinator.run(lifecycle.signal, async () => {
     await refresh();
     await tick();
-  }).catch(() => { if (ui) ui.update({ restored: true, storageAvailable: store.available, coordinator: 'Unverified' }); });
+  }).catch(() => { store.available = false; if (ui) ui.update({ restored: true, storageAvailable: false, coordinator: 'Unverified' }); });
   const timer = setInterval(tick, 1000);
   const viewTimer = ui ? setInterval(refresh, 5000) : null;
   window.addEventListener('pagehide', () => { clearInterval(timer); clearInterval(viewTimer); unwatch(); lifecycle.abort(); coordinator.stop(); }, { once: true });

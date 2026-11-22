@@ -15,6 +15,7 @@ export function publicSnapshot(state, { session = null, coordinator = 'Unverifie
     generators: Object.values(state.generators).map(g => ({ id: g.id, slug: g.slug, listing: g.listing, status: g.status, holds: g.holds, excluded: g.excluded })),
     journalCount: state.journal.length,
     coordinator,
+    casesKnown: coordinator === 'Verified',
     cases: actionCases(state, { session }),
     operations: operationRows(state, coordinator, session),
     journal: exportJournal(state.journal),
@@ -70,7 +71,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   }
   for (const key of MAIN_ROUTES) {
     const control = button(doc, TITLES[key], () => navigate(key), { 'data-route': key, 'aria-label': TITLES[key] });
-    if (key === 'overview') control.append(el(doc, 'span', { className: 'tag', 'data-action-count': '', 'aria-hidden': 'true' }, model.restored && model.cases ? String(model.cases.length) : '—'));
+    if (key === 'overview') control.append(el(doc, 'span', { className: 'tag', 'data-action-count': '', 'aria-hidden': 'true' }, model.restored && model.casesKnown && model.cases ? String(model.cases.length) : '—'));
     nav.append(control);
   }
   const settings = button(doc, '⚙', () => navigate('settings'), { className: 'icon', 'aria-label': 'Settings' });
@@ -88,7 +89,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
   navigate('overview');
   return {
     navigate,
-    update(next) { model = next; const counter = nav.querySelector('[data-action-count]'); counter.textContent = model.restored && model.cases ? String(model.cases.length) : '—'; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
+    update(next) { model = next; const counter = nav.querySelector('[data-action-count]'); counter.textContent = model.restored && model.casesKnown && model.cases ? String(model.cases.length) : '—'; status.textContent = model.accountId || 'Setup required'; host.dataset.theme = model.theme || 'light'; if (view?.update) view.update(model); else navigate(route); },
     get route() { return route; },
   };
 }

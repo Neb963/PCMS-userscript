@@ -25,11 +25,11 @@ export function overviewRenderer({ activateRetained }) {
     function renderCases(){
       cases.replaceChildren();
       if(!model.restored){count.textContent='—';cases.append(el(doc,'p',{className:'empty'},'Checking saved state…'));expandReviews.hidden=true;return;}
-      const all=model.cases||(model.storageAvailable===false?[{key:'storage',priority:0,title:'Storage unavailable',destination:'settings',action:'Settings'}]:[]);count.textContent=model.cases?String(all.length):'—';
+      const all=model.cases||(model.storageAvailable===false?[{key:'storage',priority:0,title:'Storage unavailable',destination:'settings',action:'Settings'}]:[]);count.textContent=model.casesKnown?String(all.length):'—';
       const reviews=all.filter(c=>c.priority===5);expandReviews.hidden=reviews.length<2;expandReviews.textContent=view.expandedReviews?'Collapse reviews':'Expand reviews';
       const rows=all.filter(c=>view.expandedReviews||reviews.length<2||c.priority!==5);
       if(reviews.length>=2&&!view.expandedReviews)rows.push({key:'reviews',priority:5,title:`${reviews.length} awaiting review`,destination:'reviews',action:'Open Reviews'});
-      if(!rows.length)cases.append(el(doc,'p',{className:'empty'},'No action required'));
+      if(!rows.length)cases.append(el(doc,'p',{className:'empty'},model.casesKnown?'No action required':'Checking saved state…'));
       for(const row of rows)cases.append(el(doc,'div',{className:'row'},el(doc,'div',{},el(doc,'strong',{},row.title),el(doc,'p',{},row.slug||'This profile')),button(doc,row.action,()=>{openCase(row).catch(()=>navigate(row.destination));})));
     }
     function renderOps(){coordinator.textContent='Coordinator '+(model.coordinator||'Checking');ops.replaceChildren();for(const row of model.operations||[['Refresher','refresher'],['AI Helper','reviews'],['Publication','utility'],['GitHub sync','sync']].map(([title,route])=>({title,route,status:'Unknown',detail:'State unavailable'})))ops.append(el(doc,'div',{className:'row'},el(doc,'div',{},el(doc,'strong',{},row.title),el(doc,'p',{},row.status+' · '+row.detail)),button(doc,'Open',()=>navigate(row.route),{className:'link','aria-label':'Open '+row.title})));}
