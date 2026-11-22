@@ -126,10 +126,10 @@
 
 ### P16 — Publish from GitHub workflow
 
-- [ ] Resume `ready`/`reserved` safely; stage full same-revision GitHub source.
-- [ ] Use native Save/readback, preserve existing Listing, List only newly created generator after Save.
-- [ ] Write/queue status-only `done`; recover partial Save→Listing→status sequence.
-- [ ] **Accept:** Native source and intended Listing verified; no partial or stale source publication.
+- [x] Resume `ready`/`reserved` safely; stage full same-revision GitHub source.
+- [x] Use native Save/readback, preserve existing Listing, List only newly created generator after Save.
+- [x] Write/queue status-only `done`; recover partial Save→Listing→status sequence.
+- [x] **Accept:** Native source and intended Listing verified; no partial or stale source publication.
 
 ### P17 — Complete approved-source snapshot
 

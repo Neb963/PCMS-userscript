@@ -15,7 +15,7 @@ export class Publication {
     requireThat(Array.isArray(history)&&[request.requestCommit,r?.statusCommit].includes(history[0]?.sha),'request-changed');
     return current;
   }
-  async hold(id,kind,reason){return this.reservation.update(id,(r,s)=>{r.phase=kind==='native-unknown'?'unknown':'blocked';r.reason=reason;if(r.generatorId)s.generators[r.generatorId]=addHold(s.generators[r.generatorId],{id,kind});});}
+  async hold(id,kind,reason,closed=false){return this.reservation.update(id,(r,s)=>{r.phase=kind==='native-unknown'?'unknown':'blocked';r.reason=reason;r.closed=closed;if(r.generatorId)s.generators[r.generatorId]=addHold(s.generators[r.generatorId],{id,kind});});}
   async run(request,id){
     requireThat(request.status.action==='publish_from_github','publication-action-invalid');
     const state=await this.store.read(),existing=state.utility?.[id],retained=state.pending[id+'-source'];
@@ -67,7 +67,10 @@ export class Publication {
       }catch(error){
         const jobs=Object.values((await this.store.read()).jobs).filter(j=>j.requestId===id&&['dispatched','unknown'].includes(j.phase));
         const reason=['account-assignment-mismatch','request-changed','github-source-or-instructions-changed','intended-listing-unconfirmed','saved-source-mismatch','saved-source-drift','publication-snapshot-changed'].includes(error.message)?error.message:'publication-unconfirmed';
-        await this.hold(id,jobs.length?'native-unknown':reason==='intended-listing-unconfirmed'?'listing-mismatch':reason==='account-assignment-mismatch'?'account-conflict':reason.includes('changed')?'request-conflict':'source-drift',reason);return this.reservation.current(id);
+        const conflict=['account-assignment-mismatch','request-changed','github-source-or-instructions-changed'].includes(reason);
+        await this.hold(id,jobs.length?'native-unknown':reason==='intended-listing-unconfirmed'?'listing-mismatch':reason==='account-assignment-mismatch'?'account-conflict':reason.includes('changed')?'request-conflict':'source-drift',reason,!jobs.length&&!conflict);
+        if(!jobs.length&&!conflict)await this.reservation.status(id,'blocked');
+        return this.reservation.current(id);
       }
     });
   }

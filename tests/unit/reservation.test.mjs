@@ -77,3 +77,7 @@ test('known created receipt can recover a temporarily unreadable ID without crea
   const f=await fixture();f.native.create=async actionId=>{f.calls.push('create');await f.store.transact(s=>{s.jobs[actionId].creationReceipt={status:'created',name:'temporary-slug'};});throw Error('metadata unavailable');};
   assert.equal((await f.reservation.run(f.request,'receipt')).phase,'unknown');assert.equal((await f.reservation.run(f.request,'receipt')).phase,'reserved');assert.equal(f.calls.filter(c=>c==='create').length,1);
 });
+test('a blocked temporary generator is retained across a new ready request rather than silently recreated',async()=>{
+  const f=await fixture();let checks=0;f.slugs.check=async()=>({classification:++checks<3?'Available':'Taken'});assert.equal((await f.reservation.run(f.request,'oldtemp')).phase,'blocked');
+  await assert.rejects(f.reservation.run({...f.request,requestCommit:'c'.repeat(40)},'newtemp'),/already-active/);assert.equal(f.calls.filter(c=>c==='create').length,1);assert.equal((await f.store.read()).generators['123'].slug,'temporary-slug');
+});

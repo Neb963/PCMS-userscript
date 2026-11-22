@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {sourceEqual} from '../../src/shared/domain.js';
+import {sourceEqual,parseStatus} from '../../src/shared/domain.js';
 import {testStore} from '../fixtures/store.mjs';
 import {Publication} from '../../src/workflows/publication.js';
 import {Reservation} from '../../src/workflows/reservation.js';
@@ -13,7 +13,7 @@ async function fixture({created=false,listing='listed'}={}){
   let status={...request.status,state:'reserved'},lastStatus='b'.repeat(40),offline=false;const calls=[];
   await store.transact(s=>{s.settings.account.accountId='alpha';s.settings.account.locked=true;s.generators['123']={id:'123',slug:'target-slug',listing:live.listing,status,holds:[{id:'publish',kind:'publication'}]};s.utility={publish:{id:'publish',request,phase:'reserved',generatorId:'123',created,originalListing:listing,nativeSlug:'target-slug',statusCommit:lastStatus,steps:['request checked','identity checked']}};});
   const github={snapshot:async at=>{if(offline)throw Error('offline');return {...snapshot,commit:at||lastStatus};},source:async()=>structuredClone(source),text:async()=>`account: ${status.account}\naction: ${status.action}\nstate: ${status.state}\n`,api:async()=>[{sha:lastStatus}]};
-  const writer={write:async input=>{if(offline)throw Error('offline');calls.push('github-status');assert.deepEqual(Object.keys(input.changes),['target-slug/status.md']);status={...request.status,state:'done'};return {verified:true,commit:'c'.repeat(40)};}};
+  const writer={write:async input=>{if(offline)throw Error('offline');calls.push('github-status');assert.deepEqual(Object.keys(input.changes),['target-slug/status.md']);status=parseStatus(new TextDecoder().decode(Uint8Array.from(input.changes['target-slug/status.md'])));return {verified:true,commit:'c'.repeat(40)};}};
   const gate={requireOwner:async()=>true},reader={saved:async()=>structuredClone(live)};
   const native={deploy:async(_t,pendingId)=>{const p=(await store.read()).pending[pendingId];assert.deepEqual(p.source,source);assert.deepEqual(p.previousSource,previous);calls.push('save');live.source=structuredClone(source);live.revision.saveCount++;},listing:async(_t,intent)=>{assert.deepEqual(live.source,source);calls.push(intent);live.listing=intent;}};
   const reservation=new Reservation({store,reader,gate,github,writer}),publication=new Publication({store,reader,gate,github,native,reservation,locks:{request:(_k,_o,run)=>run()}});
@@ -57,7 +57,7 @@ test('native source staging removes obsolete files, preserves exact zero/binary 
   const g=editorFixture();g.page.srcState.readFile=async()=>null;await assert.rejects(g.editor.capture({}),/draft-file-unavailable/);
 });
 test('a snapshot storage failure cannot start native Save or Listing',async()=>{
-  const f=await fixture({created:true});f.store.retainSource=async()=>{throw Error('quota');};assert.equal((await f.publication.run(f.request,'publish')).phase,'blocked');assert.deepEqual(f.calls,[]);assert.equal(f.live.listing,'unlisted');assert.deepEqual(f.live.source,f.previous);
+  const f=await fixture({created:true});f.store.retainSource=async()=>{throw Error('quota');};assert.equal((await f.publication.run(f.request,'publish')).phase,'blocked');assert.deepEqual(f.calls,['github-status']);assert.equal((await f.store.read()).generators['123'].status.state,'blocked');assert.equal(f.live.listing,'unlisted');assert.deepEqual(f.live.source,f.previous);
 });
 test('an identical complete source needs no native Save but still verifies intended Listing',async()=>{
   const f=await fixture();f.live.source=structuredClone(f.source);assert.equal((await f.publication.run(f.request,'publish')).phase,'done');assert.deepEqual(f.calls,['github-status']);
