@@ -98,3 +98,5 @@
 - Added one Coordinator writer, protected checkpoint/CAS messaging and fresh-injection startup read. No ordinary frame can start PCMS or native operations.
 - Build/syntax and 50 Node tests PASS. New tests deliberately give a follower a stale cache and verify retained approved source, both independent updates, fresh takeover and fail-closed persistence failure.
 - Original P12 [UI run 44968961811](https://github.com/Neb963/PCMS-userscript/actions/runs/44968961811) PASS. Updated startup/iframe path needs the next synthetic UI run; actual VM cache/injection persistence remains DEFERRED.
+
+- Cache-repair UI run 44969857009: Chromium PASS; all Firefox behavior assertions passed, but Firefox reported protocol evaluation cancellation when the successful transient probe removed its own document. Fixed test injection to execute from the frame's DOMContentLoaded handler; successful probe now explicitly requires a verified Coordinator and removal of the transient frame. No behavior assertion was removed.

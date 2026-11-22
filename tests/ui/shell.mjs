@@ -19,7 +19,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 768 } });
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://perchance.org/**', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Synthetic Perchance</title><body><p id="native">Native fixture</p></body>' }));
-    await page.addInitScript(() => {
+    await page.addInitScript(artifact => {
       // Test instrumentation only: open roots for browser assertions. Production is closed.
       const attach = Element.prototype.attachShadow;
       Element.prototype.attachShadow = function(options) { return attach.call(this, { ...options, mode: 'open' }); };
@@ -34,12 +34,20 @@ try {
       window.GM_setValue = async (key, value) => { const old = data.get(key); data.set(key, value); queueMicrotask(() => { for (const listener of gm.listeners.values()) if (listener.key === key) listener.callback(key, old, value, true); }); };
       window.unsafeWindow = { app: { store: { data: { user: { loggedIn: false } } } } };
       window.GM = { getValue: window.GM_getValue, setValue: window.GM_setValue, deleteValue: async key => data.delete(key) };
-    });
-    page.on('framenavigated', frame => { if (frame !== page.mainFrame() && frame.url().includes('pcms_store_probe=')) frame.addScriptTag({ content: script }).catch(error => { if (!frame.isDetached()) errors.push(error.message); }); });
+      if (window !== window.top && new URL(location.href).searchParams.has('pcms_store_probe')) {
+        // Simulate manager injection inside the document. The probe intentionally
+        // removes itself after its GM reply, so a protocol evaluation cannot await it.
+        document.addEventListener('DOMContentLoaded', () => {
+          const injected = document.createElement('script'); injected.textContent = artifact; document.documentElement.append(injected);
+        }, { once: true });
+      }
+    }, script);
     await page.goto('https://perchance.org/welcome#pcms');
     await page.addScriptTag({ content: script });
     const app = page.locator('#pcms-root');
     await app.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+    await app.getByText('Coordinator Verified', { exact: true }).waitFor();
+    assert.equal(await page.locator('iframe[src*=pcms_store_probe]').count(), 0);
     const baseline = await app.locator('.pagehead').boundingBox();
     for (const route of ['Generators', 'Reviews', 'Refresher']) {
       await app.getByRole('navigation').getByRole('button', { name: route, exact: true }).click();
