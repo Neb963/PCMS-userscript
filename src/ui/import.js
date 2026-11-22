@@ -3,7 +3,7 @@ import { enqueueImport } from '../runtime/commands.js';
 import { INTEGRATION_PROOF } from '../runtime/context.js';
 
 export function importRenderer({store,workflow}){
-  const view={query:'',filter:'ready',selected:new Set(),candidates:null,runId:null};
+  const view={query:'',filter:'ready',selected:new Set(),candidates:null,runId:null,repository:null};
   return ({doc,body,actions,navigate})=>{
     let disposed=false,loading=false;
     const heading=el(doc,'p',{className:'statusline'}),notice=el(doc,'p',{role:'status',className:'statusline'});
@@ -15,7 +15,7 @@ export function importRenderer({store,workflow}){
     const select=el(doc,'input',{type:'checkbox','aria-label':'Select visible import candidates',onchange:()=>{for(const row of visible())if(row.eligible)select.checked?view.selected.add(row.id):view.selected.delete(row.id);selection();}});
     const submit=button(doc,'Import selected',async()=>{
       submit.disabled=true;
-      try{const current=await store.read();view.runId=await enqueueImport(store,[...view.selected],current.settings.github?.repository);await update();}
+      try{if(!view.repository)throw new Error('import-settings-changed');view.runId=await enqueueImport(store,[...view.selected],view.repository);await update();}
       catch{notice.textContent='Import could not be queued. Recheck the session and tested repository settings.';selection();}
     },{className:'primary'});
     const refresh=button(doc,'Recheck',()=>load());actions.append(refresh);
@@ -34,7 +34,7 @@ export function importRenderer({store,workflow}){
       if(!rows.length)list.append(el(doc,'p',{className:'empty'},'No matching candidates'));
       selection();list.scrollTop=reset?0:top;
     }
-    async function load(){if(loading)return;loading=true;refresh.disabled=true;view.runId=null;notice.textContent='';draw();try{const operation=await workflow();const candidates=await operation.preview({cancelled:()=>disposed});if(disposed)return;view.candidates=candidates;view.selected=new Set(candidates.filter(r=>r.eligible).map(r=>r.id));}catch{if(!disposed){view.candidates=null;notice.textContent='Confirm the Perchance session and test GitHub settings before importing.';}}finally{loading=false;if(!disposed){refresh.disabled=false;draw();if(!INTEGRATION_PROOF.githubWrite)notice.textContent+=' GitHub import writes await live integration verification.';}}}
+    async function load(){if(loading)return;loading=true;refresh.disabled=true;view.runId=null;notice.textContent='';draw();try{const operation=await workflow();const candidates=await operation.preview({cancelled:()=>disposed});if(disposed)return;view.candidates=candidates;view.repository=structuredClone(operation.github.repository);view.selected=new Set(candidates.filter(r=>r.eligible).map(r=>r.id));}catch{if(!disposed){view.candidates=null;notice.textContent='Confirm the Perchance session and test GitHub settings before importing.';}}finally{loading=false;if(!disposed){refresh.disabled=false;draw();if(!INTEGRATION_PROOF.githubWrite)notice.textContent+=' GitHub import writes await live integration verification.';}}}
     async function update(){
       if(!view.runId)return;const state=await store.read(),run=state.commands?.[view.runId];if(!run||disposed)return;
       heading.textContent=run.phase==='running'?'Import in progress':run.phase==='queued'?'Import queued':'Import results';

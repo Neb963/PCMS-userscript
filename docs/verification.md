@@ -124,3 +124,9 @@
 
 - [UI run 44971751107](https://github.com/Neb963/PCMS-userscript/actions/runs/44971751107) PASS in Chromium/Firefox at four widths, plus separate unbound setup. Selection/scroll, hidden selections, Manage, nested confirmation and focus, locked IDs, original Listing/workflow/holds and existing regressions verified.
 - [Synthetic run 44971751136](https://github.com/Neb963/PCMS-userscript/actions/runs/44971751136) PASS (58 tests/build/syntax/hashes). Remote and local tree hashes match.
+
+## P14 verification
+
+- Build/syntax and 67 Node tests PASS. Complete source/status import, folder-conflict isolation, Listed/Unlisted preservation, durable unknown-commit reconciliation, late local reporting and source drift tested.
+- Import preview is bound to its tested repository; queue rejects changed settings. Missing binary payload cannot be mistaken for a zero-byte saved file. Cancelling preview stops further read work without cancelling an explicit queued Import.
+- Runtime coordinator owns sequential import commands and guarded GitHub writes. Integration write proof remains false; no real VM/PAT/provider operation is claimed.

@@ -14,3 +14,8 @@ test('public bytes and JSON validate responses and reject challenges/redirects',
   await assert.rejects(privilegedRequest(o=>o.onload({status:200,responseText:'<html>challenge</html>'}),'https://perchance.org/api/read'),/invalid/);
   await assert.rejects(privilegedRequest(o=>o.onload({status:200,responseText:'{}',finalUrl:'https://untrusted.test/'}),'https://api.github.com/repos/synthetic/repo'),/redirect/);
 });
+
+test('absent binary response is not accepted as a legitimate zero-byte saved file',async()=>{
+  await assert.rejects(privilegedRequest(o=>o.onload({status:200,response:null}),'https://user.uploads.dev/file/synthetic',{type:'bytes'}),/invalid-response/);
+  const bytes=await privilegedRequest(o=>o.onload({status:200,response:new ArrayBuffer(0)}),'https://user.uploads.dev/file/synthetic',{type:'bytes'});assert.equal(bytes.length,0);
+});
