@@ -132,8 +132,11 @@ export function guardNativeCommand(state,command,workerId){
   requireThat(job?.phase==='dispatched'&&job.accepted===true&&job.workerId===workerId&&job.documentId===command.documentId&&job.term===command.term&&job.owner===command.owner&&!job.locallyStopped&&!parent?.locallyStopped&&state.coordinator.term===command.term&&state.coordinator.owner===command.owner&&worker?.documentId===command.documentId&&worker.phase==='busy','stale-native-command');
   requireThat(!request?.stopped&&!request?.stopRequested&&!state.generators[command.target?.id]?.stopRequested&&!state.pending[command.payload?.pendingId]?.stopRequested,'request-stopped');
   if(command.kind.startsWith('refresh-'))requireThat(worker.role==='refresher','wrong-native-worker-role');
+  const development=command.payload?.developmentId&&state.development?.[command.payload.developmentId];
+  if(command.kind.startsWith('helper-'))requireThat(worker.role==='development'&&development&&development.generatorId===command.target.id&&(!development.workerId||development.workerId===workerId)&&!state.requestQueue?.[development.id]?.incoming,'helper-context-changed');
   if(command.target?.id){
     const generator=state.generators[command.target.id],allowed=new Set([command.id,parent?.id,request?.id].filter(Boolean));
+    if(development)allowed.add(development.id);
     const previous=request?.request.replacesPendingId&&state.pending[request.request.replacesPendingId];if(previous?.phase==='publication-queued'&&previous.decision?.successorRequest===request.id)allowed.add('sync-'+previous.id);
     requireThat(generator&&generator.slug===command.target.slug&&generator.holds.every(h=>allowed.has(h.id)),'generator-source-held');
   }

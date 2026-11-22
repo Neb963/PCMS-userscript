@@ -9,7 +9,7 @@ export class NativeClient {
     if(existing)return this.result(id);
     let worker=(await this.store.read()).workers[this.workerId];
     if(!worker){
-      const state=await this.store.read();worker=Object.values(state.workers).find(w=>w.role===this.role&&['idle','opening'].includes(w.phase));
+      const state=await this.store.read();worker=this.role==='development'?null:Object.values(state.workers).find(w=>w.role===this.role&&['idle','opening'].includes(w.phase));
       if(!worker)worker=await this.pool.open(this.role,target.slug,target.id||null,kind==='native-create');
       this.workerId=worker.id;
     }
@@ -28,6 +28,7 @@ export class NativeClient {
     await this.coordinator.claim({id,kind,target,payload,parentId:payload.actionId||null,generatorId:target.id||null,workerId:worker.id,documentId:worker.documentId,operatorAction});
     await this.coordinator.dispatch(id,c=>this.pool.send(c));return this.result(id);
   }
+  startDevelopment(target,id){return this.command('helper-start',target,{developmentId:id},id+'-helper-start');}
   prepareRefresh(target,id){return this.command('refresh-prepare',target,{markerId:id},id+'-prepare');}
   restoreRefresh(target,id){return this.command('refresh-restore',target,{markerId:id},id+'-restore');}
   saveRefresh(target,id){return this.command('refresh-save',target,{markerId:id},id+'-save');}

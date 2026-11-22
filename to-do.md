@@ -168,10 +168,10 @@
 
 ### P22 — AI Helper send-once development
 
-- [ ] Stage optional scratch instructions in Helper workspace, preserve native saved `src/`.
-- [ ] Send a valid `prompt.md` once in the retained development tab.
-- [ ] Persist attempt identity and test duplicate/delayed/unknown delivery.
-- [ ] **Accept:** An uncertain Helper submission cannot be replayed blindly.
+- [x] Stage optional scratch instructions in Helper workspace, preserve native saved `src/`.
+- [x] Send a valid `prompt.md` once in the retained development tab.
+- [x] Persist attempt identity and test duplicate/delayed/unknown delivery.
+- [x] **Accept:** An uncertain Helper submission cannot be replayed blindly.
 
 ### P23 — AI Helper completion and slot release
 

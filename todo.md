@@ -1,14 +1,10 @@
 # Active work — handoff
 
-**Current phase:** P22 — AI Helper send-once development. **Status:** Planned. P21 synthetic acceptance complete.
+**Current phase:** P22 — AI Helper send-once development. **Status:** Synthetic acceptance verified; browser regression pending.
 
 ## Next action
 
-- Read v1.4 §§4.4 and 8.6, relevant native Helper discovery and current reservation/request/worker contracts before changing code. The v1.4 scratch-workspace rule overrides discovery's older instruction-file Save recipe.
-- Implement one development job in a retained original tab after verified reservation, with the two-slot limit and a generator-specific hold. Start from verified native saved source; do not publish GitHub source or instruction files first.
-- Stage optional `scratch/` instructions only in the Helper workspace, preserving native `src/`, existing drafts and any input. Validate a non-empty `prompt.md`.
-- Persist request/repository/generator/tab/document/draft and send-attempt identity before one native Helper submission. Correlate admission evidence; duplicate, delayed, interrupted or Unknown submissions must not be resent automatically. Keep prompts, source, credentials and session identifiers out of diagnostics.
-- Add focused synthetic positive and adverse tests for absent optional scratch, missing prompt, dirty/input conflicts, changed requests, two-slot capacity, duplicate delivery and restart/unknown admission. Keep the static Helper gate false until operator-controlled live qualification. Completion/Review belongs to P23.
+- Checkpoint P22 (209 Node tests and build/syntax/bootstrap PASS), inspect browser regression, then implement P23 completion from correlated fresh terminal evidence plus settled same-draft readback. Stop/error/reconnect/foreign turn must not enter Review; release only verified or explicitly abandoned slots.
 
 ## Evidence
 
