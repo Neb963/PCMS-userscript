@@ -16,12 +16,12 @@ export function button(doc, text, action, attrs = {}) {
 
 // Native dialogs provide focus containment and top-layer stacking. Nested dialogs
 // close independently and restore their own trigger rather than the parent drawer.
-export function dialog(doc, root, title, content, { trigger = root.activeElement, drawer = false } = {}) {
+export function dialog(doc, root, title, content, { trigger = root.activeElement, drawer = false, returnFocus = null } = {}) {
   const modal = el(doc, 'dialog', { className: drawer ? 'drawer' : 'modal', 'aria-label': title });
   const close = () => modal.close();
   modal.append(el(doc, 'header', {}, el(doc, 'h2', {}, title), button(doc, '×', close, { 'aria-label': 'Close ' + title })), content);
   modal.addEventListener('click', event => { if (event.target === modal) close(); });
-  modal.addEventListener('close', () => { modal.remove(); if (trigger?.isConnected) trigger.focus(); }, { once: true });
+  modal.addEventListener('close', () => { modal.remove(); const target = trigger?.isConnected ? trigger : returnFocus?.() || [...root.querySelectorAll('dialog[open]')].at(-1)?.querySelector('button:not(:disabled)') || root.querySelector('[aria-current=page]'); if (target?.isConnected) target.focus(); }, { once: true });
   root.append(modal);
   modal.showModal();
   return modal;

@@ -117,3 +117,5 @@
 
 - 57 Node tests, build and syntax PASS.
 - UI run 44971376854 reached the separate unbound setup case; its new locator matched both the Settings icon and the valid Overview recovery link. Scoped the test to the accepted top-right icon's accessible label; no UI behavior/assertion removed.
+
+- Added P13 positive nested-confirmation coverage: local Exclude retains Listing, workflow and both independent holds, keeps Manage open and restores focus to the updated Include action. Authority reads now wait for in-flight persistence, preventing a storage callback from rendering a half-committed state. Targeted ordering regression passes; 58 total Node tests/build/syntax PASS.

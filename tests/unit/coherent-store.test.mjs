@@ -54,3 +54,12 @@ test('fresh probe resolves its protected reply before parent-task frame cleanup'
   assert.equal(await probe(),null);assert.equal(removed,false);
   await new Promise(resolve=>setTimeout(resolve,0));assert.equal(removed,true);
 });
+
+test('authority readers wait for persistence instead of observing a half-committed update',async()=>{
+  const f=fixture(),owner=f.create();await owner.store.acquireAuthority();let entered,release;
+  const began=new Promise(resolve=>{entered=resolve;});const blocked=new Promise(resolve=>{release=resolve;});const set=owner.store.set;
+  owner.store.set=async(key,value)=>{await set(key,value);if(key===STORE_KEY){entered();await blocked;}};
+  const writing=owner.store.transact(s=>{s.settings.refreshCap=99;});await began;
+  const reading=owner.store.read();release();await writing;assert.equal((await reading).settings.refreshCap,99);
+  await owner.store.releaseAuthority();
+});

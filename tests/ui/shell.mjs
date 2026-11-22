@@ -18,7 +18,7 @@ const errors = [];
 const initialState=emptyState();
 initialState.settings.account={accountId:'synthetic-account',locked:true,confirmed:false};
 for(let i=0;i<48;i++){
-  const id=String(100+i);initialState.generators[id]={id,slug:'synthetic-generator-'+String(i).padStart(2,'0'),listing:i%3===0?'unlisted':'listed',status:{account:'synthetic-account',action:'publish_from_github',state:'done'},holds:[],savedVerified:true,ownerVerified:true,excluded:false,githubCommit:'a'.repeat(40)};
+  const id=String(100+i);initialState.generators[id]={id,slug:'synthetic-generator-'+String(i).padStart(2,'0'),listing:i%3===0?'unlisted':'listed',status:{account:'synthetic-account',action:'publish_from_github',state:'done'},holds:i===8?[{id:'edit-108',kind:'edit'},{id:'unknown-108',kind:'native-unknown'}]:[],savedVerified:true,ownerVerified:true,excluded:false,githubCommit:'a'.repeat(40)};
 }
 try {
   for (const scenario of [...[1440,1024,530,320].map(width=>({width,state:initialState})),{width:320,state:emptyState(),setupOnly:true}]) {
@@ -95,6 +95,14 @@ try {
     assert.equal(await selected.isChecked(),true);
     await app.getByRole('button',{name:'Manage synthetic-generator-08',exact:true}).click();
     await app.getByRole('dialog',{name:'Manage synthetic-generator-08',exact:true}).waitFor();
+    await app.getByRole('dialog',{name:'Manage synthetic-generator-08',exact:true}).getByRole('button',{name:'Exclude',exact:true}).click();
+    await app.getByRole('dialog',{name:'Exclude generator',exact:true}).getByRole('button',{name:'Confirm',exact:true}).click();
+    await app.getByRole('dialog',{name:'Exclude generator',exact:true}).waitFor({state:'detached'});
+    const inclusion=app.getByRole('dialog',{name:'Manage synthetic-generator-08',exact:true}).getByRole('button',{name:'Include',exact:true});
+    assert.equal(await inclusion.evaluate(n=>n.getRootNode().activeElement===n),true);
+    const protectedGenerator=await page.evaluate(async()=>JSON.parse(await window.GM.getValue('PCMS_STORE_V1')).generators['108']);
+    assert.equal(protectedGenerator.excluded,true);assert.equal(protectedGenerator.listing,'listed');assert.equal(protectedGenerator.status.state,'done');assert.equal(protectedGenerator.holds.length,2);
+
     await page.keyboard.press('Escape');
     assert.equal(await app.getByRole('dialog').count(),0);
     await app.getByRole('button',{name:'Clear selection',exact:true}).click();

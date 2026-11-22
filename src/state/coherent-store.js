@@ -23,7 +23,7 @@ export class CoherentStore extends ProtectedStore {
   }
 
   async read() {
-    if (this.authority) { requireThat(!this.poisoned, 'storage-unavailable'); return structuredClone(this.current); }
+    if (this.authority) { await this.queue; requireThat(this.authority && !this.poisoned, 'storage-unavailable'); return structuredClone(this.current); }
     const cached = await super.read();
     const value = this.confirmed && this.confirmed.revision > cached.revision ? this.confirmed : cached;
     return structuredClone(value);

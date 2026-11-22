@@ -73,10 +73,10 @@ export function inventoryRenderer({controller,project,actions={}}) {
           if(action==='import')tools.append(button(doc,'Bulk Import',()=>{modal.close();navigate('import');}));
           else if(['exclude','include'].includes(action))tools.append(button(doc,action==='exclude'?'Exclude':'Include',()=>{
             const inner=el(doc,'div',{className:'panelbody stack'},el(doc,'p',{},`${action==='exclude'?'Exclude':'Include'} ${g.slug} from local automation?`));
-            const confirmDialog=dialog(doc,root,action==='exclude'?'Exclude generator':'Include generator',inner);
+            const confirmDialog=dialog(doc,root,action==='exclude'?'Exclude generator':'Include generator',inner,{returnFocus:()=>content.querySelector('[data-eligibility]')});
             const yes=button(doc,'Confirm',async()=>{yes.disabled=true;try{const result=await controller.exclude([g.id],action==='exclude',true);update(project(result.state));g=model.generators.find(item=>item.id===id);draw();confirmDialog.close();}catch{inner.append(el(doc,'p',{className:'error'},'Change unconfirmed.'));yes.disabled=false;}},{className:'primary'});
             inner.append(el(doc,'div',{className:'toolbar'},button(doc,'Cancel',()=>confirmDialog.close()),yes));
-          }));
+          },{'data-eligibility':''}));
           else tools.append(button(doc,action[0].toUpperCase()+action.slice(1),()=>actions[action](g,{doc,root,modal,navigate})));
         }
         if(g.status?.state==='review'||g.holds?.some(h=>['review','cancelled-draft','helper-unknown'].includes(h.kind)))tools.append(button(doc,'Open Reviews',()=>{modal.close();navigate('reviews');}));

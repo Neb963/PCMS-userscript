@@ -25,7 +25,9 @@ export function refresherReason(g) {
 export function generatorStates(g,state) {
   const pending=Object.values(state.pending).filter(p=>p.generatorId===g.id&&p.phase!=='synced');
   const conflict=(g.holds||[]).some(h=>['source-conflict','account-conflict','request-conflict'].includes(h.kind));
-  return {listing:g.listing==='listed'?'Listed':g.listing==='unlisted'?'Unlisted':'Unknown',workflow:g.localDone?'Local done':g.status?.state||'Not managed',github:!g.managed?'Not managed':conflict?'Conflict':pending.length?'Sync pending':g.githubCommit?'Synced':'Unknown',refresher:refresherReason(g)||'Eligible'};
+  const labels={ready:'Ready',reserved:'Reserved',review:'Awaiting review',done:'Done',blocked:'Blocked'};
+  const reason=refresherReason(g);
+  return {listing:g.listing==='listed'?'Listed':g.listing==='unlisted'?'Unlisted':'Unknown',workflow:g.localDone?'Local done':g.status?Object.hasOwn(labels,g.status.state)?labels[g.status.state]:'Unknown':'Not managed',github:!g.managed?'Not managed':conflict?'Conflict':pending.length?'Sync pending':g.githubCommit?'Synced':'Unknown',refresher:reason===null?'Eligible':g.excluded?'Excluded':g.holds?.length?'Held':'Not eligible'};
 }
 
 export function filterInventory(rows,{query='',filter='all',sort='slug'}={}) {
