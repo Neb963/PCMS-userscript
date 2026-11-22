@@ -28,3 +28,11 @@
 - Single protected root with schema validation, Web-Lock transaction serialization and exact write/readback.
 - Restart retains complete binary source, original repository and all independent holds; dispatched actions become Unknown without automatic replay.
 - Quota errors, mismatching readback, unavailable lock and unsupported schema fail without resetting stored work.
+
+## P04
+
+- Build, syntax, bootstrap, 15 Node tests PASS.
+- [Actions 44966701167](https://github.com/Neb963/PCMS-userscript/actions/runs/44966701167): Chromium and Firefox UI steps PASS at 1440/1024/530/320px; four tabs, Settings/subviews, Enter activation, persisted theme, shared header bounds, no outer overflow, preserved underlying native fixture.
+- Closed production shadow root, native dialogs and app-styled keyboard picker. No sample data or remote success substituted.
+- Separate path-scoped UI workflow avoids browser runs for unrelated pure-module changes.
+- Actual Violentmonkey installation remains P01 deferred; UI evidence uses controlled synthetic pages.

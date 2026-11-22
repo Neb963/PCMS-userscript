@@ -27,7 +27,7 @@ if (isAppPage(location)) {
   document.title = 'PCMS';
   const host = document.createElement('div');
   host.id = 'pcms-root';
-  host.style.cssText = 'position:fixed;inset:0;background:#f7f8fb;color:#202938;z-index:2147483647;overflow:hidden;display:block;isolation:isolate';
+  host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:hidden;display:block;isolation:isolate';
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   const store = new ProtectedStore({ get: GM_getValue, set: GM_setValue, locks: navigator.locks });

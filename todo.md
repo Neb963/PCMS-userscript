@@ -1,22 +1,20 @@
 # Active work — handoff
 
-**Current phase:** P04 — Accepted PCMS shell and navigation. **Status:** Implemented; UI CI verification pending.
+**Current phase:** P05 — Single coordinator lifecycle. **Status:** Planned.
 
 ## Next action
 
-- Inspect synthetic UI CI in Chromium and Firefox; fix any failures before accepting P04.
-- Then implement P05 cooperative coordinator and durable dispatch deduplication.
+- Hold one cooperative coordinator Web Lock, increment durable terms and claim operation IDs before dispatch.
+- Reject stale/duplicate worker commands and reconcile prior dispatched jobs as Unknown on takeover.
+- Test simultaneous candidates, owner loss and worker result fencing.
 
 ## Evidence
 
-- Build, syntax, bootstrap and 14 tests pass locally.
-- Added closed-shadow dedicated UI, four tabs, Settings/theme, consistent headings, internal scroll, native dialog and custom picker primitives.
-- Synthetic browser suite checks 1440/1024/530/320px navigation, keyboard, themes, stable headers and native page preservation.
+- P04 synthetic UI passed in Chromium and Firefox at four widths (Actions 44966701167). 15 Node tests/build/syntax pass. See `docs/verification.md`.
 
 ## Blockers / deferred checks
 
-- Local Chromium cannot launch (socket restriction); Firefox connector returned Internal error. Browser tests moved to Actions.
 - DEFERRED — P01 — actual Firefox/Violentmonkey install/reload/launch — disposable profile unavailable.
-- No real native effects enabled.
+- No real native effects enabled; no designated disposable account targets.
 
-**Last pushed commit:** 0cf63c4215adc4498c46260a0abeac93a764ac75.
+**Last pushed commit:** 370dd19f74b6231a45cdb241f1bcdfe796d07e1b.

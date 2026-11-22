@@ -10,7 +10,8 @@ export function publicSnapshot(state) {
     theme: state.settings.theme,
     restored: true,
     storageAvailable: true,
-    generators: Object.values(state.generators),
+    generators: Object.values(state.generators).map(g => ({ id: g.id, slug: g.slug, listing: g.listing, status: g.status, holds: g.holds, excluded: g.excluded })),
+    journalCount: state.journal.length,
     coordinator: 'Unverified',
   };
 }
@@ -51,7 +52,7 @@ export function mountShell(doc, host, { snapshot = { restored: false }, onTheme 
       body.append(el(doc, 'div', { className: 'columns overview' },
         panel('Requires action', el(doc, 'div', { className: 'row' }, el(doc, 'div', {}, el(doc, 'strong', {}, action)), button(doc, 'Settings', () => navigate('settings')))),
         panel('Operations', operations),
-        panel('Recent activity', el(doc, 'p', { className: 'empty' }, !model.restored ? 'Checking saved events…' : model.storageAvailable === false ? 'Journal unavailable' : 'No activity recorded')),
+        panel('Recent activity', el(doc, 'p', { className: 'empty' }, !model.restored ? 'Checking saved events…' : model.storageAvailable === false ? 'Journal unavailable' : model.journalCount === 0 ? 'No activity recorded' : 'Checking saved events…')),
       ));
     } else {
       const messages = { generators: 'No verified inventory loaded.', reviews: 'No verified development records loaded.', refresher: 'Worker Unknown. Queue unavailable.', utility: 'No verified publication records loaded.', sync: 'No verified synchronization records loaded.', settings: 'Configure this profile before starting native operations.' };

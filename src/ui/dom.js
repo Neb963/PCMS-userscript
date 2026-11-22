@@ -2,6 +2,7 @@ export function el(doc, tag, attrs = {}, ...children) {
   const node = doc.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
+    else if (key.startsWith('aria-')) node.setAttribute(key, String(value));
     else if (key === 'className') node.className = value;
     else if (value !== false && value !== null && value !== undefined) node.setAttribute(key, value === true ? '' : String(value));
   }

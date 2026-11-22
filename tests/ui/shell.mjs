@@ -42,6 +42,7 @@ try {
     await app.getByRole('button', { name: 'Settings', exact: true }).click();
     await app.getByRole('button', { name: 'Toggle theme' }).click();
     await page.waitForFunction(() => document.querySelector('#pcms-root').dataset.theme === 'dark');
+    assert.equal(await app.locator('h1').evaluate(n => getComputedStyle(n).color), 'rgb(238, 242, 250)');
     await app.getByRole('navigation').getByRole('button', { name: 'Overview', exact: true }).click();
     await app.getByRole('button', { name: 'Open Publication' }).focus();
     await page.keyboard.press('Enter');

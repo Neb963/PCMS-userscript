@@ -42,10 +42,10 @@
 
 ### P04 — Accepted PCMS shell and navigation
 
-- [ ] Implement the dedicated UI tab, Overview default, four top tabs, Settings icon and theme.
-- [ ] Use shared headings, accessibility primitives and internal scrolling.
-- [ ] Add navigation/keyboard smoke tests at wide, medium and narrow widths.
-- [ ] **Accept:** The mockup remains a visual reference; no faux remote success appears in the UI.
+- [x] Implement the dedicated UI tab, Overview default, four top tabs, Settings icon and theme.
+- [x] Use shared headings, accessibility primitives and internal scrolling.
+- [x] Add navigation/keyboard smoke tests at wide, medium and narrow widths.
+- [x] **Accept:** The mockup remains a visual reference; no faux remote success appears in the UI.
 
 ### P05 — Single coordinator lifecycle
 
