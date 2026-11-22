@@ -8,6 +8,7 @@
 // @noframes
 // @inject-into  content
 // @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_getTab
@@ -17,6 +18,7 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { NativePage, SessionGate } from './adapters/perchance/session.js';
 import { WorkerPool, WorkerRuntime, watchProtectedStore } from './runtime/workers.js';
 import { Coordinator } from './runtime/coordinator.js';
 import { ProtectedStore } from './state/store.js';
@@ -54,7 +56,13 @@ async function startAssignedWorker() {
   const id = tab.pcmsWorker || requested;
   if (!id) return;
   const store = new ProtectedStore({ get: GM_getValue, set: GM_setValue, locks: navigator.locks });
-  const runtime = new WorkerRuntime({ store, id, documentId: crypto.randomUUID(), doc: document, execute: async () => ({ outcome: 'rejected', reason: 'capability-unavailable' }) });
+  const runtime = new WorkerRuntime({ store, id, documentId: crypto.randomUUID(), doc: document, execute: async command => {
+    if (command.kind !== 'inspect-target') return { outcome: 'rejected', reason: 'capability-unavailable' };
+    const native = new NativePage(unsafeWindow);
+    await new SessionGate(store, native).requireOwner(command.target);
+    await native.ready(command.target);
+    return { outcome: 'verified' };
+  } });
   await runtime.register();
   GM_saveTab({ ...tab, pcmsWorker: id });
   const cleanURL = new URL(location.href);

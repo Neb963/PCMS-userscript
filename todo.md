@@ -1,20 +1,20 @@
 # Active work — handoff
 
-**Current phase:** P07 — Perchance session and ownership checks. **Status:** Planned.
+**Current phase:** P08 — Perchance inventory and saved-source reader. **Status:** Planned.
 
 ## Next action
 
-- Implement isolated native session observation, manual account binding/confirmation and owner/ID/slug/editor readiness checks.
-- Invalidate confirmation on sign-out/session change; gate owner operations without inferring account ID.
-- Test invalid session, wrong owner/target and unavailable editor.
+- Read inventory with native session, then independently resolve ID/slug/Listing and exact saved source/files.
+- Validate manifest, binary lengths, independent revision consistency and absent reads as Unknown.
+- Test empty src, rename, missing/corrupt files and incomplete readback.
 
 ## Evidence
 
-- P06: 22 tests/build/syntax pass; role capacity, inbox roundtrip, tab loss and selected-tab protection verified. See `docs/verification.md`.
+- P07: 25 tests/build/syntax pass; manual account/session and native owner/identity gates. See `docs/verification.md`.
 
 ## Blockers / deferred checks
 
-- DEFERRED — P01/P06 — actual Firefox/Violentmonkey install and native tab activation — disposable profile unavailable.
-- Native provider effects remain disabled pending live verification.
+- DEFERRED — P01/P06/P07 — actual Firefox/Violentmonkey install, session and native tab activation — disposable profile unavailable.
+- Native write capabilities remain false pending live verification.
 
-**Last pushed commit:** 66409d493df692f26ea9a3175d3cc73dd7a6e506.
+**Last pushed commit:** 84da78e7a9fa8b1c64690b8bb57282b0a3367f4e.

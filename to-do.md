@@ -63,10 +63,10 @@
 
 ### P07 — Perchance session and ownership checks
 
-- [ ] Implement sign-in state and **manual** `account_id` / Confirm session; never infer account ID.
-- [ ] Read owner/ID/slug readiness from the documented native surfaces.
-- [ ] Test sign-out, invalid session, mismatch and owner-only action blocking.
-- [ ] **Accept:** Native writes remain disabled until required operator/session/target conditions are met.
+- [x] Implement sign-in state and **manual** `account_id` / Confirm session; never infer account ID.
+- [x] Read owner/ID/slug readiness from the documented native surfaces.
+- [x] Test sign-out, invalid session, mismatch and owner-only action blocking.
+- [x] **Accept:** Native writes remain disabled until required operator/session/target conditions are met.
 
 ### P08 — Perchance inventory and saved-source reader
 
