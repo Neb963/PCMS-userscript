@@ -28,10 +28,10 @@
 
 ### P02 — Define the minimum domain records
 
-- [ ] Model account config, generator native ID/slug, Listing, workflow, local holds and pending updates.
-- [ ] Keep `status.md` exactly three required fields with no new state.
-- [ ] Add validation for invalid IDs, unknown state and multiple independent holds.
-- [ ] **Accept:** Synthetic tests demonstrate one canonical meaning per state and reject malformed inputs.
+- [x] Model account config, generator native ID/slug, Listing, workflow, local holds and pending updates.
+- [x] Keep `status.md` exactly three required fields with no new state.
+- [x] Add validation for invalid IDs, unknown state and multiple independent holds.
+- [x] **Accept:** Synthetic tests demonstrate one canonical meaning per state and reject malformed inputs.
 
 ### P03 — Durable local store and recovery records
 
