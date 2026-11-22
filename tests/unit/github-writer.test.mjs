@@ -71,3 +71,9 @@ test('rename moves every file in one tree and rejects partial moves and occupied
  const receipt=await f.writer.write({id:'move',targetSlug:'synthetic-generator',destinationSlug:'new-name',baseline:f.baseline,changes,operation:'rename'});assert.equal(receipt.verified,true);const current=await f.reader.snapshot();assert.equal(Object.keys(current.entries).some(p=>p.startsWith('synthetic-generator/')),false);assert.equal(current.entries['new-name/prompt.md'].sha,f.baseline.entries['synthetic-generator/prompt.md'].sha);assert.equal(f.calls.filter(c=>c.path==='/git/commits').length,1);
  const g=await fixture();g.reader.snapshot=async()=>({...g.baseline,entries:{...g.baseline.entries,'new-name/status.md':{path:'new-name/status.md',sha:'f'.repeat(40),type:'blob',mode:'100644'}}});await assert.rejects(g.writer.write({id:'taken',targetSlug:'synthetic-generator',destinationSlug:'new-name',baseline:g.baseline,changes,operation:'rename'}),/destination-conflict/);assert.equal(g.calls.length,0);
 });
+
+test('per-write cancellation checks stop effects without poisoning a shared writer',async()=>{
+ const f=await fixture(),api=f.reader.api;let stopped=false;f.reader.api=async(path,options)=>{const reply=await api(path,options);if(path==='/git/blobs')stopped=true;return reply;};
+ await assert.rejects(f.writer.write({id:'stop-during-objects',targetSlug:'synthetic-generator',baseline:f.baseline,changes:sourceChanges(f.baseline,'synthetic-generator',{pjs:'source',html:'html',files:{}},status),check:async()=>{if(stopped)throw Error('stopped');}}),/unknown/);assert.equal(f.calls.some(c=>c.path==='/git/refs/heads/main'),false);
+ assert.equal((await f.writer.write({id:'independent',targetSlug:'synthetic-generator',baseline:f.baseline,changes:statusChanges('synthetic-generator',status)})).verified,true);
+});

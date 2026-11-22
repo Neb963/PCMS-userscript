@@ -1,5 +1,5 @@
 import {functionalFingerprint} from '../refresher/markers.js';
-import {requireThat,addHold,releaseHold,sourceEqual,repository,statusRecord} from '../shared/domain.js';
+import {requireThat,addHold,releaseHold,sourceEqual,repository,statusRecord,parseStatus} from '../shared/domain.js';
 import {appendEvent} from '../state/journal.js';
 
 export async function enqueueEditAction(store,id,action,confirmed,uuid=()=>crypto.randomUUID(),token=null,{activate=true}={}){
@@ -18,10 +18,12 @@ export async function enqueueEditAction(store,id,action,confirmed,uuid=()=>crypt
   });
 }
 export class ManualEdits {
-  constructor({store,pool,nativeFactory,reader,gate,publisher,guard=async()=>{},assertCurrent=()=>{}}){Object.assign(this,{store,pool,nativeFactory,reader,gate,publisher,guard,assertCurrent});this.busy=false;}
+  constructor({store,pool,nativeFactory,reader,gate,publisher,services=null,guard=async()=>{},assertCurrent=()=>{}}){Object.assign(this,{store,pool,nativeFactory,reader,gate,publisher,services,guard,assertCurrent});this.busy=false;}
   async start(id){
     const state=await this.store.read(),r=state.edits[id];requireThat(r.phase==='opening','edit-already-started');await this.gate.requireOwner({id:r.generatorId,slug:r.slug,account:r.request.status.account});const live=await this.reader.saved(r.slug,r.generatorId);requireThat(live.listing===r.originalListing,'listing-changed');const expected=state.generators[r.generatorId].verifiedFingerprint;if(expected)requireThat(await functionalFingerprint(live.source)===expected,'saved-source-drift');
-    await this.store.transact(s=>{this.assertCurrent(s);s.edits[id].baselineSource=live.source;});
+    let request=r.request;const unsynced=Object.values(state.pending).some(p=>p.generatorId===r.generatorId&&p.kind==='source'&&!['synced','stopped','superseded','reassigned'].includes(p.phase));
+    if(this.services&&!unsynced){let svc=null,snapshot=null;try{svc=await this.services(r.request.repository);snapshot=await svc.github.snapshot();}catch{/* An offline Edit keeps the last verified original-repository baseline. */}if(snapshot){const status=parseStatus(await svc.github.text(snapshot,r.slug+'/status.md'));requireThat(status.account===r.request.status.account,'account-assignment-mismatch');requireThat(['done','blocked'].includes(status.state),'workflow-not-closed');requireThat(await functionalFingerprint(await svc.github.source(snapshot,r.slug))===await functionalFingerprint(live.source),'saved-source-drift');request={repository:r.request.repository,commit:snapshot.commit,status};}}
+    await this.store.transact(s=>{this.assertCurrent(s);s.edits[id].baselineSource=live.source;s.edits[id].request=request;});
     const previous=Object.values(state.edits).filter(p=>p.id!==id&&p.generatorId===r.generatorId&&['done','ended'].includes(p.phase)).at(-1),old=previous&&state.workers[previous.workerId];let worker;
     if(previous?.workerId)requireThat(old,'retained-tab-unavailable');
     if(old){requireThat(old.documentId&&old.documentId===previous.documentId&&old.phase!=='lost','retained-tab-unavailable');worker=old;await this.store.transact(s=>{this.assertCurrent(s);s.workers[worker.id].phase='idle';s.workers[worker.id].slotReleased=false;});if(r.activate!==false)await this.pool.activate(worker.id,true);}

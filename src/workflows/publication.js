@@ -69,7 +69,7 @@ export class Publication {
           });
         }
         const synced=await this.reservation.status(id,'done');
-        await this.reservation.update(id,(record,s)=>{record.phase=synced?'done':'sync-pending';const p=s.pending[pendingId];if(p){p.phase=synced?'synced':'local-done';if(synced){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}if(synced){record.steps.push('GitHub done committed');s.generators[target.id].githubCommit=record.statusCommit;}});
+        await this.reservation.update(id,(record,s)=>{record.phase=synced?'done':'sync-pending';const p=s.pending[pendingId];if(p){p.phase=synced?'synced':'local-done';if(synced){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}if(synced){record.steps.push('GitHub done committed');s.generators[target.id].githubCommit=record.statusCommit;s.generators[target.id].localDone=false;s.generators[target.id].localApproved=false;}});
         return this.reservation.current(id);
       }catch(error){
         const jobs=Object.values((await this.store.read()).jobs).filter(j=>j.requestId===id&&['dispatched','unknown'].includes(j.phase));

@@ -115,3 +115,8 @@ test('original credentials are pruned only after no pending work needs them',asy
 test('approved source waits for a superseded uncertain Review status before its single source/done commit',async()=>{
  for(const verified of [true,false]){const f=await fixture();await f.store.transact(s=>{s.pending.pending.developmentId='dev';s.pending.older={id:'older',generatorId:'123',slug:'target-slug',repository:s.pending.pending.repository,baseCommit:'a'.repeat(40),kind:'status',status:{account:'alpha',action:'develop',state:'review'},phase:'unknown',stopRequested:true,developmentId:'dev',writeId:'old-status'};s.jobs['old-status']={id:'old-status',kind:'github',phase:'unknown'};});f.client.writer.reconcile=async()=>({verified,commit:f.remote.snapshot.commit});const result=await f.sync.syncOne('pending');assert.equal(f.calls.length,verified?1:0);assert.equal(result.phase,verified?'synced':'unknown');if(verified)assert.equal((await f.store.read()).pending.older.phase,'superseded');}
 });
+
+test('sync ends temporary local priority only when no newer same-generator snapshot remains',async()=>{
+ const f=await fixture();await f.store.transact(s=>{s.pending.newer={...structuredClone(s.pending.pending),id:'newer',phase:'local-done',source:{pjs:'newer approved',html:'newer',files:{}}};});await f.sync.syncOne('pending');let s=await f.store.read();assert.equal(s.pending.pending.phase,'synced');assert.equal(s.generators['123'].localApproved,true);assert.equal(s.pending.newer.source.pjs,'newer approved');
+ const g=await fixture();await g.sync.syncOne('pending');s=await g.store.read();assert.equal(s.generators['123'].localDone,false);assert.equal(s.generators['123'].localApproved,false);
+});

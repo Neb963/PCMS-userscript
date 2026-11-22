@@ -217,10 +217,10 @@
 
 ### P29 — UI fidelity, keyboard and responsive pass
 
-- [ ] Check all screens against v2.0.0 screenshots and the exact Section 8 contract.
-- [ ] Fix focus return, nested dialogs, pane scroll, picker behavior and 320px access.
-- [ ] Validate light/dark, reduced motion, contrast and no duplicate navigation.
-- [ ] **Accept:** No regression in accepted UI routes, spacing, no outer desktop scroll and actionable states.
+- [x] Check all screens against v2.0.0 screenshots and the exact Section 8 contract.
+- [x] Fix focus return, nested dialogs, pane scroll, picker behavior and 320px access.
+- [x] Validate light/dark, reduced motion, contrast and no duplicate navigation.
+- [x] **Accept:** No regression in accepted UI routes, spacing, no outer desktop scroll and actionable states.
 
 ### P30 — Integration and failure regression
 

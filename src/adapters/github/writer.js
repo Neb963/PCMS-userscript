@@ -41,12 +41,13 @@ export async function folderMoveChanges(reader,snapshot,from,to){
 export class GitHubWriter {
   constructor({ reader, store, locks, guard }) { Object.assign(this, { reader, store, locks, guard }); }
 
-  async write({ id, targetSlug, destinationSlug = null, baseline, changes, operation = 'source' }) {
+  async write({ id, targetSlug, destinationSlug = null, baseline, changes, operation = 'source', check = async()=>{} }) {
     requireThat(/^[A-Za-z0-9_-]{1,128}$/.test(id) && ['source', 'status', 'rename', 'rollback', 'import'].includes(operation), 'invalid-github-write');
     slug(targetSlug);
     if(operation==='rename')requireThat(slug(destinationSlug)!==targetSlug,'rename-target-unchanged');else requireThat(destinationSlug===null,'unexpected-destination');
+    const beforeWrite=async()=>{await this.guard();await check();};
     return this.locks.request('pcms:github-writes:v1', { mode: 'exclusive' }, async () => {
-      await this.guard();
+      await beforeWrite();
       const prepared=(await this.store.read()).jobs[id];
       if(prepared&&prepared.phase!=='prepared')return this.reconcile(id);
       requireThat(JSON.stringify(baseline.repository) === JSON.stringify(this.reader.repository), 'github-repository-changed');
@@ -73,21 +74,21 @@ export class GitHubWriter {
         for (const [path, bytes] of Object.entries(changes)) {
           if (bytes === null) tree.push({ path, mode: '100644', type: 'blob', sha: null });
           else {
-            await this.guard();
+            await beforeWrite();
             const blob = await this.reader.api('/git/blobs', { method: 'POST', body: { content: bytesToBase64(bytes), encoding: 'base64' } });
             requireThat(blob.sha === intended[path], 'github-created-blob-mismatch');
             tree.push({ path, mode: '100644', type: 'blob', sha: blob.sha });
           }
         }
-        await this.guard();
+        await beforeWrite();
         const createdTree = await this.reader.api('/git/trees', { method: 'POST', body: { base_tree: current.treeSha, tree } });
         const treeSha = commitSha(createdTree.sha);
         await this.store.transact(s => { s.jobs[id].treeSha = treeSha; s.jobs[id].stage = 'commit'; });
-        await this.guard();
+        await beforeWrite();
         const commit = await this.reader.api('/git/commits', { method: 'POST', body: { message: `PCMS ${operation} [${id}]`, tree: treeSha, parents: [current.commit] } });
         const sha = commitSha(commit.sha);
         await this.store.transact(s => { s.jobs[id].commitSha = sha; s.jobs[id].stage = 'ref'; });
-        await this.guard();
+        await beforeWrite();
         requireThat(await this.reader.head() === current.commit, 'github-head-changed');
         await this.reader.api('/git/refs/heads/main', { method: 'PATCH', body: { sha, force: false } });
         return await this.reconcile(id);

@@ -35,3 +35,9 @@ test('interrupted read-only captures keep their evidence without acquiring an un
 test('a failed session preflight before opening ends only its never-started Edit intent',async()=>{
  const f=await fixture();f.service.gate.requireOwner=async()=>{throw Error('sign-in-required');};await f.enqueue('123','start');await f.service.tick();const s=await f.store.read();assert.equal(f.opened(),0);assert.equal(Object.values(s.edits)[0].phase,'ended');assert.equal(s.generators['123'].holds.length,0);assert.equal(Object.values(s.commands)[0].phase,'held');
 });
+
+test('new online Edit binds current coherent closed workflow; changed account blocks and offline preserves baseline',async()=>{
+ const f=await fixture();f.service.services=async()=>({github:{snapshot:async()=>({commit:'b'.repeat(40)}),text:async()=>`account: alpha\naction: develop\nstate: done\n`,source:async()=>f.source}});await f.enqueue('123','start');await f.service.tick();const r=Object.values((await f.store.read()).edits)[0];assert.equal(r.request.commit,'b'.repeat(40));assert.equal(r.request.status.action,'develop');
+ const g=await fixture();g.service.services=async()=>({github:{snapshot:async()=>({commit:'b'.repeat(40)}),text:async()=>`account: other\naction: develop\nstate: done\n`}});await g.enqueue('123','start');await g.service.tick();assert.equal(g.opened(),0);
+ const offline=await fixture();offline.service.services=async()=>{throw Error('offline');};await offline.enqueue('123','start');await offline.service.tick();assert.equal(Object.values((await offline.store.read()).edits)[0].request.commit,'a'.repeat(40));assert.equal(offline.opened(),1);
+});

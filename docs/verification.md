@@ -231,3 +231,7 @@ A retained native editor blocks unprotected typing/Save after Publish/End and of
 ## P28 — Contextual recovery
 
 258 Node tests and build/syntax/bootstrap PASS. Chromium/Firefox synthetic UI 45019557202 PASS at 90c9c00d83f639ff33d900c91fc5cc0097cb605b. Tests cover guarded automatic Utility restoration, explicit recovery approval, complete source snapshots, independent Listing/source holds, unknown Save across restart with no replay, canonical active Helper Stop guard, safe terminal management stop, external rename handoff and late creation receipts. Unknown Refresher attempts stay counted/Unknown after saved-source resolution. Real native qualification remains DEFERRED; gates false.
+
+## P29 — UI audit and refinement
+
+259 Node tests, build/syntax/bootstrap PASS. Chromium/Firefox UI 45020374414 PASS at 0c969b095aeb5cd873efd2cace069dfb03241806. All seven accepted screenshots and Section 8 reviewed. Fixes: unclipped native top-layer pickers; theme picker sync; safe search shortcut; stable action/journal/Manage focus; disabled-trigger and pending-review focus fallback; short-height reachability; primary-hover contrast. Browser checks cover six widths, empty setup, 320×420 short screen, reduced-motion component, nested dialogs, arrow/Home/End/Enter/Space/Escape/Tab and Settings alignment. Prior failures identified an added test navigation error and a real intermediate-disabled-row focus defect; both corrected before acceptance. Native live proof still deferred.

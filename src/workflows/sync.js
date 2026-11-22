@@ -76,6 +76,7 @@ export class Synchronizer {
       requireThat(!['stopped','reassigned'].includes(p.phase)&&!p.stopRequested,'sync-record-stopped');p.phase='synced';p.reason=null;p.commit=commit;
       const g=s.generators[p.generatorId];
       if(g&&(!p.developmentId||s.development?.[p.developmentId]?.statusPending===p.id)){s.generators[p.generatorId]=releaseHold({...g,status:p.status,githubCommit:commit},'sync-'+id);if(!s.generators[p.generatorId].holds.length&&p.kind==='source'){p.kind='status';delete p.source;delete p.previousSource;delete p.approval;}}
+      if(g&&!Object.values(s.pending).some(other=>other.id!==p.id&&other.generatorId===g.id&&!TERMINAL.includes(other.phase)&&!other.stopRequested)){s.generators[g.id].localDone=false;s.generators[g.id].localApproved=false;}
       if(p.developmentId&&s.development?.[p.developmentId]){s.development[p.developmentId].statusCommit=commit;if(p.kind==='status')for(const newer of Object.values(s.pending))if(newer.kind==='source'&&newer.developmentId===p.developmentId&&!newer.writeId&&newer.baseCommit===p.baseCommit)newer.baseCommit=commit;}
       const r=p.requestId&&s.utility?.[p.requestId];if(r&&r.pendingStatus&&sameStatus(r.pendingStatus.status,p.status)){if(p.scope==='pending')r.pendingStatus=null;r.statusCommit=commit;if(r.localDone)r.phase='done';}
       if(p.writeId&&s.jobs[p.writeId]?.phase==='unknown'){s.jobs[p.writeId].phase='cancelled';s.jobs[p.writeId].resolution='desired-state-present';s.jobs[p.writeId].remoteOutcome='unknown';}
@@ -136,9 +137,9 @@ export class Synchronizer {
       if(p.writeId&&(await this.store.read()).jobs[p.writeId]?.phase==='prepared')await this.store.transact(s=>{this.assertCurrent(s);s.jobs[p.writeId].phase='cancelled';s.jobs[p.writeId].resolution='known-not-dispatched';});
       const writeId='sync-'+this.uuid();await this.update(id,(row)=>{requireThat(!TERMINAL.includes(row.phase),'sync-record-stopped');row.writeId=writeId;row.phase='pending';row.reason=null;});
       p=await this.record(id);requireThat(!['stopped','reassigned'].includes(p.phase)&&!p.stopRequested,'sync-record-stopped');
-      if(client.writer.guard){const originalGuard=client.writer.guard;client.writer.guard=async()=>{await originalGuard();const pending=await this.record(id);requireThat(!TERMINAL.includes(pending.phase)&&!pending.stopRequested,'sync-record-stopped');};}
+      const check=async()=>{const pending=await this.record(id);requireThat(!TERMINAL.includes(pending.phase)&&!pending.stopRequested,'sync-record-stopped');};
       const changes=result.mode==='status'?statusChanges(p.slug,p.status):sourceChanges(result.current,p.slug,p.source,p.status);
-      const receipt=await client.writer.write({id:writeId,targetSlug:p.slug,baseline:result.current,changes,operation:result.mode==='status'?'status':'source'});
+      const receipt=await client.writer.write({id:writeId,targetSlug:p.slug,baseline:result.current,changes,check,operation:result.mode==='status'?'status':'source'});
       if(!receipt.verified){await this.annotate(id,'unknown');return this.record(id);}
       const latest=await this.describe(p,client);
       if(latest.kind==='same')await this.complete(id,latest.current.commit);else await this.annotate(id,latest.kind==='write'?'unknown':latest.kind);
