@@ -21,13 +21,13 @@ export class Reservation {
       if(job.phase!=='prepared'){
         const result=await recheck();
         requireThat(result,'reservation-result-unknown');
-        await this.update(id,(_r,s)=>{s.jobs[actionId].phase='verified';s.jobs[actionId].data=structuredClone(result);const child=s.jobs[actionId+'-worker'];if(child&&['dispatched','unknown'].includes(child.phase)){child.phase='verified';child.data=structuredClone(result);}});return result;
+        await this.update(id,(_r,s)=>{s.jobs[actionId].phase='verified';s.jobs[actionId].data=structuredClone(result);const generator=s.generators[s.jobs[actionId].generatorId||s.utility[id].generatorId];if(generator)s.generators[generator.id]=releaseHold(releaseHold(generator,actionId),actionId+'-worker');const child=s.jobs[actionId+'-worker'];if(child&&['dispatched','unknown'].includes(child.phase)){child.phase='verified';child.data=structuredClone(result);}});return result;
       }
     }else await this.store.prepareAction({id:actionId,kind:'native-'+step,generatorId:(await this.current(id)).generatorId,requestId:id});
     await this.guard();if(step==='create')await this.update(id,(_r,s)=>{s.settings.account.locked=true;});await this.store.markDispatched(actionId);
     try{
       const result=await perform(actionId);
-      await this.update(id,(_r,s)=>{s.jobs[actionId].phase='verified';s.jobs[actionId].data=structuredClone(result);const child=s.jobs[actionId+'-worker'];if(child&&['dispatched','unknown'].includes(child.phase)){child.phase='verified';child.data=structuredClone(result);}});return result;
+      await this.update(id,(_r,s)=>{s.jobs[actionId].phase='verified';s.jobs[actionId].data=structuredClone(result);const generator=s.generators[s.jobs[actionId].generatorId||s.utility[id].generatorId];if(generator)s.generators[generator.id]=releaseHold(releaseHold(generator,actionId),actionId+'-worker');const child=s.jobs[actionId+'-worker'];if(child&&['dispatched','unknown'].includes(child.phase)){child.phase='verified';child.data=structuredClone(result);}});return result;
     }catch(error){await this.update(id,(r,s)=>{s.jobs[actionId].phase='unknown';r.reason='reservation-result-unknown';});throw error;}
   }
 

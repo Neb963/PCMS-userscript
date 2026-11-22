@@ -9,7 +9,9 @@ function interruptJobs(state) {
   for (const job of Object.values(state.jobs)) {
     if (job.phase !== 'dispatched') continue;
     job.phase = 'unknown';
+    const worker=state.workers[job.workerId];if(worker&&worker.role!=='development')worker.phase='retained';
     const generator = state.generators[job.generatorId];
+    if(generator&&worker)generator.retainedTab=worker.id;
     if (generator && !generator.holds.some(h => h.id === job.id)) generator.holds.push({ id: job.id, kind: job.kind === 'helper' ? 'helper-unknown' : 'native-unknown' });
   }
 }
@@ -68,7 +70,7 @@ export class Coordinator {
     return this.store.transact(state => {
       this.assertOwner(state);
       requireThat(!Object.hasOwn(state.jobs, job.id), 'duplicate-job');
-      if (job.generatorId) requireThat(!Object.values(state.jobs).some(j => j.generatorId === job.generatorId && j.id !== job.parentId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
+      if (job.generatorId&&!['read-saved','inspect-target','native-capture'].includes(job.kind)) requireThat(!Object.values(state.jobs).some(j => !['read-saved','inspect-target','native-capture'].includes(j.kind)&&j.generatorId === job.generatorId && j.id !== job.parentId && ['prepared', 'dispatched', 'unknown'].includes(j.phase)), 'generator-write-held');
       state.jobs[job.id] = { ...structuredClone(job), owner: this.owner, term: this.term, phase: 'prepared', accepted: false };
       return structuredClone(state.jobs[job.id]);
     });
@@ -123,4 +125,16 @@ export async function acceptCommand(store, command, worker) {
     job.accepted = true;
     return structuredClone(job);
   });
+}
+
+export function guardNativeCommand(state,command,workerId){
+  const job=state.jobs[command.id],worker=state.workers[workerId],parent=command.payload?.actionId&&state.jobs[command.payload.actionId],request=parent?.requestId&&state.utility?.[parent.requestId];
+  requireThat(job?.phase==='dispatched'&&job.accepted===true&&!job.locallyStopped&&!parent?.locallyStopped&&state.coordinator.term===command.term&&state.coordinator.owner===command.owner&&worker?.documentId===command.documentId&&worker.phase==='busy','stale-native-command');
+  requireThat(!request?.stopped&&!request?.stopRequested&&!state.generators[command.target?.id]?.stopRequested&&!state.pending[command.payload?.pendingId]?.stopRequested,'request-stopped');
+  if(command.kind.startsWith('refresh-'))requireThat(worker.role==='refresher','wrong-native-worker-role');
+  if(command.target?.id){
+    const generator=state.generators[command.target.id],allowed=new Set([command.id,parent?.id,request?.id].filter(Boolean));
+    const previous=request?.request.replacesPendingId&&state.pending[request.request.replacesPendingId];if(previous?.phase==='publication-queued'&&previous.decision?.successorRequest===request.id)allowed.add('sync-'+previous.id);
+    requireThat(generator&&generator.slug===command.target.slug&&generator.holds.every(h=>allowed.has(h.id)),'generator-source-held');
+  }
 }

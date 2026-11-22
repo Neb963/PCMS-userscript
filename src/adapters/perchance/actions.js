@@ -5,7 +5,7 @@ import { requireLiveCapability } from './session.js';
 
 // Observe only the specific native endpoint while its own UI action is running.
 // No direct owner mutation HTTP client, Save-state heuristics or receipt-by-click.
-export async function nativeReceipt(page,{path,invoke,matches=()=>true,allow=async()=>{},observe=async()=>{},exporter,timeout=30000}) {
+export async function nativeReceipt(page,{path,invoke,matches=()=>true,allow=async()=>{},observe=async()=>{},onDispatch=()=>{},exporter,timeout=30000}) {
   requireThat(typeof exporter==='function'&&typeof page.fetch==='function'&&typeof page.Promise==='function','native-receipt-bridge-unavailable');
   const original=page.fetch,PagePromise=page.Promise;let wrapped,timer,resolveReply,rejectReply,active=true,dispatched=false;
   const reply=new Promise((resolve,reject)=>{resolveReply=resolve;rejectReply=reject;});reply.catch(()=>{});
@@ -20,22 +20,22 @@ export async function nativeReceipt(page,{path,invoke,matches=()=>true,allow=asy
     // A page-realm Promise returns the existing page Response, not a privileged
     // Promise/object. The allow check runs before the native transport is called.
     return new PagePromise((resolve,reject)=>{
-      Promise.resolve().then(()=>{requireThat(active,'native-observer-expired');return allow(body);}).then(()=>{requireThat(active,'native-observer-expired');requireThat(!dispatched,'duplicate-native-dispatch');dispatched=true;return original.apply(receiver,args);}).then(response=>{
+      Promise.resolve().then(()=>{requireThat(active,'native-observer-expired');return allow(body);}).then(()=>{requireThat(active,'native-observer-expired');requireThat(!dispatched,'duplicate-native-dispatch');dispatched=true;onDispatch();return original.apply(receiver,args);}).then(response=>{
         resolve(response);
         Promise.resolve().then(async()=>{requireThat(response.ok,'native-http-unconfirmed');const value=await response.clone().json(),safe={};for(const key of ['status','name','time','saveCount','sourceRevision','editorPayloadRevision'])if(['string','number','boolean'].includes(typeof value?.[key]))safe[key]=value[key];await observe(safe);resolveReply(safe);}).catch(()=>rejectReply(Error('native-receipt-unconfirmed')));
       }).catch(()=>{reject('PCMS native operation unavailable');rejectReply(Error('native-dispatch-unconfirmed'));});
     });
   },page);
   page.fetch=wrapped;
-  const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{active=false;reject(Error('native-receipt-timeout'));},timeout);timer.unref?.();});
+  const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{active=false;reject(Error('native-receipt-timeout'));},timeout);});
   const invoked=Promise.resolve().then(invoke).catch(()=>{if(!dispatched)rejectReply(Error('native-invocation-unconfirmed'));});
   try{return await Promise.race([Promise.all([invoked,reply]).then(([,value])=>value),deadline]);}finally{active=false;clearTimeout(timer);if(page.fetch===wrapped)page.fetch=original;reply.catch(()=>{});}
 }
 
 export class NativeActions {
   constructor({page,native,gate,reader,doc,exporter,store=null,workerId=null,documentId=null,actionId=null,guard=async()=>{},capability=requireLiveCapability}) {Object.assign(this,{page,native,gate,reader,doc,exporter,store,workerId,documentId,actionId,guard,capability});}
-  async receipt(path,invoke,matches){
-    return nativeReceipt(this.page,{path,invoke,matches,allow:async()=>{this.selected();await this.guard();},exporter:this.exporter,observe:async observed=>{
+  async receipt(path,invoke,matches,{allow=null,onDispatch=()=>{}}={}){
+    return nativeReceipt(this.page,{path,invoke,matches,allow:async body=>{this.selected();await this.guard();if(allow)await allow(body);this.selected();await this.guard();},onDispatch,exporter:this.exporter,observe:async observed=>{
       if(this.store&&this.actionId)await this.store.transact(s=>{const job=s.jobs[this.actionId];requireThat(job?.workerId===this.workerId&&job.documentId===this.documentId,'receipt-job-changed');job.observedReceipt=observed;const parent=job.parentId&&s.jobs[job.parentId];if(parent)parent.observedReceipt=observed;});
     }});
   }

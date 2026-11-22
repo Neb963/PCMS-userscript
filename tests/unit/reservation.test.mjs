@@ -99,3 +99,8 @@ test('one native invocation cannot send a second matched Save',async()=>{
   let sends=0;const page={Promise,fetch:async()=>{sends++;return {ok:true,clone:()=>({json:async()=>({status:'saved',name:'wanted-slug'})})};}};
   await assert.rejects(nativeReceipt(page,{path:'/api/save',exporter:f=>f,invoke:()=>Promise.all([page.fetch('/api/save',{body:'{}'}),page.fetch('/api/save',{body:'{}'})])}));assert.equal(sends,1);
 });
+test('reconciled reservation effects release only their own correlated interruption holds',async()=>{
+  const f=await fixture();f.native.rename=async(_target,slug)=>{f.calls.push('rename');f.live.slug=slug;throw Error('lost reply');};assert.equal((await f.reservation.run(f.request,'correlation')).phase,'unknown');
+  await f.store.transact(s=>{s.jobs['correlation-rename-worker']={id:'correlation-rename-worker',kind:'native-rename',phase:'unknown'};s.generators['123'].holds.push({id:'correlation-rename',kind:'native-unknown'},{id:'correlation-rename-worker',kind:'native-unknown'},{id:'independent',kind:'edit'});});
+  assert.equal((await f.reservation.run(f.request,'correlation')).phase,'reserved');const ids=(await f.store.read()).generators['123'].holds.map(h=>h.id);assert.equal(ids.includes('correlation-rename'),false);assert.equal(ids.includes('correlation-rename-worker'),false);assert.equal(ids.includes('independent'),true);assert.equal(f.calls.filter(c=>c==='rename').length,1);
+});

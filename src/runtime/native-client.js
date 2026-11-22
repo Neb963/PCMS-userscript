@@ -9,7 +9,7 @@ export class NativeClient {
     if(existing)return this.result(id);
     let worker=(await this.store.read()).workers[this.workerId];
     if(!worker){
-      const state=await this.store.read();worker=Object.values(state.workers).find(w=>w.role===this.role&&w.phase==='idle');
+      const state=await this.store.read();worker=Object.values(state.workers).find(w=>w.role===this.role&&['idle','opening'].includes(w.phase));
       if(!worker)worker=await this.pool.open(this.role,target.slug,target.id||null,kind==='native-create');
       this.workerId=worker.id;
     }
@@ -28,6 +28,8 @@ export class NativeClient {
     await this.coordinator.claim({id,kind,target,payload,parentId:payload.actionId||null,generatorId:target.id||null,workerId:worker.id,documentId:worker.documentId,operatorAction});
     await this.coordinator.dispatch(id,c=>this.pool.send(c));return this.result(id);
   }
+  prepareRefresh(target,id){return this.command('refresh-prepare',target,{markerId:id},id+'-prepare');}
+  saveRefresh(target,id){return this.command('refresh-save',target,{markerId:id},id+'-save');}
   deploy(target,pendingId,actionId){return this.command('native-deploy',target,{pendingId,actionId},actionId+'-worker');}
   create(actionId){return this.command('native-create',{slug:'minimal'},{actionId},actionId+'-worker');}
   listing(target,intent,actionId){return this.command('native-listing',target,{intent,actionId},actionId+'-worker');}

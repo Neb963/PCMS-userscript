@@ -7,7 +7,11 @@ function files(snapshot,targetSlug){return JSON.stringify(Object.values(snapshot
 export class Publication {
   constructor({reservation,store,github,native,reader,gate,locks,guard=async()=>{},assertCurrent=()=>{}}){Object.assign(this,{reservation,store,github,native,reader,gate,locks,guard,assertCurrent});}
   async requestCurrent(request,id){
-    await this.guard();const r=(await this.store.read()).utility?.[id],original=await this.github.snapshot(request.commit),current=await this.github.snapshot();
+    await this.guard();const local=await this.store.read(),r=local.utility?.[id],generator=r?.generatorId&&local.generators[r.generatorId],allowed=new Set([id]);
+    for(const job of Object.values(local.jobs))if(job.requestId===id){allowed.add(job.id);allowed.add(job.id+'-worker');}
+    if(request.replacesPendingId)allowed.add('sync-'+request.replacesPendingId);
+    requireThat(!generator||generator.holds.every(h=>allowed.has(h.id)),'generator-source-held');
+    const original=await this.github.snapshot(request.commit),current=await this.github.snapshot();
     requireThat(files(original,request.slug)===files(current,request.slug),'github-source-or-instructions-changed');
     const status= parseStatus(await this.github.text(current,request.slug+'/status.md'));
     requireThat(status.account===request.status.account,'account-assignment-mismatch');

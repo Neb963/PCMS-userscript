@@ -21,6 +21,9 @@
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
 
+import { NativeRefresher } from './refresher/native.js';
+import { RefresherController } from './refresher/controller.js';
+import { guardNativeCommand } from './runtime/coordinator.js';
 import { RefreshScheduler } from './refresher/scheduler.js';
 import { Synchronizer, enqueueSyncAction } from './workflows/sync.js';
 import { syncRenderer } from './ui/sync.js';
@@ -68,7 +71,7 @@ function coordinate(store, ui = null) {
   const coordinator = new Coordinator({ store, locks: navigator.locks, owner: crypto.randomUUID() });
   const pool = new WorkerPool({ store, openTab: GM_openInTab });
   const poller = new GitHubPoller({ store, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
-  const scheduler=new RefreshScheduler({store,bootId:coordinator.owner,guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
+  const scheduler=new RefreshScheduler({store,bootId:coordinator.owner,available:state=>state.settings.account.confirmed&&Object.values(state.workers).some(w=>w.role==='refresher'&&w.phase==='idle'&&w.documentId&&!w.selected),guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
   let consuming = false;
   let lastPulse = 0;
   const mountedAt = Date.now();
@@ -101,7 +104,7 @@ function coordinate(store, ui = null) {
       if (Date.now() - lastPulse >= 5000) { await store.transact(state => { coordinator.assertOwner(state); state.coordinator.observedAt = Date.now(); }); lastPulse = Date.now(); }
       scheduler.reconcile().catch(()=>{});await pool.consume(coordinator);
       if(!requests.busy&&!commands.busy)commands.tick().then(()=>requests.tick()).catch(()=>{});
-      synchronizer.tickCommands().catch(()=>{});synchronizer.tick().catch(()=>{});await poller.check(true);
+      refresher.tick().catch(()=>{});synchronizer.tickCommands().catch(()=>{});synchronizer.tick().catch(()=>{});await poller.check(true);
     } catch { /* Durable state retains the unresolved command. */ }
     finally { consuming = false; }
   };
@@ -121,7 +124,8 @@ function coordinate(store, ui = null) {
   };
   const requests=new RequestRunner({store,coordinator,factory:async request=>{const reservation=await reservationWorkflow(request);if(request.status.action==='develop')return reservation;return new Publication({reservation,store,github:reservation.github,native:reservation.native,reader:reservation.reader,gate,locks:navigator.locks,guard:reservation.guard,assertCurrent:current=>coordinator.assertOwner(current)});}});
   const synchronizer=new Synchronizer({store,services:async repo=>{const service=await importWorkflow({repository:repo});return {github:service.github,writer:service.writer,reader:service.reader};},guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current),importWorkflow});
-  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests, synchronizer, scheduler };
+  const refresher=new RefresherController({store,scheduler,nativeFactory:async()=>new NativeClient({store,pool,coordinator,role:'refresher'}),locks:navigator.locks,guard:async()=>coordinator.assertOwner(await store.read()),assertCurrent:current=>coordinator.assertOwner(current)});
+  return { coordinator, pool, poller, importWorkflow, reservationWorkflow, requests, synchronizer, scheduler, refresher };
 }
 
 async function startAssignedWorker() {
@@ -136,7 +140,8 @@ async function startAssignedWorker() {
     const gate = new SessionGate(store, native);
     const reader = new PerchanceReader({ native, gate, request: (url, options) => privilegedRequest(GM_xmlhttpRequest, url, options) });
     if(command.kind==='navigate'){await cleanNavigation();return {outcome:'verified'};}
-    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,workerId:id,documentId:command.documentId,actionId:command.id,guard:async()=>{const state=await store.read();if(state.generators[command.target?.id]?.stopRequested||state.pending[command.payload?.pendingId]?.stopRequested||state.utility?.[state.jobs[command.payload?.actionId]?.requestId]?.stopRequested||state.jobs[command.id]?.locallyStopped||state.jobs[command.payload?.actionId]?.locallyStopped||state.utility?.[state.jobs[command.payload?.actionId]?.requestId]?.stopped||state.coordinator.term!==command.term||state.coordinator.owner!==command.owner||state.workers[id]?.documentId!==command.documentId)throw Error('stale-native-command');},exporter:typeof exportFunction==='function'?exportFunction:null});
+    const actions=new NativeActions({page:unsafeWindow,native,gate,reader,doc:document,store,workerId:id,documentId:command.documentId,actionId:command.id,guard:async()=>guardNativeCommand(await store.read(),command,id),exporter:typeof exportFunction==='function'?exportFunction:null});
+    if(command.kind==='refresh-prepare'||command.kind==='refresh-save'){const refresher=new NativeRefresher({actions,store,native,gate,reader});return {outcome:'verified',data:command.kind==='refresh-prepare'?await refresher.prepare(command.target,command.payload.markerId):await refresher.save(command.target,command.payload.markerId)};}
     if(command.kind==='native-deploy')return {outcome:'verified',data:await actions.deploy(command.target,command.payload.pendingId)};
     if(command.kind==='native-create')return {outcome:'verified',data:await actions.create(command.payload.actionId)};
     if(command.kind==='native-listing')return {outcome:'verified',data:await actions.listing(command.target,command.payload.intent)};

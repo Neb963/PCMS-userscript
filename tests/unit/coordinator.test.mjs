@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Coordinator, acceptCommand } from '../../src/runtime/coordinator.js';
+import { Coordinator, acceptCommand, guardNativeCommand } from '../../src/runtime/coordinator.js';
 import { ProtectedStore } from '../../src/state/store.js';
 
 function fixture() {
@@ -72,4 +72,17 @@ test('duplicate dispatch, wrong document and unknown transport cannot repeat eff
 test('failed authority bootstrap releases all provider ownership before another candidate',async()=>{
   const f=fixture();let releases=0;f.store.acquireAuthority=async()=>{throw Error('fresh-read-unavailable');};f.store.releaseAuthority=async()=>{releases++;};
   const candidate=new Coordinator({...f,owner:'failed-bootstrap'});await assert.rejects(candidate.run(new AbortController().signal),/fresh-read/);assert.equal(candidate.active,false);assert.equal(releases,1);
+});
+test('takeover frees uncertain Utility/Refresher roles while retaining Development execution slots',async()=>{
+  const f=fixture();await f.store.transact(s=>{for(const role of ['utility','refresher','development']){s.workers[role]={id:role,role,phase:'busy'};s.generators[role]={holds:[]};s.jobs[role]={id:role,kind:'save',generatorId:role,workerId:role,phase:'dispatched'};}});
+  const c=new Coordinator({...f,owner:'new'}),abort=new AbortController(),run=started(c,abort.signal);await run.acquired;const s=await f.store.read();assert.equal(s.workers.utility.phase,'retained');assert.equal(s.workers.refresher.phase,'retained');assert.equal(s.workers.development.phase,'busy');assert.equal(s.jobs.refresher.phase,'unknown');abort.abort();await run.done;
+});
+test('unknown source writes permit independent reads but reject another writer',async()=>{
+  const f=fixture(),c=new Coordinator({...f,owner:'a'}),abort=new AbortController(),run=started(c,abort.signal);await run.acquired;await f.store.prepareAction({id:'unknown',kind:'save',generatorId:'123'});await f.store.markDispatched('unknown');await f.store.recoverInterrupted();
+  await c.claim({...job,id:'read-only',kind:'read-saved'});await assert.rejects(c.claim({...job,id:'another-write'}),/held/);abort.abort();await run.done;
+});
+test('final native guard rejects lost/stopped/stale workers and independent source holds',()=>{
+  const command={id:'refresh-save',kind:'refresh-save',term:1,owner:'coordinator',documentId:'document',target:{id:'123',slug:'target-slug'},payload:{}},state={coordinator:{term:1,owner:'coordinator'},jobs:{'refresh-save':{phase:'dispatched',accepted:true}},workers:{worker:{role:'refresher',phase:'busy',documentId:'document'}},generators:{'123':{id:'123',slug:'target-slug',holds:[]}},pending:{},utility:{}};
+  guardNativeCommand(state,command,'worker');
+  for(const change of [s=>{s.workers.worker.phase='lost';},s=>{s.coordinator.term=2;},s=>{s.jobs['refresh-save'].phase='unknown';},s=>{s.generators['123'].stopRequested=true;},s=>{s.generators['123'].holds.push({id:'manual-edit',kind:'edit'});}]){const copy=structuredClone(state);change(copy);assert.throws(()=>guardNativeCommand(copy,command,'worker'));}
 });
