@@ -100,3 +100,5 @@
 - Original P12 [UI run 44968961811](https://github.com/Neb963/PCMS-userscript/actions/runs/44968961811) PASS. Updated startup/iframe path needs the next synthetic UI run; actual VM cache/injection persistence remains DEFERRED.
 
 - Cache-repair UI run 44969857009: Chromium PASS; all Firefox behavior assertions passed, but Firefox reported protocol evaluation cancellation when the successful transient probe removed its own document. Fixed test injection to execute from the frame's DOMContentLoaded handler; successful probe now explicitly requires a verified Coordinator and removal of the transient frame. No behavior assertion was removed.
+
+- UI run 44970004436: Chromium PASS; Firefox startup waited for verified authority rather than accepting a cached shell. Fixed the probe lifecycle to resolve its protected reply before removing the child document on a parent task. Added ordering regression and startup diagnostics containing synthetic status only. Read-only header check confirms Perchance welcome currently uses `X-Frame-Options: SAMEORIGIN`; real VM injection remains deferred.

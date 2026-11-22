@@ -46,8 +46,12 @@ try {
     await page.addScriptTag({ content: script });
     const app = page.locator('#pcms-root');
     await app.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
-    await app.getByText('Coordinator Verified', { exact: true }).waitFor();
-    assert.equal(await page.locator('iframe[src*=pcms_store_probe]').count(), 0);
+    try { await app.getByText('Coordinator Verified', { exact: true }).waitFor(); }
+    catch(error) {
+      console.log(JSON.stringify({browser:browserType,width,errors,coordinatorText:await app.locator('.statusline').allTextContents(),probeFrames:await page.locator('iframe[src*=pcms_store_probe]').count()}));
+      throw error;
+    }
+    await page.waitForFunction(() => document.querySelectorAll('iframe[src*=pcms_store_probe]').length === 0);
     const baseline = await app.locator('.pagehead').boundingBox();
     for (const route of ['Generators', 'Reviews', 'Refresher']) {
       await app.getByRole('navigation').getByRole('button', { name: route, exact: true }).click();

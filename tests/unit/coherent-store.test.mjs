@@ -45,3 +45,12 @@ test('failed root persistence poisons authority and cannot authorize later actio
   await assert.rejects(candidate.store.transact(s=>{s.fifo.push('123');}),/unconfirmed/);await assert.rejects(candidate.store.read(),/unavailable/);assert.equal(candidate.store.available,false);
   await candidate.store.releaseAuthority();
 });
+
+test('fresh probe resolves its protected reply before parent-task frame cleanup',async()=>{
+  const {freshStoreProbe}=await import('../../src/state/coherent-store.js');let listener,removed=false;
+  const frame={setAttribute:()=>{},remove:()=>{removed=true;}};
+  const doc={createElement:()=>frame,defaultView:{setTimeout}};
+  const probe=freshStoreProbe({doc,host:{append:()=>queueMicrotask(()=>listener('key',null,{nonce:'probe-1',raw:null}))},addListener:(_key,fn)=>{listener=fn;return 1;},removeListener:()=>{},uuid:()=> 'probe-1'});
+  assert.equal(await probe(),null);assert.equal(removed,false);
+  await new Promise(resolve=>setTimeout(resolve,0));assert.equal(removed,true);
+});

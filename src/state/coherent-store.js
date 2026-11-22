@@ -135,7 +135,14 @@ export function freshStoreProbe({doc,host,addListener,removeListener,uuid=()=>cr
     const nonce=uuid();
     const frame=doc.createElement('iframe');frame.hidden=true;frame.tabIndex=-1;frame.setAttribute('aria-hidden','true');
     let listener;
-    const finish=(error,raw)=>{clearTimeout(timer);removeListener(listener);frame.remove();error?reject(error):resolve(raw);};
+    const finish=(error,raw)=>{
+      clearTimeout(timer);removeListener(listener);
+      error?reject(error):resolve(raw);
+      // The protected reply may arrive on the child document's callback stack.
+      // Resolve first; remove it on the parent's next task so Firefox cannot
+      // tear down that stack before authority startup receives its result.
+      doc.defaultView.setTimeout(()=>frame.remove(),0);
+    };
     listener=addListener(STORE_PROBE_KEY,(_key,_old,message)=>{if(message?.nonce===nonce)finish(null,message.raw);});
     const timer=setTimeout(()=>finish(new Error('storage-fresh-read-unavailable')),15000);
     frame.src='https://perchance.org/welcome?pcms_store_probe='+nonce;
