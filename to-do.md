@@ -147,10 +147,10 @@
 
 ### P19 — Pure FIFO scheduler
 
-- [ ] Implement one-pass queue scan, capped-to-tail rotation and newly-eligible-to-tail.
-- [ ] Enforce spaced attempts, account/per-generator rolling 60-minute limits.
-- [ ] Test n=0, cap changes, failures, unknown attempts, clock jumps and missed slots.
-- [ ] **Accept:** Pure scheduler never spins or catches up, and skips do not spend an attempt.
+- [x] Implement one-pass queue scan, capped-to-tail rotation and newly-eligible-to-tail.
+- [x] Enforce spaced attempts, account/per-generator rolling 60-minute limits.
+- [x] Test n=0, cap changes, failures, unknown attempts, clock jumps and missed slots.
+- [x] **Accept:** Pure scheduler never spins or catches up, and skips do not spend an attempt.
 
 ### P20 — Dedicated Refresher Save worker
 

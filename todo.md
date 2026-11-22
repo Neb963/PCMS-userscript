@@ -1,18 +1,21 @@
 # Active work — handoff
 
-**Current phase:** P19 — Pure FIFO scheduler. **Status:** Implemented; regression checks pending.
+**Current phase:** P20 — Dedicated Refresher Save worker. **Status:** Planned.
 
 ## Next action
 
-- Confirm scheduler/coordinator browser regression after one-time clock/FIFO reconciliation, then accept P19 and plan P20 dedicated Refresher Save worker.
-- P20 must use the Coordinator clock, dedicated hidden worker, per-generator source lock and exact acknowledged Listed marker Save. It must prevent stale worker effects and never share clocks across document performance origins.
+- Implement safe leading PJS/HTML PCMS comment markers, replacement/extraction and functional-source fingerprints over both panels and exact src bytes. Preserve baseline fingerprints at verified Import/publication so offline refresh can detect drift without GitHub.
+- Add dedicated Refresher preparation/Save commands. Require hidden clean same-ID/owner draft and Listed source, preserve exact functional source/src, retain/read back the intended marker state, and use one acknowledged native Save plus independent source/Listing readback.
+- Keep scheduling time in the Coordinator. Prepare first, then durably claim a paced attempt before Save, record failed/Unknown conservatively and move to tail. Proven pre-send skips do not count; uncertain writes hold only their generator.
+- Reject stale/stopped/lost worker commands at the final native transport boundary. Never infer refreshed from clean editor, metadata time, functional match, missing marker, HTTP 200 or lost reply. No rank requests.
+- Test marker syntax/BOM/CRLF/empty panels, source drift/missing baseline, dirty/selected tab, stale document, receipt failure/unknown, worker loss, queue continuation and no repeated Save. Run existing regressions. Keep live Save gate false until disposable Firefox/VM proof.
 
 ## Evidence
 
-P00–P18 synthetic implementation evidence is in docs/verification.md. Build/syntax and 158 Node tests PASS. P19 covers pure FIFO, capped-to-tail scan, no attempt on selection/skip, rolling account/per-generator caps, failures/Unknown, actual completion spacing, cap/count changes, pause/delay/restart, wall/monotonic jumps, pruning and storage failure. Reconciliation does not write the root on each timer. P18 final checks 44977640186 and Chromium/Firefox UI 44977640270 PASS at a64be5ae0500b6a9c294430e212d39eb513afcee; local/remote trees match. P01 live installation acceptance remains deferred.
+P00–P19 evidence is in docs/verification.md. Build/syntax and 158 Node tests PASS. P19 checks 44978381380 and Chromium/Firefox UI 44978381382 PASS at c0eacfe17b4267acb474f74e1b776d6812e2edbd. P01 live installation acceptance remains deferred.
 
 ## Blockers / deferred checks
 
-DEFERRED — P01–P18 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft Save and real GitHub synchronization — no disposable profile/targets/PAT supplied. Static capability flags remain false. P19 is a pure/synthetic phase; it does not enable native refresh Saves.
+DEFERRED — P01–P20 real Firefox/Violentmonkey injection/cache/disk, native receipt interception, retained draft/refresh Save and GitHub synchronization — no disposable profile/targets/PAT supplied. Static write flags remain false.
 
-**Last pushed commit:** ffc04eea0b579f3381dee5586a66349019dc7bff.
+**Last pushed commit:** c0eacfe17b4267acb474f74e1b776d6812e2edbd.
